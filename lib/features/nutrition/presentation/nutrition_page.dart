@@ -127,6 +127,10 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
     onDateSelected: (date) => setState(() => _selectedDate = date),
     dishLibraryRepository: widget.dishLibraryRepository,
     onAddDishToMeal: widget.onAddDishToMeal,
+    // D-1（2026-10-25）：让「按菜品记录」也能搜到**食堂目录里未分析**的菜
+    // （它们不进菜品库，但用户要搜得到）。分析与食堂目录页同一个回调。
+    canteenRepository: widget.canteenRepository,
+    onAnalyzeDishes: widget.onAnalyzeDishes,
   );
 
   DateTime get _now => widget.now ?? DateTime.now();

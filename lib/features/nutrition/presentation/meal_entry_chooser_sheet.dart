@@ -7,6 +7,7 @@ import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_search_field.dart';
 import 'package:localfit_ai/core/text/search_text.dart';
+import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/source_badge.dart';
@@ -112,16 +113,50 @@ class MealRecordEntryChooser extends StatelessWidget {
 /// [AddDishToMeal.assumedServingGrams] 仅供展示），营养按整份快照写入——
 /// 与既有的「加入午餐」一字不差。按克数换算的份量口径在 schema 28 落地后
 /// 才成立（docs/40 §2.2），届时改这里一处即可。
+/// 「按菜品记录」的选择结果（2026-10-25 用户裁决 D-1 选项 2）。
+///
+/// 为什么要有这个类型：弹层里现在有两类菜，**行为不同**——
+/// * [PickedLibraryDish]：菜品库里的菜，有营养，**可以直接记**；
+/// * [PickedUnanalyzedCanteenDish]：食堂目录里**还没分析**的菜，没有营养。
+///   它出现在这里是为了「搜得到」（用户原话：「那边有，这边没有」），
+///   但**不能直接记**——记下去就是 0 kcal，会污染当天热量（属「静默写错
+///   事实」）。所以调用方拿到它之后要给**明确的下一步**（去分析）。
+sealed class DishPick {
+  const DishPick();
+}
+
+/// 选中了菜品库里的一道菜（有营养，可直接记）。
+final class PickedLibraryDish extends DishPick {
+  const PickedLibraryDish(this.dish);
+  final DishRecord dish;
+}
+
+/// 选中了食堂目录里**未分析**的一道菜（要先分析才能记）。
+final class PickedUnanalyzedCanteenDish extends DishPick {
+  const PickedUnanalyzedCanteenDish(this.dish);
+  final CanteenDish dish;
+}
+
 class DishMealPickerDialog extends StatefulWidget {
   const DishMealPickerDialog({
     super.key,
     required this.dishes,
     required this.mealSlotLabel,
+    this.unanalyzedCanteenDishes = const [],
     this.title = '按菜品记录',
   });
 
   /// 菜品库全部条目（调用方已读好；弹层自己不查库）。
   final List<DishRecord> dishes;
+
+  /// 食堂目录里**还没分析**的菜（`hasNutrition == false`）。调用方已读好。
+  ///
+  /// 【为什么要这个】`AddCanteenDishesToLibrary.run` 对没有营养的食堂菜直接
+  /// `continue`（保持菜品库干净——全「—」的卡会污染营养分母），而本弹层
+  /// 原来只读菜品库 ⇒ 用户「刚在食堂目录加好的菜」在这里**搜不到**
+  /// （用户实测原话：「那边有，这边没有」）。
+  /// 现在单独列一组让人**搜得到**，但**不给直接记**（见 [DishPick] 注释）。
+  final List<CanteenDish> unanalyzedCanteenDishes;
 
   /// 餐次文案（复用菜品卡的既有口径，不在本件里再写一份 switch）。
   final String Function(String mealSlot) mealSlotLabel;
@@ -154,10 +189,103 @@ class _DishMealPickerDialogState extends State<DishMealPickerDialog> {
     ];
   }
 
+  /// 过滤后的**未分析食堂菜**（与菜品库同一套匹配口径）。
+  List<CanteenDish> get _visibleCanteen {
+    final normalized = normalizeSearchText(_query);
+    if (normalized.isEmpty) return widget.unanalyzedCanteenDishes;
+    return [
+      for (final dish in widget.unanalyzedCanteenDishes)
+        if (normalizeSearchText(dish.name).contains(normalized)) dish,
+    ];
+  }
+
+  /// 弹层里**一共**有没有可显示的东西（两类都算）。
+  ///
+  /// 用它决定搜索框与「一个都没有」的空态——原来只看菜品库，菜品库空但
+  /// 食堂有未分析菜时会错误显示「菜品库还是空的」，并把食堂菜一起藏掉
+  /// （正是用户抱怨的场景）。
+  bool get _hasAny =>
+      widget.dishes.isNotEmpty || widget.unanalyzedCanteenDishes.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
     final visible = _visible;
+    final visibleCanteen = _visibleCanteen;
+
+    /// 菜品库的一行（**有营养，可直接记**）。
+    Widget libraryRow(DishRecord dish) => InkWell(
+      key: Key('dish-meal-picker-item-${dish.id}'),
+      onTap: () => Navigator.of(context).pop(PickedLibraryDish(dish)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dish.name,
+                    style: LfText.bodyStrong.copyWith(color: c.cardForeground),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${widget.mealSlotLabel(dish.mealSlot)} · '
+                    '${dish.kcal.round()} kcal/份',
+                    style: LfText.caption.copyWith(color: c.mutedForeground),
+                  ),
+                ],
+              ),
+            ),
+            // 来源徽标与菜品卡同源（docs/41 §7 第四条铁律）。
+            LfSourceBadgePair.forMealSource(
+              dish.source,
+              keyPrefix: 'dish-meal-picker-badge-${dish.id}',
+            ),
+          ],
+        ),
+      ),
+    );
+
+    /// 未分析食堂菜的一行：**只让人搜得到，不给直接记**。
+    ///
+    /// 它没有营养（`hasNutrition == false`），直接记就是 0 kcal —— 那会污染
+    /// 当天热量，属「静默写错事实」。点它返回 [PickedUnanalyzedCanteenDish]，
+    /// 由调用方给出「去分析」的下一步。
+    Widget canteenRow(CanteenDish dish) => InkWell(
+      key: Key('dish-meal-picker-canteen-${dish.id}'),
+      onTap: () => Navigator.of(context).pop(PickedUnanalyzedCanteenDish(dish)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dish.name,
+                    style: LfText.bodyStrong.copyWith(color: c.cardForeground),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '营养待分析 · 先在菜单页给它做 AI 分析',
+                    style: LfText.caption.copyWith(color: c.mutedForeground),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: LfDimens.iconSm,
+              color: c.mutedForeground,
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Column(
       key: const Key('dish-meal-picker'),
       mainAxisSize: MainAxisSize.min,
@@ -168,7 +296,7 @@ class _DishMealPickerDialogState extends State<DishMealPickerDialog> {
           style: LfText.headline.copyWith(color: c.cardForeground),
         ),
         const SizedBox(height: LfDimens.spaceMedium),
-        if (widget.dishes.isEmpty)
+        if (!_hasAny)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceMedium),
             child: Text(
@@ -187,7 +315,7 @@ class _DishMealPickerDialogState extends State<DishMealPickerDialog> {
             onChanged: (value) => setState(() => _query = value),
           ),
           const SizedBox(height: LfDimens.spaceSmall),
-          if (visible.isEmpty)
+          if (visible.isEmpty && visibleCanteen.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(
                 vertical: LfDimens.spaceMedium,
@@ -200,52 +328,37 @@ class _DishMealPickerDialogState extends State<DishMealPickerDialog> {
             )
           else
             Flexible(
-              child: ListView.separated(
+              child: ListView(
                 key: const Key('dish-meal-picker-list'),
                 shrinkWrap: true,
-                itemCount: visible.length,
-                separatorBuilder: (_, _) =>
-                    Divider(height: 1, thickness: 1, color: c.border),
-                itemBuilder: (context, index) {
-                  final dish = visible[index];
-                  return InkWell(
-                    key: Key('dish-meal-picker-item-${dish.id}'),
-                    onTap: () => Navigator.of(context).pop(dish),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  dish.name,
-                                  style: LfText.bodyStrong.copyWith(
-                                    color: c.cardForeground,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${widget.mealSlotLabel(dish.mealSlot)} · '
-                                  '${dish.kcal.round()} kcal/份',
-                                  style: LfText.caption.copyWith(
-                                    color: c.mutedForeground,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // 来源徽标与菜品卡同源（docs/41 §7 第四条铁律）。
-                          LfSourceBadgePair.forMealSource(
-                            dish.source,
-                            keyPrefix: 'dish-meal-picker-badge-${dish.id}',
-                          ),
-                        ],
+                children: [
+                  for (var i = 0; i < visible.length; i++) ...[
+                    if (i > 0)
+                      Divider(height: 1, thickness: 1, color: c.border),
+                    libraryRow(visible[i]),
+                  ],
+                  if (visibleCanteen.isNotEmpty) ...[
+                    Padding(
+                      key: const Key('dish-meal-picker-canteen-section'),
+                      padding: const EdgeInsets.only(
+                        top: LfDimens.spaceMedium,
+                        bottom: LfDimens.spaceXSmall,
+                      ),
+                      child: Text(
+                        '食堂目录（未分析）',
+                        style: LfText.label.copyWith(
+                          color: c.mutedForeground,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  );
-                },
+                    for (var i = 0; i < visibleCanteen.length; i++) ...[
+                      if (i > 0)
+                        Divider(height: 1, thickness: 1, color: c.border),
+                      canteenRow(visibleCanteen[i]),
+                    ],
+                  ],
+                ],
               ),
             ),
         ],

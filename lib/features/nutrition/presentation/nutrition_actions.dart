@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
 import 'package:localfit_ai/app/design/widgets/app_snack_bar.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
+import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
@@ -31,6 +34,8 @@ final class NutritionActions {
     required this.onDateSelected,
     this.dishLibraryRepository,
     this.onAddDishToMeal,
+    this.canteenRepository,
+    this.onAnalyzeDishes,
   });
 
   final BuildContext context;
@@ -50,6 +55,14 @@ final class NutritionActions {
   /// 未接线时「按菜品记录」不可用。
   final Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
   onAddDishToMeal;
+
+  /// 食堂目录仓储（2026-10-25 D-1）：只**读**未分析的菜，让「按菜品记录」
+  /// 能搜到它们。未接线时该分组不出现。
+  final CanteenRepository? canteenRepository;
+
+  /// 去给选中的菜做 AI 分析（与食堂目录页同一个回调，不新造写路径）。
+  /// 未接线时只如实说明「还没有营养数据」，不给点了没反应的按钮。
+  final Future<void> Function(List<CanteenDish> dishes)? onAnalyzeDishes;
 
   /// 记录餐入口：先问「按食材 / 按菜品」，再进对应弹层。
   ///
@@ -80,34 +93,92 @@ final class NutritionActions {
     if (library == null || addDish == null) return;
     try {
       final dishes = await library.watchAll().first;
+      // 食堂目录里**还没分析**的菜也一并给弹层（D-1 选项 2，2026-10-25
+      // 用户裁决）：它们不进菜品库（没有营养），但用户要能**搜得到**
+      // ——「那边有，这边没有」正是他抱怨的点。
+      final unanalyzed = await _unanalyzedCanteenDishes();
       if (!context.mounted) return;
-      final picked = await AppSheet.showCustom<DishRecord>(
+      final picked = await AppSheet.showCustom<DishPick>(
         context,
         builder: (_) => DishMealPickerDialog(
           dishes: dishes,
+          unanalyzedCanteenDishes: unanalyzed,
           mealSlotLabel: defaultMealSlotLabel,
         ),
       );
       if (picked == null || !context.mounted) return;
-      // `RV4-P1-06`：确认层现在**返回用户选定的餐次**（null = 取消），
-      // 用户在弹层里点的餐次优先于菜品库存档（D9 同一口径）。
-      final chosenSlot = await DishMealConfirmSheet.show(
-        context,
-        dish: picked,
-        mealSlotLabel: defaultMealSlotLabel,
-        initialSlot: initialSlot,
-      );
-      if (chosenSlot == null || !context.mounted) return;
-      await addDish(picked, slotOverride: chosenSlot);
-      _showMessage(
-        '已记一份「${picked.name}」到${chosenSlot.label}（记为已吃）',
-        icon: AppSnackBar.successIcon,
-      );
+      switch (picked) {
+        case PickedUnanalyzedCanteenDish(:final dish):
+          // 没有营养 ⇒ **不能记**（记下去就是 0 kcal，污染当天热量）。
+          // 给明确的下一步：去菜单页给它做 AI 分析，分析完它就会进菜品库、
+          // 也能在「按食用记录」里正常记。
+          await _offerAnalyzeUnanalyzed(dish);
+          return;
+        case PickedLibraryDish(:final dish):
+          // `RV4-P1-06`：确认层**返回用户选定的餐次**（null = 取消），
+          // 用户在弹层里点的餐次优先于菜品库存档（D9 同一口径）。
+          final chosenSlot = await DishMealConfirmSheet.show(
+            context,
+            dish: dish,
+            mealSlotLabel: defaultMealSlotLabel,
+            initialSlot: initialSlot,
+          );
+          if (chosenSlot == null || !context.mounted) return;
+          await addDish(dish, slotOverride: chosenSlot);
+          _showMessage(
+            '已记一份「${dish.name}」到${chosenSlot.label}（记为已吃）',
+            icon: AppSnackBar.successIcon,
+          );
+      }
     } on FormatException catch (error) {
       _showMessage(error.message, icon: AppSnackBar.errorIcon);
     } catch (_) {
       _showMessage('记录失败，请重试。', icon: AppSnackBar.errorIcon);
     }
+  }
+
+  /// 收集「食堂目录里还没分析」的菜（跨全部地点/窗口）。
+  ///
+  /// 只读、失败返回空（读不到食堂目录不该挡住「按菜品记录」这条主路）。
+  Future<List<CanteenDish>> _unanalyzedCanteenDishes() async {
+    final canteen = canteenRepository;
+    if (canteen == null) return const [];
+    try {
+      final out = <CanteenDish>[];
+      for (final venue in await canteen.listVenues()) {
+        for (final window in await canteen.listWindows(venue.id)) {
+          for (final dish in await canteen.listDishes(window.id)) {
+            if (!dish.hasNutrition) out.add(dish);
+          }
+        }
+      }
+      return out;
+    } on Object {
+      return const [];
+    }
+  }
+
+  /// 选中未分析的食堂菜时：如实说明 + 给「去分析」入口。
+  ///
+  /// **不替用户决定**：默认什么都不做，用户点「去分析」才走既有的 AI 分析
+  /// 链路（与食堂目录页那个入口同一个回调，不新造写路径）。
+  Future<void> _offerAnalyzeUnanalyzed(CanteenDish dish) async {
+    final analyze = onAnalyzeDishes;
+    if (analyze == null) {
+      _showMessage(
+        '「${dish.name}」还没有营养数据，先在菜单页给它做 AI 分析再记。',
+        icon: AppSnackBar.errorIcon,
+      );
+      return;
+    }
+    // 用带 action 的提示条（与「换一整套」同一形态），不引新的弹层件。
+    AppSnackBar.show(
+      context,
+      '「${dish.name}」还没有营养数据，记不准这一餐的热量。要先让 AI 分析吗？',
+      actionLabel: '去分析',
+      onAction: () => unawaited(analyze([dish])),
+      icon: AppSnackBar.errorIcon,
+    );
   }
 
   /// 打开餐食编辑弹层。
