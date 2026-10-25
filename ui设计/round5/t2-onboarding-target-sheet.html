@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T2 目标确认抽屉图形化 · 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5;
+      --mint-100: #d2f5e6;
+      --mint-300: #6fdbb0;
+      --mint-500: #2fbe8f;
+      --mint-600: #22a877;
+      --mint-700: #1b8a62;
+      --protein: #ff8a65;
+      --carbs: #ffc94d;
+      --fat: #b39ddb;
+      --ink: #1a201d;
+      --muted-ink: #6b7e78;
+      --line: #dde5e1;
+      --muted: #eff3f1;
+      --canvas: #f7f9f8;
+      --card: #ffffff;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 24px 48px;
+      background: #e7ecea;
+      color: var(--ink);
+      font-family: var(--font);
+      font-feature-settings: "tnum" 1;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1 { margin: 0 0 8px; font-size: 20px; line-height: 1.25; }
+    .intro { max-width: 760px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .review-frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+
+    /* 手机底 + 弹层：稿里把「底页被压暗」也画出来，
+       这样 90% 限高与圆角上下文可评审（实现是 AppSheet 既有壳）。 */
+    .phone {
+      width: 360px;
+      min-height: 372px;
+      padding: 18px 0 0;
+      background: var(--canvas);
+      border: 1px solid #c6d2cc;
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+    .backdrop-hint {
+      padding: 0 16px 14px;
+      color: #b8c6c0;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .sheet {
+      position: relative;
+      margin-top: auto;
+      padding: 10px 16px 16px;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -1px 3px rgba(15, 36, 28, .04);
+    }
+    .grabber {
+      width: 36px; height: 4px; margin: 0 auto 10px;
+      background: var(--muted); border-radius: 999px;
+    }
+    .sheet-title { font-size: 15px; font-weight: 650; }
+    .lede { margin-top: 6px; color: var(--muted-ink); font-size: 12px; line-height: 1.5; }
+
+    /* ── 热量：大号区间数字 + hero 范围条 ───────────────────────────── */
+    .hero {
+      margin-top: 14px;
+      padding: 14px;
+      background: var(--mint-50);
+      border: 1px solid var(--mint-100);
+      border-radius: 12px;
+    }
+    .hero-label { color: var(--mint-700); font-size: 11px; font-weight: 650; letter-spacing: .02em; }
+    .hero-value {
+      margin-top: 4px;
+      font-size: 30px;
+      font-weight: 650;
+      line-height: 1.1;
+      letter-spacing: -.01em;
+    }
+    .hero-value small { margin-left: 4px; font-size: 13px; font-weight: 600; color: var(--muted-ink); }
+    .hero-track { position: relative; height: 8px; margin-top: 12px; background: var(--card); border-radius: 999px; }
+    .hero-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: var(--mint-500); }
+    .hero-scale { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted-ink); font-size: 10px; }
+
+    /* ── 三个宏量行：名称 + 范围条 + 数值 ──────────────────────────── */
+    .rows { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; }
+    .mrow { display: flex; flex-direction: column; gap: 7px; }
+    .mrow-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .mrow-name { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+    .row-value { font-size: 13px; font-weight: 650; }
+    .row-share { margin-left: 4px; color: var(--muted-ink); font-size: 10px; font-weight: 500; }
+    .track { position: relative; height: 6px; background: var(--muted); border-radius: 999px; }
+    .fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+    /* 范围的「档位刻度」：只标 min / max 两个端点的落点，表达这是区间不是进度 */
+    .tick { position: absolute; top: -2px; width: 2px; height: 10px; border-radius: 1px; background: var(--ink); opacity: .28; }
+
+    .note { margin-top: 14px; padding: 10px 12px; background: var(--muted); border-radius: 12px; color: var(--muted-ink); font-size: 11px; line-height: 1.55; }
+    .note strong { color: var(--ink); }
+    .actions { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+    .cancel { color: var(--mint-700); font-size: 14px; font-weight: 500; }
+    .primary {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 48px; padding: 0 20px; border-radius: 999px;
+      background: var(--mint-500); color: #fff; font-size: 13px; font-weight: 650;
+      box-shadow: 0 8px 24px rgba(47, 190, 143, .25);
+    }
+
+    .compare { display: grid; gap: 10px; margin-top: 12px; }
+    .before { padding: 12px; background: #fff; border: 1px dashed #f44336; border-radius: 12px; color: #556760; font-size: 11px; line-height: 1.6; white-space: pre-line; }
+    .before b { color: #f44336; }
+    .measure { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .measure div { padding: 9px 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; color: var(--muted-ink); font-size: 10px; line-height: 1.5; }
+    .measure b { display: block; color: var(--ink); font-size: 14px; }
+    .measure code { color: var(--mint-700); font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+    @media (max-width: 800px) {
+      body { padding: 20px 0 36px; }
+      h1, .intro { margin-left: 16px; margin-right: 16px; }
+      .frames { gap: 24px 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>T2 · 目标确认抽屉图形化</h1>
+  <p class="intro">360dp 评审稿，对应需求 59 与 docs/32 §3 D4。范围条把 <code>[min, max]</code> 归一映射到 <code>[0, max×1.2]</code> 轨道上——<b>纯位置可视化，不引入假精度</b>。配色沿用今日页宏量语言（蛋白质橙 / 碳水黄 / 脂肪紫），热量用主绿。<br>
+  <b>稿中数字是按真实公式算出的自洽样例</b>（28 岁 · 男 · 175 cm · 70 kg · 中度活动 · 减脂目标）：BMR 1658.75 → TDEE ≈ 2571 → 热量中心 2185.4 ⇒ 热量 2076–2295 / 蛋白 112–140 / 碳水 222–351 / 脂肪 49–70（g）。四根条的落点与宽度各不相同，正是要展示的差异。</p>
+
+  <main class="frames">
+    <section class="review-frame">
+      <div class="frame-label">A · 改造后（主帧：热量 + 三宏量范围条）</div>
+      <div class="phone">
+        <div class="backdrop-hint">（底页被压暗，弹层从底部升起，90% 限高内可滚）</div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">确认每日目标</div>
+          <div class="lede">已按你的资料估算出每日目标范围</div>
+
+          <div class="hero">
+            <div class="hero-label">每日热量</div>
+            <div class="hero-value">2,076–2,295<small>kcal</small></div>
+            <div class="hero-track">
+              <div class="hero-fill" style="left: 75.4%; width: 7.9%;"></div>
+            </div>
+            <div class="hero-scale"><span>0</span><span>2,754</span></div>
+          </div>
+
+          <div class="rows">
+            <div class="mrow">
+              <div class="mrow-head">
+                <span class="mrow-name"><i class="dot" style="background: var(--protein)"></i>蛋白质</span>
+                <span><span class="row-value">112–140 g</span><span class="row-share">目标区间</span></span>
+              </div>
+              <div class="track">
+                <div class="fill" style="left: 66.7%; width: 16.7%; background: var(--protein);"></div>
+                <i class="tick" style="left: 66.7%"></i>
+                <i class="tick" style="left: 83.3%"></i>
+              </div>
+            </div>
+
+            <div class="mrow">
+              <div class="mrow-head">
+                <span class="mrow-name"><i class="dot" style="background: var(--carbs)"></i>碳水</span>
+                <span><span class="row-value">222–351 g</span><span class="row-share">目标区间</span></span>
+              </div>
+              <div class="track">
+                <div class="fill" style="left: 52.7%; width: 30.6%; background: var(--carbs);"></div>
+                <i class="tick" style="left: 52.7%"></i>
+                <i class="tick" style="left: 83.3%"></i>
+              </div>
+            </div>
+
+            <div class="mrow">
+              <div class="mrow-head">
+                <span class="mrow-name"><i class="dot" style="background: var(--fat)"></i>脂肪</span>
+                <span><span class="row-value">49–70 g</span><span class="row-share">目标区间</span></span>
+              </div>
+              <div class="track">
+                <div class="fill" style="left: 58.3%; width: 25.0%; background: var(--fat);"></div>
+                <i class="tick" style="left: 58.3%"></i>
+                <i class="tick" style="left: 83.3%"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="note">确认后进入「今日」页开始记录。范围条只表达你这一档的落点，<strong>不是</strong>「已完成进度」。</div>
+
+          <div class="actions">
+            <span class="cancel">返回修改</span>
+            <span class="primary">确认保存</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="review-frame">
+      <div class="frame-label">B · 改造前（现状：四行纯文本）</div>
+      <div class="phone">
+        <div class="backdrop-hint">（底页被压暗）</div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">确认每日目标</div>
+          <div class="compare">
+            <div class="before"><b>改造前</b>：同一个 Text 用换行拼四行，无图形、无层级——
+            「已按你的资料估算出每日目标范围：
+
+热量 2076–2295 kcal
+蛋白质 112–140 g
+碳水 222–351 g
+脂肪 49–70 g
+
+确认后进入「今日」页开始记录。」
+            </div>
+          </div>
+          <div class="note"><strong>问题</strong>：热量与三个宏量等权排列，扫视时分不出主次；四条数据没有可比的视觉参照。</div>
+          <div class="actions">
+            <span class="cancel">返回修改</span>
+            <span class="primary">确认保存</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="review-frame">
+      <div class="frame-label">C · 归一与边界（评审口径）</div>
+      <div class="phone" style="padding-bottom: 16px">
+        <div class="measure">
+          <div><b>max×1.2</b>轨道右端<br><code>max / (max×1.2)</code></div>
+          <div><b>min..max</b>填充区段<br><code>left = min/1.2max</code></div>
+          <div><b>不显示</b>百分比与完成度<br><code>只画位置</code></div>
+        </div>
+        <div class="note"><strong>边界口径</strong><br>① <code>max = 0</code>：不画填充、轨道留空（不伪造 0 位置）；② <code>min &gt; max</code>（异常输入）：范围条整段隐藏，只留数值；③ 极窄区间（如 40–40）：渲染为最小可见宽度，刻度仍落在真实比例上。<br>
+        <b>读法</b>：轨道右端 = 本行 <code>max×1.2</code>，所以四行右端刻度都落在 83.3%（= 1/1.2）；左端刻度逐行不同，才是可比的信息。</div>
+        <div class="note"><strong>不动的契约</strong><br>四个数值仍取自 <code>NutritionTargetCalculator</code>；弹层壳、标题「确认每日目标」、按钮「返回修改 / 确认保存」与保存后的跳转流程一行不改；「确认后进入今日页」文案保留。</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

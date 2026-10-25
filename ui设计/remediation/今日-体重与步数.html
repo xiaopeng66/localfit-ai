@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日 · 体重周/月视图 + 选日期 + 本机步数 — 整改设计稿（P9）</title>
+<!--
+  ============================================================================
+  LocalFit AI 2.0 「界面与体验治理」设计稿（P9 今日页）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖的需求（docs/29 §P9，需求 31–34；裁决 D4/D5）：
+
+   【需求 31 · 本周体重卡要能切周/月视图】
+    现状：`dashboard_weight_card.dart:28` 硬编码 `maxChartPoints = 7`，
+    右上角恒挂一个 `LfBadge.neutral('周')`；`weight_line_chart.dart:34-39`
+    再裁一次（两处都裁到 7，改一处不够）。仓库**已经**返回 30 天
+    （`measurement_repository.dart:128` 的 `end.subtract(29 days)`）——
+    数据一直都在，只是图上只画 7 个点。
+    新：右上角那颗静态徽标换成**真分段控件**（`Key('dashboard-weight-range')`，
+    两段「周」/「月」），默认「周」（＝现状，不改变首屏）。
+      · **周视图**：沿用现在的 7 点日线 + 「一…日」标签（一个字未动）。
+      · **月视图**：30 天**周均值分箱**（每 7 天一个箱，末箱不足 7 天照算均值），
+        最多 5 个箱 —— **不画 30 个点**：320dp 宽里 30 个点间距 ≈ 9dp，
+        点半径 3dp 就占掉 2/3，折线会糊成一条毛刺。标签改成「8/8」这类月/日。
+      · 分箱是**显示层**的事（`weight_line_chart.dart` 只收 `values`+`labels`），
+        仓库查询与 30 天窗口都不动 ⇒ 月视图切回来零成本、零新查询。
+      · 月视图里「本周趋势」三格的文案跟着换吗？**不换** —— 三格读的是
+        overview 的 30 天窗口，本来就覆盖整月；卡片标题「本周体重」在月视图下
+        改成「体重趋势」（标题与内容一致，否则标题在说假话）。
+    候选（评审可改）：月视图直接画 30 点细线（不做分箱）。默认否决理由见上。
+
+   【需求 32 · 加「添加」按钮；不要点卡片任意处弹窗】
+    现状 `dashboard_weight_card.dart:44-47` 整卡 `onTap: onRecord` +
+    `semanticLabel: '本周体重，点击记录体重'` —— 整张卡是个隐形的巨大点击区，
+    用户想滑动看趋势时会误触弹窗。
+    新：整卡 `onTap` 删掉（`DesignCard` 不传 onTap ⇒ 无涟漪、无命中区），
+    右上角分段控件**左侧**放一个显式「添加」按钮
+    （`Key('dashboard-weight-add')`，`LfTextButton`，B6 档 —— 与空态的
+    「记录第一条」同档，不引入新按钮形态）。
+      · 空态（<2 点画不出线）**两个入口都保留**：卡内中部的「记录第一条」
+        （既有，别动它）+ 右上角「添加」。
+      · 标题行布局：`[标题/副标题] ... [添加] [周|月]`。360dp 下实测放得下
+        （标题列 `Expanded` + 两个紧凑控件 ≈ 150dp）。
+      · `semanticLabel` 改成事实描述（不再宣称「点击记录」）。
+
+   【需求 33 · 添加数据可选日期】
+    现状 `weight_entry_dialog.dart` 无日期字段；`dashboard_page.dart:141`
+    硬传 `localDate: _localDate`（永远是今天）；仓库
+    `saveManualWeight(localDate:)` **本来就能收任意日期**（校验 `parseLocalDate`）。
+    新：弹层加一个日期字段（`Key('weight-entry-date')`），
+      · 默认 = 今天（调用方把「今天」传进来，弹层不自己读时钟 —— 跨零点语义
+        与 `_localDate` 保持单源）；
+      · 点开走 `showDatePicker`（`MaterialLocalizations` 已在 `MaterialApp`
+        里配好，零新依赖）；
+      · `firstDate` = 今天往前 365 天，`lastDate` = 今天（**不许记未来**：
+        未来日期的体重是编的事实）；
+      · 已有该日记录时**预填**该日（调用方查一下 30 天窗口里的同日期条目；
+        命中率极低，查不到就留空、不假装知道）；
+      · 保存提示带上日期（「已保存到 10 月 3 日」），回填时用户能确认改的是哪天。
+    布局：四字段变五个，弹层已是可滚动（`SingleChildScrollView`），
+    2.0× + 键盘下的既有防护继续有效。
+
+   【需求 34 · 步数接手机本机数据（D4）】
+    现状 `dashboard_quick_stats_row.dart:133-165` 的 `StepsStatCard`
+    **没有任何数据源**，恒为「暂无记录」；全仓零 MethodChannel。
+    新（原生侧）：`MainActivity.kt` 加首个 `configureFlutterEngine` +
+    `MethodChannel('localfit/steps')`：
+      · `TYPE_STEP_COUNTER`（开机累计值，`Sensor.TYPE_STEP_COUNTER`）
+        是主路径；设备没有它时回落 `TYPE_STEP_DETECTOR`（事件计数，前台累计）；
+      · 两者都没有 ⇒ 明确回 `unavailable`（**当前 AVD 就是这一类**）；
+      · 权限 `ACTIVITY_RECOGNITION`：API 29+ 需运行时申请，minSdk 24 ⇒
+        <29 **不申请**（该权限不存在，申请会直接被拒）。手写
+        `ActivityCompat.requestPermissions`（本仓无 `permission_handler`，不新增依赖）；
+      · 被拒 ⇒ 回 `permissionDenied`，UI 显示「未授权 · 去设置」（不假装没数据）。
+    新（Dart 侧）：`StepsRepository` + `StepsDaily{localDate, steps, counterAtBoot}`
+      （表 **v21 已建**，见 `app_database.dart` 的 `from < 21` 分支）。
+      · **重启基线陷阱（必须处理）**：`TYPE_STEP_COUNTER` 是「开机以来累计」，
+        跨重启不清零但会**变小**（新一次开机重新累计）。入库记
+        `counterAtBoot`，检测到计数值 < 上次记录的 ⇒ 判定设备重启 ⇒ 重设基线，
+        当日步数 = 当前值（而不是负数或减去旧基线后的荒谬值）。
+      · 前台读取用 `Stream`（`EventChannel`），切后台不常驻（隐私 + 电量）；
+        页面不显示时停订阅。
+      · 无传感器设备的**诚实空态**沿用现有 `dashboard-steps-empty`
+        （文案区分三种原因：无传感器 / 未授权 / 今天还没读到 —— 三种都不是
+        「0 步」，写 0 是编事实）。
+    本条在模拟器上**无法端到端验证**（无计步器）⇒ 真机步数是**诚实边界**，
+    Dart 侧用 fake channel 覆盖「有数据 / 无传感器 / 权限被拒 / 计数器回退」四态。
+
+  ============================================================================
+  下面两屏：① 周视图（默认，现状形态 + 三段改动）② 月视图 + 步数有数据态。
+  暗色抽查放最后一段。
+-->
+<style>
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark, .dark {
+  --lf-mint-50:  #16241E; --lf-mint-100: #1F2823; --lf-mint-200: #242E28;
+  --lf-mint-300: #4ED9A6; --lf-mint-400: #4ED9A6; --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #2FBE8F; --lf-mint-700: #4ED9A6;
+  --lf-protein: #FF9E80; --lf-carbs: #FFD166; --lf-fat: #C4B0E8;
+  --lf-water: #A8C4D9; --lf-weight: #D4B08E;
+  --lf-background: #121815; --lf-foreground: #E8EFEB; --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB; --lf-muted: #232B27;
+  --lf-muted-foreground: #9FB3AC; --lf-border: #2A3A32;
+  --lf-shadow-1: 0 1px 3px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.24);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--lf-font-sans);
+  background: #E8EBE9;
+  padding: 24px;
+  display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;
+  color: var(--lf-foreground);
+}
+.frame { width: 360px; }
+.frame > h3 {
+  font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #3D4A45;
+}
+.frame > p.note {
+  font-size: 11px; color: #556760; margin-bottom: 8px; line-height: 1.6;
+}
+.screen {
+  width: 360px; background: var(--lf-background);
+  border-radius: 20px; padding: 16px; box-shadow: var(--lf-shadow-1);
+  border: 1px solid var(--lf-border);
+  /* 暗色帧里必须显式取字色：`body` 的 `color: var(--lf-foreground)` 是在
+     **body 自己的作用域**里解析的（浅色），后代只继承解析后的颜色值、
+     不会重新解析 `var()` ⇒ 不写这一行，暗色帧里没自设颜色的文字就是
+     深字配深底（第一版渲染 `8,432` 整段看不见，就是这么来的）。 */
+  color: var(--lf-foreground);
+}
+.screen.dark { background: var(--lf-background); }
+.card {
+  background: var(--lf-card); border-radius: var(--lf-radius-lg);
+  padding: 16px; border: 1px solid var(--lf-border);
+  box-shadow: var(--lf-shadow-1);
+}
+.card + .card { margin-top: 16px; }
+.num { font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; }
+.between { justify-content: space-between; }
+.gap8 { gap: 8px; }
+.gap12 { gap: 12px; }
+.mt8 { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+.mt16 { margin-top: 16px; }
+.mt24 { margin-top: 24px; }
+.title { font-size: 15px; font-weight: 600; color: var(--lf-foreground); }
+.sub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+.delta-down { color: var(--lf-mint-600); }
+.delta-up { color: var(--lf-weight); }
+
+/* —— 需求 31：周/月分段控件 —— */
+.segmented {
+  display: inline-flex; background: var(--lf-muted);
+  border-radius: var(--lf-radius-full); padding: 2px;
+}
+.segmented .seg {
+  min-width: 36px; height: 24px; display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--lf-muted-foreground);
+  border-radius: var(--lf-radius-full); cursor: default;
+}
+.segmented .seg.on {
+  background: var(--lf-card); color: var(--lf-mint-700);
+  box-shadow: 0 1px 2px rgba(15,36,28,0.10);
+}
+html.dark .segmented .seg.on { color: var(--lf-mint-300); }
+
+/* —— 需求 32：显式「添加」按钮（B6 文字按钮档） —— */
+.text-btn {
+  height: 24px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 500; color: var(--lf-mint-600);
+  border-radius: 8px; cursor: default;
+}
+.text-btn .plus { font-size: 13px; line-height: 1; }
+.add-hit { /* 命中盒 ≥44dp 的说明性外框，仅在稿里示意 */
+  outline: 1px dashed rgba(47,190,143,0.35); outline-offset: 2px;
+}
+
+.chart-wrap { position: relative; }
+.chart-wrap svg { width: 100%; display: block; }
+.labels {
+  display: flex; justify-content: space-between; padding: 0 4px;
+  font-size: 10px; color: var(--lf-muted-foreground);
+}
+.labels span { flex: 1; text-align: center; }
+
+.hr { height: 1px; background: var(--lf-border); border: 0; }
+.sect-title {
+  font-size: 13px; font-weight: 500; color: var(--lf-card-foreground);
+}
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile {
+  background: var(--lf-muted); border-radius: var(--lf-radius-lg); padding: 12px;
+}
+.tile .lbl { font-size: 11px; color: var(--lf-muted-foreground); }
+.tile .val {
+  font-size: 16px; color: var(--lf-foreground); margin-top: 4px;
+  font-weight: 600;
+}
+.tile .val small {
+  font-size: 10px; color: var(--lf-muted-foreground); font-weight: 400;
+}
+.tile .delta { font-size: 10px; margin-top: 4px; }
+
+/* —— 需求 34：步数卡 —— */
+.stats2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.bar { height: 6px; border-radius: 999px; background: var(--lf-muted); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 999px; }
+.ic { width: 14px; height: 14px; display: inline-block; }
+.hint { font-size: 11px; color: var(--lf-muted-foreground); line-height: 1.6; }
+.pill {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 7px;
+  border-radius: 999px; font-size: 10px; font-weight: 600;
+  background: var(--lf-muted); color: var(--lf-muted-foreground);
+}
+.pill.warn { background: #FFF4D6; color: #8A6D1B; }
+.pill.mint { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+html.dark .pill.warn { background: #33291A; color: #E8C77A; }
+html.dark .pill.mint { background: #1F2823; color: var(--lf-mint-300); }
+</style>
+</head>
+<body>
+
+<!-- ======================= ① 周视图（默认） ======================= -->
+<div class="frame">
+  <h3>① 周视图（默认形态；改动三处：右上添加钮 / 分段控件 / 卡不再整块可点）</h3>
+  <p class="note">
+    卡面其余部分（折线、三条虚线网格、七点、「本周趋势」三格）与现状**逐像素一致**。
+    右上角：`添加`（B6 文字按钮）+ `周|月` 分段。整卡不再是点击区。
+  </p>
+  <div class="screen">
+    <section class="card">
+      <div class="row between">
+        <div>
+          <div class="title">本周体重</div>
+          <div class="sub num">69.4 kg <span class="delta-down">↓ 0.8</span></div>
+        </div>
+        <div class="row gap8">
+          <span class="text-btn add-hit" title="Key('dashboard-weight-add')"><svg class="plus" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>添加</span>
+          <span class="segmented" title="Key('dashboard-weight-range')">
+            <span class="seg on">周</span><span class="seg">月</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="mt12 chart-wrap">
+        <svg viewBox="0 0 320 130" preserveAspectRatio="none" style="height:130px">
+          <defs>
+            <linearGradient id="wFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--lf-mint-500)" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="var(--lf-mint-500)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="16" y1="20"  x2="304" y2="20"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="65"  x2="304" y2="65"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="110" x2="304" y2="110" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100 L304,110 L16,110 Z" fill="url(#wFill)"/>
+          <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100" fill="none" stroke="var(--lf-mint-500)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16"  cy="20"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="64"  cy="40"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="112" cy="60"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="160" cy="50"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="208" cy="80"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="256" cy="90"  r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="304" cy="100" r="4" fill="var(--lf-mint-500)"/>
+        </svg>
+        <div class="labels mt8"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+      </div>
+
+      <hr class="hr mt16">
+      <div class="sect-title mt16">本周趋势</div>
+      <div class="tiles mt12">
+        <div class="tile">
+          <div class="lbl">体重</div>
+          <div class="val num">69.4<small> kg</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,6 11,9 20,12 29,11 38,16 47,18 58,20" fill="none" stroke="var(--lf-weight)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta delta-down num">↓ 0.8 kg</div>
+        </div>
+        <div class="tile">
+          <div class="lbl">体脂率</div>
+          <div class="val num">18.2<small> %</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,8 11,6 20,10 29,9 38,13 47,15 58,17" fill="none" stroke="var(--lf-mint-600)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta delta-down num">↓ 0.4 %</div>
+        </div>
+        <div class="tile">
+          <div class="lbl">肌肉量</div>
+          <div class="val num">31.5<small> kg</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,18 11,16 20,14 29,15 38,11 47,9 58,7" fill="none" stroke="var(--lf-protein)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta" style="color:var(--lf-protein)">↑ 0.3 kg</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ======================= ② 月视图 ======================= -->
+<div class="frame">
+  <h3>② 月视图（点「月」后）</h3>
+  <p class="note">
+    30 天按**周均值分箱**（≤5 箱，末箱不足 7 天照算）；标签换成 `8/8` 这类月/日。
+    卡片标题从「本周体重」改成「体重趋势」（标题不撒谎）；三格与折线读的是同一个月窗口，不动。
+    副标题的增减量换成**整月首末差**（与图上首末两点一致）。
+  </p>
+  <div class="screen">
+    <section class="card">
+      <div class="row between">
+        <div>
+          <div class="title">体重趋势</div>
+          <div class="sub num">69.4 kg <span class="delta-down">↓ 1.6</span> <span style="color:var(--lf-muted-foreground)">较月初</span></div>
+        </div>
+        <div class="row gap8">
+          <span class="text-btn add-hit"><svg class="plus" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>添加</span>
+          <span class="segmented">
+            <span class="seg">周</span><span class="seg on">月</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="mt12 chart-wrap">
+        <svg viewBox="0 0 320 130" preserveAspectRatio="none" style="height:130px">
+          <defs>
+            <linearGradient id="mFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--lf-mint-500)" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="var(--lf-mint-500)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="16" y1="20"  x2="304" y2="20"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="65"  x2="304" y2="65"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="110" x2="304" y2="110" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <!-- 5 箱：月内 4 个完整周均值 + 末箱 -->
+          <path d="M16,28 L88,45 L160,62 L232,78 L304,96 L304,110 L16,110 Z" fill="url(#mFill)"/>
+          <path d="M16,28 L88,45 L160,62 L232,78 L304,96" fill="none" stroke="var(--lf-mint-500)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="16"  cy="28" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="88"  cy="45" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="160" cy="62" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="232" cy="78" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+          <circle cx="304" cy="96" r="4" fill="var(--lf-mint-500)"/>
+        </svg>
+        <div class="labels mt8"><span>8/8</span><span>8/15</span><span>8/22</span><span>8/29</span><span>9/5</span></div>
+      </div>
+
+      <hr class="hr mt16">
+      <div class="sect-title mt16">本月趋势</div>
+      <div class="tiles mt12">
+        <div class="tile">
+          <div class="lbl">体重</div>
+          <div class="val num">69.4<small> kg</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,6 11,10 20,13 29,15 38,17 47,19 58,21" fill="none" stroke="var(--lf-weight)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta delta-down num">↓ 1.6 kg</div>
+        </div>
+        <div class="tile">
+          <div class="lbl">体脂率</div>
+          <div class="val num">18.2<small> %</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,7 11,9 20,11 29,12 38,14 47,16 58,18" fill="none" stroke="var(--lf-mint-600)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta delta-down num">↓ 0.9 %</div>
+        </div>
+        <div class="tile">
+          <div class="lbl">肌肉量</div>
+          <div class="val num">31.5<small> kg</small></div>
+          <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+            <polyline points="2,19 11,18 20,17 29,16 38,14 47,12 58,10" fill="none" stroke="var(--lf-protein)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="delta" style="color:var(--lf-protein)">↑ 0.6 kg</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ======================= ③ 步数三态 ======================= -->
+<div class="frame">
+  <h3>③ 步数卡三态（需求 34）</h3>
+  <p class="note">
+    左：**有数据**（真机 `TYPE_STEP_COUNTER`）——数字 + 目标环/条 + 剩余步数。
+    中：**无传感器**（当前 AVD）——沿用既有空态 Key，文案说清是哪一种「没有」。
+    右：**权限被拒**——不假装没数据，给去设置的入口。
+    **三种都不写「0 步」**：0 步是一个具体事实，我们没有这个事实。
+  </p>
+  <div class="screen">
+    <div class="stats2">
+      <section class="card">
+        <div class="row gap8" style="font-size:11px;color:var(--lf-muted-foreground)">
+          <svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数
+        </div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px">
+          8,432<small style="font-size:11px;color:var(--lf-muted-foreground);font-weight:400"> / 10,000 步</small>
+        </div>
+        <div class="bar mt8"><i style="width:84%;background:var(--lf-mint-500)"></i></div>
+        <div class="hint mt8 num">还差 1,568 步</div>
+      </section>
+      <section class="card">
+        <div class="row gap8" style="font-size:11px;color:var(--lf-muted-foreground)">
+          <svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数
+        </div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px;color:var(--lf-muted-foreground)">
+          暂无记录
+        </div>
+        <div class="bar mt8"><i style="width:0"></i></div>
+        <div class="hint mt8">这台设备没有计步传感器</div>
+      </section>
+    </div>
+    <div class="stats2 mt12">
+      <section class="card">
+        <div class="row gap8 between" style="font-size:11px;color:var(--lf-muted-foreground)">
+          <span class="row gap8"><svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数</span>
+          <span class="pill warn">未授权</span>
+        </div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px;color:var(--lf-muted-foreground)">
+          —
+        </div>
+        <div class="bar mt8"><i style="width:0"></i></div>
+        <div class="hint mt8">需要「身体活动」权限才能读步数
+          <span style="color:var(--lf-mint-600);font-weight:600"> · 去设置</span>
+        </div>
+      </section>
+      <section class="card">
+        <div class="row gap8 between" style="font-size:11px;color:var(--lf-muted-foreground)">
+          <span class="row gap8"><svg class="ic" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数</span>
+          <span class="pill mint">今天</span>
+        </div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px">
+          1,204<small style="font-size:11px;color:var(--lf-muted-foreground);font-weight:400"> 步</small>
+        </div>
+        <div class="bar mt8"><i style="width:12%;background:var(--lf-mint-500)"></i></div>
+        <div class="hint mt8 num">今日开机后累计（重启会重设基线）</div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ④ 选日期弹层 ======================= -->
+<div class="frame">
+  <h3>④ 记录体重弹层（需求 33：加日期字段）</h3>
+  <p class="note">
+    字段顺序：**日期 → 体重 → 体脂率 → 肌肉量 → 备注**。日期行右侧是可点的日期值
+    （`Key('weight-entry-date')`），点开走系统 `showDatePicker`；不许选未来。
+    保存提示带日期（「已保存到 10 月 3 日」）。
+  </p>
+  <div class="screen">
+    <section class="card">
+      <div class="title">记录体重</div>
+      <div class="mt12" style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--lf-muted-foreground);margin-bottom:4px">日期</div>
+          <div class="row between" style="height:44px;padding:0 12px;border:1px solid var(--lf-border);border-radius:12px;background:var(--lf-card)">
+            <span class="num">2026-10-06</span>
+            <span style="font-size:11px;color:var(--lf-mint-600)">今天 · 修改</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--lf-muted-foreground);margin-bottom:4px">体重</div>
+          <div class="row between" style="height:44px;padding:0 12px;border:1px solid var(--lf-mint-500);border-radius:12px;background:var(--lf-card)">
+            <span class="num">69.4</span><span style="font-size:11px;color:var(--lf-muted-foreground)">kg</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--lf-muted-foreground);margin-bottom:4px">体脂率（可选）</div>
+          <div class="row between" style="height:44px;padding:0 12px;border:1px solid var(--lf-border);border-radius:12px;background:var(--lf-card)">
+            <span style="color:var(--lf-muted-foreground)">—</span><span style="font-size:11px;color:var(--lf-muted-foreground)">%</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--lf-muted-foreground);margin-bottom:4px">肌肉量（可选）</div>
+          <div class="row between" style="height:44px;padding:0 12px;border:1px solid var(--lf-border);border-radius:12px;background:var(--lf-card)">
+            <span style="color:var(--lf-muted-foreground)">—</span><span style="font-size:11px;color:var(--lf-muted-foreground)">kg</span>
+          </div>
+        </div>
+      </div>
+      <div class="row between mt16">
+        <span class="text-btn" style="color:var(--lf-muted-foreground)">取消</span>
+        <span style="height:36px;padding:0 20px;border-radius:999px;background:var(--lf-mint-500);color:#fff;font-size:13px;font-weight:600;display:inline-flex;align-items:center">保存</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ======================= ⑤ 暗色抽查 ======================= -->
+<div class="frame dark">
+  <h3>⑤ 暗色抽查（体重卡 + 步数有数据态）</h3>
+  <p class="note">暗色只换令牌，不做第二套几何。分段控件的选中段在暗色下用 `mint-300` 字 + `card` 底（已在上面的令牌块里给出）。</p>
+  <div class="screen dark">
+    <section class="card">
+      <div class="row between">
+        <div>
+          <div class="title">体重趋势</div>
+          <div class="sub num">69.4 kg <span class="delta-down">↓ 1.6</span></div>
+        </div>
+        <div class="row gap8">
+          <span class="text-btn"><svg class="plus" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>添加</span>
+          <span class="segmented"><span class="seg">周</span><span class="seg on">月</span></span>
+        </div>
+      </div>
+      <div class="mt12 chart-wrap">
+        <svg viewBox="0 0 320 130" preserveAspectRatio="none" style="height:130px">
+          <defs>
+            <linearGradient id="dFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--lf-mint-500)" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="var(--lf-mint-500)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="16" y1="20"  x2="304" y2="20"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="65"  x2="304" y2="65"  stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="16" y1="110" x2="304" y2="110" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <path d="M16,28 L88,45 L160,62 L232,78 L304,96 L304,110 L16,110 Z" fill="url(#dFill)"/>
+          <path d="M16,28 L88,45 L160,62 L232,78 L304,96" fill="none" stroke="var(--lf-mint-500)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="304" cy="96" r="4" fill="var(--lf-mint-500)"/>
+        </svg>
+        <div class="labels mt8"><span>8/8</span><span>8/15</span><span>8/22</span><span>8/29</span><span>9/5</span></div>
+      </div>
+    </section>
+    <div class="stats2 mt16">
+      <section class="card">
+        <div class="row gap8" style="font-size:11px;color:var(--lf-muted-foreground)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数</div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px">8,432<small style="font-size:11px;color:var(--lf-muted-foreground);font-weight:400"> / 10,000 步</small></div>
+        <div class="bar mt8"><i style="width:84%;background:var(--lf-mint-500)"></i></div>
+        <div class="hint mt8 num">还差 1,568 步</div>
+      </section>
+      <section class="card">
+        <div class="row gap8 between" style="font-size:11px;color:var(--lf-muted-foreground)">
+          <span class="row gap8"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--lf-mint-600)"><path d="M13 4a1.6 1.6 0 1 0 0-3.2A1.6 1.6 0 0 0 13 4Z"/><path d="M9 22l2.2-6.2L9.6 13l-3 2.4"/><path d="M12.4 13.2 15 16l2.4 6"/><path d="M15.6 9.6 19 8.2"/><path d="M11 9.4 15.6 9.6l-1.4 3.6"/></svg> 步数</span><span class="pill warn">未授权</span>
+        </div>
+        <div class="val num" style="font-size:20px;font-weight:600;margin-top:6px;color:var(--lf-muted-foreground)">—</div>
+        <div class="bar mt8"><i style="width:0"></i></div>
+        <div class="hint mt8">需要「身体活动」权限 <span style="color:var(--lf-mint-300);font-weight:600">· 去设置</span></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

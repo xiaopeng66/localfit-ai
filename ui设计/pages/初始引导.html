@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建立档案 | LocalFit AI</title>
+    <!-- ===== 主题 CSS 变量（与 colors_and_type.css 完全一致） ===== -->
+    <style id="theme-vars">
+/* ==========================================================================
+   LocalFit AI — Brand CSS
+   Primary hue: mint (#2FBE8F) — single brand color system
+   ========================================================================== */
+
+/* ---- Light Mode (default) ---- */
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-800: #2A342F;
+  --lf-neutral-900: #1A201D;
+
+  --lf-protein: #FF8A65;
+  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;
+  --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;
+  --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+
+  --lf-state-success: #2FBE8F;
+  --lf-state-success-foreground: #FFFFFF;
+  --lf-state-warning: #FF9800;
+  --lf-state-warning-foreground: #FFFFFF;
+  --lf-state-error: #F44336;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #42A5F5;
+  --lf-state-info-foreground: #FFFFFF;
+
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-popover: #FFFFFF;
+  --lf-popover-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-input: #DDE5E1;
+  --lf-ring: #2FBE8F;
+
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+
+  --lf-radius-xs: 4px;
+  --lf-radius-sm: 8px;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-xl: 16px;
+  --lf-radius-2xl: 16px;
+  --lf-radius-full: 9999px;
+
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-shadow-float: 0 8px 24px -8px rgba(15, 36, 28, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(15, 36, 28, 0.05);
+
+  --lf-hero-gradient: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --lf-font-display: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --lf-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* ---- Dark Mode ---- */
+html.dark {
+  --lf-mint-50:  #0F1412;
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  --lf-neutral-50:  #0F1412;
+  --lf-neutral-100: #171E1A;
+  --lf-neutral-200: #1F2823;
+  --lf-neutral-300: #2A342F;
+  --lf-neutral-400: #3D4A45;
+  --lf-neutral-500: #556760;
+  --lf-neutral-600: #6B7E78;
+  --lf-neutral-700: #8FA09A;
+  --lf-neutral-800: #B8C6C0;
+  --lf-neutral-900: #DDE5E1;
+
+  --lf-protein: #FF9D7E;
+  --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;
+  --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;
+  --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+
+  --lf-state-success: #4ED9A6;
+  --lf-state-success-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-state-warning-foreground: #0F1412;
+  --lf-state-error: #EF5350;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #64B5F6;
+  --lf-state-info-foreground: #0F1412;
+
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+
+  --lf-background: #0F1412;
+  --lf-foreground: #DDE5E1;
+  --lf-card: #171E1A;
+  --lf-card-foreground: #DDE5E1;
+  --lf-popover: #1F2823;
+  --lf-popover-foreground: #DDE5E1;
+  --lf-muted: #1F2823;
+  --lf-muted-foreground: #8FA09A;
+  --lf-border: #2A342F;
+  --lf-input: #2A342F;
+  --lf-ring: #4ED9A6;
+
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+
+  --lf-hero-gradient: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+
+  --lf-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-float: 0 8px 24px -8px rgba(0, 0, 0, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: var(--lf-font-sans);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+}
+
+.lf-num {
+  font-variant-numeric: tabular-nums;
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <!-- ===== Tailwind 语义色映射 ===== -->
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--lf-background);
+    --color-foreground: var(--lf-foreground);
+    --color-card: var(--lf-card);
+    --color-card-foreground: var(--lf-card-foreground);
+    --color-popover: var(--lf-popover);
+    --color-popover-foreground: var(--lf-popover-foreground);
+    --color-primary: var(--lf-primary);
+    --color-primary-foreground: var(--lf-primary-foreground);
+    --color-muted: var(--lf-muted);
+    --color-muted-foreground: var(--lf-muted-foreground);
+    --color-border: var(--lf-border);
+    --color-input: var(--lf-input);
+    --color-ring: var(--lf-ring);
+    --radius-sm: var(--lf-radius-sm);
+    --radius-md: var(--lf-radius-md);
+    --radius-lg: var(--lf-radius-lg);
+    --radius-xl: var(--lf-radius-xl);
+  }
+  @layer base {
+    body { background: var(--lf-background); color: var(--lf-foreground); }
+  }
+    </style>
+    <!-- ===== 语义 Token 兜底 ===== -->
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--lf-background); }
+      .text-foreground { color: var(--lf-foreground); }
+      .bg-card { background-color: var(--lf-card); }
+      .text-card-foreground { color: var(--lf-card-foreground); }
+      .bg-primary { background-color: var(--lf-primary); }
+      .text-primary { color: var(--lf-primary); }
+      .bg-primary-foreground { background-color: var(--lf-primary-foreground); }
+      .text-primary-foreground { color: var(--lf-primary-foreground); }
+      .bg-muted { background-color: var(--lf-muted); }
+      .text-muted-foreground { color: var(--lf-muted-foreground); }
+      .border-border { border-color: var(--lf-border); }
+      .bg-input { background-color: var(--lf-input); }
+      .bg-ring { background-color: var(--lf-ring); }
+    </style>
+    <!-- ===== 工具样式 ===== -->
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex; align-items: center; justify-content: center;
+        -webkit-mask-size: contain; mask-size: contain;
+        -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+        -webkit-mask-position: center; mask-position: center;
+        background-color: currentColor;
+      }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+      /* ===== 引导页专用组件样式 ===== */
+
+      /* 填充式输入框 — 参考图中的灰色填充风格 */
+      .form-input {
+        width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        background: var(--lf-muted);
+        border: 1.5px solid transparent;
+        border-radius: var(--lf-radius-md);
+        font-size: 15px;
+        color: var(--lf-foreground);
+        font-family: inherit;
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+      }
+      .form-input::placeholder { color: var(--lf-muted-foreground); }
+      .form-input:focus {
+        border-color: var(--lf-ring);
+        box-shadow: 0 0 0 3px rgba(47,190,143,.12);
+      }
+
+      /* 下拉选择器 */
+      .form-select {
+        width: 100%;
+        height: 48px;
+        padding: 0 40px 0 16px;
+        background: var(--lf-muted);
+        border: 1.5px solid transparent;
+        border-radius: var(--lf-radius-md);
+        font-size: 15px;
+        color: var(--lf-foreground);
+        font-family: inherit;
+        appearance: none; -webkit-appearance: none;
+        outline: none; cursor: pointer;
+        transition: border-color .2s, box-shadow .2s;
+      }
+      .form-select:focus {
+        border-color: var(--lf-ring);
+        box-shadow: 0 0 0 3px rgba(47,190,143,.12);
+      }
+
+      /* 分段控件（性别选择） */
+      .segment-control {
+        display: flex;
+        height: 48px;
+        background: var(--lf-muted);
+        border-radius: var(--lf-radius-md);
+        padding: 3px;
+        gap: 3px;
+      }
+      .segment-btn {
+        flex: 1;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        border: none; background: transparent;
+        font-size: 14px; font-weight: 500;
+        color: var(--lf-muted-foreground);
+        border-radius: var(--lf-radius-sm);
+        cursor: pointer;
+        transition: all .2s;
+        font-family: inherit;
+      }
+      .segment-btn.active {
+        background: var(--lf-card);
+        color: var(--lf-primary);
+        font-weight: 600;
+        box-shadow: var(--lf-shadow-1);
+      }
+
+      /* 目标选择卡片 */
+      .goal-card {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 8px;
+        padding: 18px 8px;
+        background: var(--lf-card);
+        border: 2px solid var(--lf-border);
+        border-radius: var(--lf-radius-md);
+        cursor: pointer;
+        transition: all .2s ease;
+      }
+      .goal-card:active { transform: scale(.97); }
+      .goal-card.selected {
+        border-color: var(--lf-primary);
+        background: var(--lf-mint-50);
+      }
+      .goal-icon-wrap {
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+        background: var(--lf-muted);
+        color: var(--lf-muted-foreground);
+        transition: all .2s;
+      }
+      .goal-card.selected .goal-icon-wrap {
+        background: var(--lf-primary);
+        color: var(--lf-primary-foreground);
+      }
+
+      /* iOS Toggle 开关 */
+      .toggle-switch {
+        position: relative;
+        width: 46px; height: 28px;
+        border-radius: 9999px;
+        background: var(--lf-neutral-300);
+        border: none; cursor: pointer;
+        flex-shrink: 0;
+        transition: background .25s ease;
+        margin-top: 2px;
+      }
+      .toggle-switch::after {
+        content: '';
+        position: absolute; top: 2px; left: 2px;
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,.15);
+        transition: transform .25s cubic-bezier(.4,0,.2,1);
+      }
+      .toggle-switch.active { background: var(--lf-primary); }
+      .toggle-switch.active::after { transform: translateX(18px); }
+
+      /* 底部 CTA 按钮 */
+      .cta-btn {
+        width: 100%; height: 52px;
+        border: none;
+        border-radius: 9999px;
+        background: var(--lf-primary);
+        color: var(--lf-primary-foreground);
+        font-size: 16px; font-weight: 700;
+        font-family: inherit; cursor: pointer;
+        transition: transform .15s, box-shadow .2s, opacity .2s;
+        box-shadow: 0 8px 24px rgba(47,190,143,.25);
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+      }
+      .cta-btn:active { transform: scale(.98); }
+      .cta-btn:disabled { opacity: .4; box-shadow: none; cursor: not-allowed; }
+      .cta-btn.success { background: var(--lf-state-success); }
+
+      /* Toast 提示 */
+      .toast-msg {
+        position: fixed; bottom: 100px; left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        padding: 10px 20px;
+        background: var(--lf-foreground); color: var(--lf-background);
+        border-radius: var(--lf-radius-md);
+        font-size: 13px; opacity: 0; pointer-events: none;
+        transition: opacity .25s, transform .25s;
+        z-index: 100; white-space: nowrap;
+      }
+      .toast-msg.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+      /* 步骤指示器 */
+      .step-bar { display: flex; gap: 6px; }
+      .step-pill {
+        width: 24px; height: 4px;
+        border-radius: 2px;
+        background: var(--lf-border);
+        transition: background .3s;
+      }
+      .step-pill.active { background: var(--lf-primary); }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+
+  <!-- ====== 引导页主体 ====== -->
+  <main class="mx-auto max-w-[430px] bg-background px-4 pt-2 pb-36">
+
+    <!-- ====== 顶部导航栏（极简，仅 Logo + 跳过） ====== -->
+    <header class="flex items-center justify-between pt-3 pb-2">
+      <div class="flex items-center gap-2">
+        <!-- Logo 圆形 mint 渐变 -->
+        <div class="w-8 h-8 rounded-[10px] flex items-center justify-center" style="background:var(--lf-hero-gradient)">
+          <i data-lucide="dumbbell" class="w-4 h-4" style="color:#fff"></i>
+        </div>
+        <span class="text-[14px] font-bold text-[var(--lf-foreground)]">LocalFit</span>
+      </div>
+      <button id="cta-skip" class="text-[13px] text-[var(--lf-muted-foreground)] font-medium" onclick="showToast('已跳过，可稍后在「我的」中完善')">跳过</button>
+    </header>
+
+    <!-- ====== 步骤进度 + 标题区 ====== -->
+    <section class="pt-5 pb-6">
+      <!-- 步骤指示器 -->
+      <div class="step-bar mb-4">
+        <span class="step-pill active"></span>
+        <span class="step-pill active"></span>
+        <span class="step-pill active"></span>
+        <span class="step-pill"></span>
+      </div>
+      <p class="text-[11px] font-semibold tracking-wider uppercase text-[var(--lf-primary)] mb-2">STEP 3 / 4 · 建立档案</p>
+      <h1 class="lf-display text-[26px] text-[var(--lf-foreground)] leading-tight">建立本地档案</h1>
+      <p class="text-[14px] text-[var(--lf-foreground)] mt-1 font-medium">设定你的起点</p>
+      <p class="text-[12px] text-[var(--lf-muted-foreground)] mt-3 leading-relaxed">
+        以下数据仅保存在本机，用于估算初始营养目标与训练建议。结果仅供日常健康管理参考，不能替代医生、营养师或专业教练的诊断与指导。
+      </p>
+    </section>
+
+    <!-- ====== 分区 1：基本信息 ====== -->
+    <section class="rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow:var(--lf-shadow-1)">
+      <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)] mb-1">基本信息</h2>
+      <p class="text-[12px] text-[var(--lf-muted-foreground)] mb-5">用于计算基础代谢率与营养分配</p>
+
+      <!-- 年龄 -->
+      <div class="mb-4">
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2" for="inputAge">年龄（岁）</label>
+        <input class="form-input lf-num" id="inputAge" type="number" inputmode="numeric" placeholder="如 25" />
+      </div>
+
+      <!-- 性别 — 分段控件 -->
+      <div class="mb-4">
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2">性别</label>
+        <div class="segment-control" id="genderSegment">
+          <button class="segment-btn active" data-gender="female" onclick="selectSegment(this)">
+            <i data-lucide="check" class="w-3.5 h-3.5" style="display:none"></i>
+            <span>女性</span>
+          </button>
+          <button class="segment-btn" data-gender="male" onclick="selectSegment(this)">
+            <i data-lucide="check" class="w-3.5 h-3.5" style="display:none"></i>
+            <span>男性</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 身高 -->
+      <div class="mb-4">
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2" for="inputHeight">身高（cm）</label>
+        <input class="form-input lf-num" id="inputHeight" type="number" inputmode="numeric" placeholder="如 170" />
+      </div>
+
+      <!-- 当前体重 -->
+      <div class="mb-4">
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2" for="inputWeight">当前体重（kg）</label>
+        <input class="form-input lf-num" id="inputWeight" type="number" inputmode="decimal" placeholder="如 65.0" />
+      </div>
+
+      <!-- 日常活动程度 — 下拉 -->
+      <div>
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2" for="selectActivity">日常活动程度</label>
+        <div class="relative">
+          <select class="form-select" id="selectActivity">
+            <option value="" disabled selected>请选择活动程度</option>
+            <option value="sedentary">久坐 — 几乎不运动</option>
+            <option value="light">轻度 — 每周 1-2 次低强度</option>
+            <option value="moderate">中度 — 每周 3-4 次中等强度</option>
+            <option value="active">高度 — 每周 5-6 次较高强度</option>
+            <option value="extreme">极高 — 体力劳动或每日训练</option>
+          </select>
+          <!-- 下拉箭头 -->
+          <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--lf-muted-foreground)]"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== 分区 2：你的目标 ====== -->
+    <section class="mt-4 rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow:var(--lf-shadow-1)">
+      <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)] mb-1">你的目标</h2>
+      <p class="text-[12px] text-[var(--lf-muted-foreground)] mb-5">选择主要方向，系统将据此调整营养与训练计划</p>
+
+      <!-- 三列目标卡片 -->
+      <div class="grid grid-cols-3 gap-3">
+        <!-- 减脂 -->
+        <div class="goal-card selected" data-goal="fat-loss" onclick="selectGoal(this)">
+          <div class="goal-icon-wrap">
+            <i data-lucide="flame" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[13px] font-semibold text-[var(--lf-foreground)]">减脂</span>
+        </div>
+        <!-- 增肌 -->
+        <div class="goal-card" data-goal="muscle-gain" onclick="selectGoal(this)">
+          <div class="goal-icon-wrap">
+            <i data-lucide="dumbbell" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[13px] font-semibold text-[var(--lf-foreground)]">增肌</span>
+        </div>
+        <!-- 保持 -->
+        <div class="goal-card" data-goal="maintain" onclick="selectGoal(this)">
+          <div class="goal-icon-wrap">
+            <i data-lucide="leaf" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[13px] font-semibold text-[var(--lf-foreground)]">保持</span>
+        </div>
+      </div>
+
+      <!-- 目标体重（可选） -->
+      <div class="mt-4">
+        <label class="block text-[13px] font-semibold text-[var(--lf-foreground)] mb-2" for="inputTargetWeight">目标体重（kg，可选）</label>
+        <input class="form-input lf-num" id="inputTargetWeight" type="number" inputmode="decimal" placeholder="如 60.0" />
+      </div>
+    </section>
+
+    <!-- ====== 分区 3：安全筛查 ====== -->
+    <section class="mt-4 rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow:var(--lf-shadow-1)">
+      <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)] mb-1">安全筛查</h2>
+      <p class="text-[12px] text-[var(--lf-muted-foreground)] mb-4 leading-relaxed">
+        以下信息仅用于判断是否适合自动生成目标，不会保存也不会影响你的其他数据。如有任何一项符合，建议咨询专业人士后再设定目标。
+      </p>
+
+      <!-- 开关项 1 -->
+      <div class="flex items-start justify-between gap-3 py-3 border-b border-[var(--lf-border)]">
+        <div class="flex-1">
+          <p class="text-[14px] font-medium text-[var(--lf-foreground)] leading-snug">正在孕期或哺乳期</p>
+        </div>
+        <button class="toggle-switch" data-toggle="pregnancy" onclick="toggleSwitch(this)" aria-label="切换"></button>
+      </div>
+      <!-- 开关项 2 -->
+      <div class="flex items-start justify-between gap-3 py-3 border-b border-[var(--lf-border)]">
+        <div class="flex-1">
+          <p class="text-[14px] font-medium text-[var(--lf-foreground)] leading-snug">存在需饮食或运动管理的慢性疾病</p>
+        </div>
+        <button class="toggle-switch" data-toggle="chronic" onclick="toggleSwitch(this)" aria-label="切换"></button>
+      </div>
+      <!-- 开关项 3 -->
+      <div class="flex items-start justify-between gap-3 py-3">
+        <div class="flex-1">
+          <p class="text-[14px] font-medium text-[var(--lf-foreground)] leading-snug">当前或既往存在进食障碍风险</p>
+        </div>
+        <button class="toggle-switch" data-toggle="eating-disorder" onclick="toggleSwitch(this)" aria-label="切换"></button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====== 底部固定 CTA 按钮区 ====== -->
+  <div class="fixed bottom-0 left-0 right-0 z-10 pb-safe">
+    <div class="mx-auto max-w-[430px] px-4 py-3 pb-5" style="background:linear-gradient(to top, var(--lf-background) 80%, rgba(247,249,248,0))">
+      <button class="cta-btn" id="ctaBtn" onclick="submitProfile()">
+        计算并确认目标
+        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ====== Toast ====== -->
+  <div class="toast-msg" id="toast" role="status"></div>
+
+  <!-- ====== 交互脚本 ====== -->
+  <script>
+    /* 初始化 Lucide 图标 */
+    lucide.createIcons();
+
+    /* ---------- Toast 轻提示 ---------- */
+    const toast = document.getElementById('toast');
+    let toastTimer;
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    /* ---------- 分段控件：性别选择 ---------- */
+    function selectSegment(btn) {
+      const control = btn.parentElement;
+      control.querySelectorAll('.segment-btn').forEach(b => {
+        b.classList.remove('active');
+        const checkIcon = b.querySelector('[data-lucide]');
+        if (checkIcon) checkIcon.style.display = 'none';
+      });
+      btn.classList.add('active');
+      const checkIcon = btn.querySelector('[data-lucide]');
+      if (checkIcon) {
+        checkIcon.style.display = 'inline-flex';
+        lucide.createIcons();
+      }
+    }
+
+    /* ---------- 目标卡片：单选 ---------- */
+    function selectGoal(card) {
+      document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      showToast('已选择目标：' + card.querySelector('span').textContent);
+    }
+
+    /* ---------- Toggle 开关切换 ---------- */
+    function toggleSwitch(btn) {
+      btn.classList.toggle('active');
+    }
+
+    /* ---------- 提交：校验 + 成功反馈 ---------- */
+    function submitProfile() {
+      const age = document.getElementById('inputAge').value.trim();
+      const height = document.getElementById('inputHeight').value.trim();
+      const weight = document.getElementById('inputWeight').value.trim();
+      const activity = document.getElementById('selectActivity').value;
+
+      /* 简单校验 */
+      if (!age) { showToast('请填写年龄'); return; }
+      if (!height) { showToast('请填写身高'); return; }
+      if (!weight) { showToast('请填写当前体重'); return; }
+      if (!activity) { showToast('请选择日常活动程度'); return; }
+
+      /* 成功反馈：按钮变绿 + 勾号 */
+      const btn = document.getElementById('ctaBtn');
+      btn.classList.add('success');
+      btn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> 目标已确认';
+      lucide.createIcons();
+      showToast('档案建立成功，正在计算你的营养目标…');
+
+      /* 2.5 秒后恢复（模拟跳转） */
+      setTimeout(() => {
+        btn.classList.remove('success');
+        btn.innerHTML = '计算并确认目标 <i data-lucide="arrow-right" class="w-5 h-5"></i>';
+        lucide.createIcons();
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

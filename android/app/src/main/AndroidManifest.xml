@@ -1,0 +1,71 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- P10（需求 36，2026-10-07）：RECORD_AUDIO 随语音输入整族删除
+         （原注释：录音经 BYOK 端点转写，音频不出本机留存） -->
+    <!-- 步数（docs/29 §P9 需求 34）：读本机计步传感器。API 29+ 需运行时申请；
+         拒绝后步数卡显示「未授权 + 去设置」，其余功能不受影响。 -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
+    <!-- 电子体重秤（docs/31 S6，需求 47 / D6）：前台扫描 + 连接标准体重秤
+         服务（0x181D）。BLUETOOTH_SCAN 带 neverForLocation：扫描结果不用于
+         推导位置，本仓不申请任何定位权限（D6 备注的默认取舍）。运行时申请
+         仅 API 31+；API ≤ 30 的扫描需要系统级定位权限，本仓不加，
+         老设备在应用内诚实显示「设备不支持」。 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <!-- legacy 蓝牙权限只在 API ≤ 30 生效（本应用在那些版本上不扫描），
+         maxSdkVersion=30 防止它们在 API 31+ 的设备上多要权限。 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+    <!--
+      allowBackup=false：全数据本地约束下，平台自动备份（Google Drive 云备份与
+      换机迁移）会把明文库文件与拍照图片带出本机。用户的出口只有应用自己的
+      密码加密 .lfb 包（docs/08 / docs/11 §3-*）。两个规则文件是第二道防线。
+    -->
+    <application
+        android:label="localfit_ai"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false">
+        <!-- launcher activity 写**全限定名**而不是相对的 `.MainActivity`：相对名按
+             namespace（com.localfit.ai）解析，而 MainActivity.kt 的 package 是
+             com.localfit.localfit_ai —— 两者错位时构建成功、设备上一点就崩
+             （2026-10-21 vc4043/vc4044 的真实事故）。
+             回归钉子：test/release/apk_launch_contract_test.dart。 -->
+        <activity
+            android:name="com.localfit.localfit_ai.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

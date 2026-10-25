@@ -1,0 +1,230 @@
+# 整名覆盖人工表（docs/28 §7.3：缺译即失败，不许拉丁字母名漏进库）
+#
+# 两列：归一化英文名 \t 中文名。键的归一化规则与脚本一致：小写、`-`/`_` → 空格、
+# 折叠空白（括号保留，如 `front squat (clean grip)`）。
+#
+# 这里只放**不规则名**与**v2 既有动作的定名**：
+#   · 规则名（如 `Incline_Dumbbell_Press`）由 build_exercises.py 里的
+#     EQUIP_ZH/MOD_ZH/HEAD_ZH 合成，不进本表；
+#   · v2 的 60 条里有 51 条在上游有对应动作（见 id_overrides.tsv），它们的名字
+#     在这里定死，免得换源时用户的既有动作被改名成合成出来的怪名字；
+#   · 拉丁字母/数字/括号类（`3_4_Sit-Up`、`Dips_-_Chest_Version`）一律走本表。
+#
+# 缺一条就会构建失败（不是静默跳过），失败会一次列出全部缺译。
+# v2 里三处错译在这里改动：`Arnold 推举` → 阿诺德哑铃推举、`T杠划船` → 丁字杠划船、
+# `后 deltoid 飞鸟` → 绳索反向飞鸟、`坐姿好早上` → 坐姿早安式、`俄罗斯转弯` → 俄罗斯转体。
+barbell bench press medium grip	杠铃卧推
+dumbbell bench press	哑铃卧推
+pushups	俯卧撑
+butterfly	蝴蝶机夹胸
+barbell incline bench press medium grip	杠铃上斜卧推
+incline dumbbell press	哑铃上斜卧推
+decline barbell bench press	杠铃下斜卧推
+decline dumbbell bench press	哑铃下斜卧推
+cable crossover	绳索交叉飞鸟
+leverage chest press	器械推胸
+push up wide	宽距俯卧撑
+bent over barbell row	杠铃划船
+wide grip lat pulldown	高位下拉
+pullups	引体向上
+seated cable rows	坐姿划船
+underhand cable pulldowns	反手下拉
+t bar row with handle	丁字杠划船
+seated good mornings	坐姿早安式
+barbell shrug	杠铃耸肩
+barbell squat	杠铃深蹲
+leg press	腿举
+romanian deadlift	罗马尼亚硬拉
+dumbbell lunges	哑铃箭步蹲
+leg extensions	腿屈伸
+lying leg curls	俯卧腿弯举
+seated leg curl	坐姿腿弯举
+smith machine squat	史密斯架深蹲
+bodyweight walking lunge	行走箭步蹲
+barbell shoulder press	杠铃推举
+side lateral raise	侧平举
+face pull	面拉
+dumbbell shoulder press	哑铃肩部推举
+standing military press	站姿军事推举
+seated side lateral raise	坐姿哑铃侧平举
+cable rear delt fly	绳索反向飞鸟
+arnold dumbbell press	阿诺德哑铃推举
+barbell curl	杠铃弯举
+dumbbell bicep curl	哑铃弯举
+triceps pushdown	绳索下压
+hammer curls	锤式弯举
+preacher curl	牧师凳弯举
+concentration curls	集中弯举
+tricep dumbbell kickback	哑铃臂后伸
+close grip barbell bench press	窄距卧推
+push ups close triceps position	窄距俯卧撑
+standing dumbbell triceps extension	哑铃颈后臂屈伸
+plank	平板支撑
+crunches	卷腹
+hanging leg raise	悬垂举腿
+russian twist	俄罗斯转体
+barbell deadlift	硬拉
+ab roller	健腹轮
+around the worlds	哑铃环绕
+backward drag	向后拖拽
+band good morning (pull through)	弹力带早安式胯下拉
+band assisted pull up	弹力带辅助引体向上
+barbell ab rollout on knees	跪姿杠铃滚轮
+barbell clean and press	杠铃高翻推举
+barbell guillotine bench press	杠铃断头台卧推
+barbell rollout from bench	凳上杠铃滚轮
+barbell side split squat	杠铃侧向分腿深蹲
+bench press powerlifting	力量举卧推
+bent over one arm long bar row	俯身单臂长杆划船
+bent over two arm long bar row	俯身双臂长杆划船
+bent over two dumbbell row with palms in	俯身双臂哑铃对握划船
+bottoms up	仰卧抬臀举腿
+bottoms up clean from the hang position	悬垂位壶铃倒立高翻
+butt ups	仰卧抬臀
+cable judo flip	绳索柔道翻转
+calf press on the leg press machine	器械提踵
+catch and overhead throw	接球过头抛
+chair squat	椅上深蹲
+clean from blocks	垫木上高翻
+clean shrug	高翻耸肩
+close grip push up off of a dumbbell	窄距俯卧撑（扶哑铃）
+cocoons	蚕蛹卷腹
+crossover reverse lunge	交叉后撤箭步蹲
+cuban press	古巴推举
+decline close grip bench to skull crusher	下斜窄距卧推接仰卧臂屈伸
+decline smith press	下斜史密斯架推举
+dip machine	器械双杠臂屈伸
+double leg butt kick	双腿后踢腿
+dumbbell squat to a bench	哑铃凳上深蹲
+dumbbell tricep extension pronated grip	哑铃正握臂屈伸
+elbow to knee	肘触膝
+elevated back lunge	垫高后脚箭步蹲
+elevated cable rows	垫高绳索划船
+exercise ball pull in	瑞士球收腿
+fast skipping	快速跳跃
+flat bench leg pull in	平凳抱膝举腿
+flexor incline dumbbell curls	上斜哑铃屈肌弯举
+flutter kicks	仰卧打水踢腿
+floor press with chains	加铁链地上推举
+frankenstein squat	弗兰肯斯坦深蹲
+front raise and pullover	前平举接仰卧上拉
+front squat (clean grip)	前蹲（高翻握）
+full range of motion lat pulldown	全幅度高位下拉
+good morning off pins	架上早安式
+gorilla chin/crunch	大猩猩引体卷腹
+hammer grip incline db bench press	锤式握上斜哑铃卧推
+hang clean below the knees	悬垂高翻（膝下）
+hanging bar good morning	悬垂杠早安式
+hanging pike	悬垂折体举腿
+heaving snatch balance	借力抓举平衡
+hyperextensions with no hyperextension bench	无器械山羊挺身
+incline dumbbell bench with palms facing in	上斜哑铃对握卧推
+incline dumbbell flyes with a twist	上斜哑铃飞鸟转体
+incline inner biceps curl	上斜内侧二头弯举
+incline push up medium	上斜俯卧撑（中位）
+incline push up wide	上斜宽距俯卧撑
+inverted row with straps	拉力带倒身划船
+iron cross	十字支撑
+isometric chest squeezes	等长夹胸
+isometric wipers	等长摆腿
+jackknife sit up	折刀仰卧起坐
+jerk dip squat	挺举预蹲
+jm press	杰姆推举
+kettlebell halo with overhead extension	壶铃绕头过头臂屈伸
+kettlebell pass between the legs	壶铃胯下传递
+landmine 180's	地雷管 180 度转体
+landmine linear jammer	地雷管直臂上举
+leg pull in	抱膝举腿
+leverage deadlift	器械硬拉
+leverage decline chest press	器械下斜推胸
+leverage high row	器械高位划船
+leverage incline chest press	器械上斜推胸
+leverage iso row	器械等长划船
+leverage shoulder press	器械肩部推举
+low pulley row to neck	低位滑轮划船至颈
+lying t bar row	仰卧丁字杠划船
+machine shoulder (military) press	器械军事推举
+muscle snatch	肌肉抓举
+one arm long bar row	单臂长杆划船
+one arm side laterals	单臂侧平举
+otis up	奥蒂斯仰卧起坐
+pallof press with rotation	帕洛夫推举转体
+plie dumbbell squat	相扑式哑铃深蹲
+plyo push up	爆发式俯卧撑
+power clean from blocks	垫木上力量高翻
+power snatch from blocks	垫木上力量抓举
+prowler sprint	雪橇推车冲刺
+push press behind the neck	颈后借力推举
+push up to side plank	俯卧撑转侧平板
+rack delivery	架上送杠
+rack pull with bands	架上硬拉（弹力带）
+ring dips	吊环臂屈伸
+rope climbing	爬绳
+romanian deadlift from deficit	垫高罗马尼亚硬拉
+seated flat bench leg pull in	坐姿平凳抱膝举腿
+seated one arm cable pulley rows	坐姿单臂绳索滑轮划船
+shotgun row	霰弹式划船
+single arm linear jammer	单臂地雷管上举
+snatch shrug	抓举耸肩
+spell caster	施法者摆荡
+spider crawl	蜘蛛爬
+split squat with dumbbells	哑铃分腿深蹲
+squat with plate movers	杠铃片深蹲推举
+standing barbell press behind neck	站姿颈后杠铃推举
+standing palm in one arm dumbbell press	站姿单臂掌心相对哑铃推举
+standing palms in dumbbell press	站姿掌心相对哑铃推举
+straight bar bench mid rows	直杆中位划船
+sumo deadlift with chains	加铁链相扑硬拉
+3 4 sit up	四分之三仰卧起坐
+upright barbell row	杠铃直立划船
+v bar pulldown	三角把下拉
+v bar pullup	三角把引体向上
+weighted jump squat	负重蹲跳
+wide grip pulldown behind the neck	颈后宽握下拉
+wide stance stiff legs	宽站距直腿硬拉
+wind sprints	原地冲刺
+alternate leg diagonal bound	交替单腿斜向跨步跳
+anti gravity press	反重力推举
+bradford/rocky presses	布拉德福德与洛基推举
+dips chest version	双杠臂屈伸（胸）
+dips triceps version	双杠臂屈伸（三头）
+handstand push ups	倒立俯卧撑
+hang snatch below knees	膝下悬垂抓举
+kettlebell windmill	壶铃风车
+overhead slam	药球过头砸
+see saw press (alternating side press)	跷跷板推举
+side jackknife	侧向折刀
+standing cable lift	站姿绳索斜上提
+standing cable wood chop	站姿绳索伐木
+supine chest throw	仰卧药球胸前抛
+supine one arm overhead throw	仰卧单臂过头抛
+supine two arm overhead throw	仰卧双臂过头抛
+barbell ab rollout	杠铃滚轮
+barbell full squat	杠铃全蹲
+bodyweight squat	徒手深蹲
+box squat with bands	箱上弹力带深蹲
+cable rope rear delt rows	绳索后束划船
+clean	杠铃下蹲翻
+clean and jerk	杠铃挺举
+clean and press	高翻推举
+clean deadlift	高翻硬拉
+clean pull	高翻拉
+deadlift with bands	弹力带硬拉
+deadlift with chains	加铁链硬拉
+hang clean	悬垂高翻
+hang snatch	悬垂抓举
+jerk balance	挺举平衡
+lying supine dumbbell curl	仰卧哑铃弯举
+neck press	杠铃卧推至颈
+olympic squat	奥林匹克深蹲
+parallel bar dip	双杠臂屈伸
+power clean	杠铃高翻
+reverse band power squat	反向弹力带深蹲
+snatch balance	抓举平衡
+snatch deadlift	抓举硬拉
+snatch pull	抓举拉
+split clean	分腿高翻
+split jerk	分腿挺举
+squat with bands	弹力带深蹲
+squat with chains	加铁链深蹲
+sumo deadlift with bands	相扑弹力带硬拉

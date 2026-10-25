@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>训练 · 动作库卡片 / 替代动作抽屉 — 整改设计稿（P5）</title>
+<!--
+  ============================================================================
+  LocalFit AI 2.0 「界面与体验治理」设计稿（P5 动作库）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖的需求（docs/29 §P5）：
+   【需求 9/10 · 网格卡】
+    · 分类串 `'肌肉 · 器械'` 移到**卡片右上角**（与左上角图标同一行）；
+      原来它在名称下方独占一行，卡片下半部被三行小字堆满。
+    · 删掉图标行与标题之间那个 `const Spacer()`（320dp 实测 ≈35.6dp 的空洞）；
+      图标 ↔ 标题间距改为**显式 8dp**。
+    · 标题 ↔ 标签行间距从 `12+18.2+4`（≈34dp）压到 `6+8`（≈14dp）。
+    · `mainAxisExtent: 168` → **实测内容高 + 12**；设计目标 ≤140。
+      168 是把「分类串占一行 + 两处大间距」一起塞进去的历史值，本次三处收紧后
+      行高应该掉到 130 出头；最终值**以 Flutter 侧实测为准**（先量后改），
+      本稿只给目标区间与构成拆解。
+
+   【需求 8 · 详情抽屉】
+    · 「同肌群替代动作」从裸 `ListTile`（名称 + 器械两行纯文字）改成
+      **行卡**：图标圆（36dp 浅底）+ 名称 + 器械/难度 chip。
+      `listAlternatives` 本来就返回完整 `ExerciseRecord`（含 difficulty /
+      popularity），现在一个字段都没用上 —— 本次把它们呈现出来。
+    · 行卡**可点击**（切到该动作的详情）。点完抽屉内容原地换成新动作的详情，
+      不叠新层（与 AppSheet 的单层语义一致）。
+    · **加载态**：现在 FutureBuilder 没有 waiting 分支，加载中会先闪一行
+      「暂无同肌群的本地替代动作」再跳成列表 —— 加载中必须显示骨架行，
+      不能先给一个「没有」的结论。
+
+   【需求 11 · 流畅度（真凶已定位）】
+    · `_ExerciseLibraryGrid` 的 `future: repository.search(...)` 建在 `build`
+      里：键盘 inset 变化（聚焦搜索框）、任意 setState 都会重建并**重新查库**，
+      每次都回到骨架屏。修法 = 提到 `initState` + 只有查询/筛选变化才重建
+      future，并给搜索加 **debounce（300ms）**。
+    · 抽屉动画统一到 `AppSheet` 的 `AppMotion` token
+      （250ms easeOutCubic 入场 / 150ms 退场），现在走的是默认 M3 时长。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该文件是 UI 唯一依据）。本目录的文件不被任何测试解析，
+  仅作评审与实现参照；与 pages/ 的差异只有「去 CDN 依赖」（无头渲染用）。
+
+  尺寸是按 360dp 逻辑宽画的：页面 padding 20dp、两列网格、列间距 12dp
+  → 每格宽 (360 − 40 − 12) / 2 = 154dp；卡内 padding 12dp → 内容宽 130dp。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--lf-background); color: var(--lf-foreground);
+    font-family: var(--lf-font-sans); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+  .page { width: 360px; margin: 0 auto; padding: 14px 0 30px; }
+  .sec {
+    font-size: 12px; font-weight: 600; color: var(--lf-muted-foreground);
+    padding: 14px 20px 8px; letter-spacing: 0.2px;
+  }
+  .note {
+    margin: 0 16px 10px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+    font-size: 11px; line-height: 1.55;
+  }
+  .note b { color: var(--lf-foreground); font-weight: 600; }
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+  }
+
+  /* ── 页头（动作库二级页） ─────────────────────────────────────────── */
+  .topbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 16px 12px;
+  }
+  .topbar .back {
+    width: 32px; height: 32px; border-radius: var(--lf-radius-full);
+    background: var(--lf-muted); color: var(--lf-foreground);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .topbar .title { font-size: 17px; font-weight: 700; flex: 1; }
+  .topbar .add {
+    width: 34px; height: 34px; border-radius: var(--lf-radius-full);
+    background: var(--lf-primary); color: var(--lf-primary-foreground);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600;
+  }
+
+  /* ── 搜索 + 肌群 chips ───────────────────────────────────────────── */
+  .search {
+    margin: 0 20px; height: 40px; border-radius: var(--lf-radius-md);
+    border: 1px solid var(--lf-border); background: var(--lf-card);
+    display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    color: var(--lf-muted-foreground); font-size: 13px;
+  }
+  .chips { display: flex; gap: 8px; padding: 10px 20px 12px; overflow: hidden; }
+  .chip {
+    height: 30px; padding: 0 12px; border-radius: var(--lf-radius-full);
+    display: flex; align-items: center; font-size: 12px; font-weight: 500;
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+    white-space: nowrap;
+  }
+  .chip.on { background: var(--lf-primary); color: var(--lf-primary-foreground); font-weight: 600; }
+
+  /* ── 网格 ─────────────────────────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 20px; }
+
+  /* 单格：改造后（P5 形态） */
+  .tile {
+    min-width: 0; padding: 12px; border-radius: var(--lf-radius-lg);
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    box-shadow: var(--lf-shadow-1);
+    display: flex; flex-direction: column; align-items: flex-start;
+  }
+  .tile .head { display: flex; align-items: center; width: 100%; min-width: 0; gap: 6px; }
+  .badge {
+    width: 36px; height: 36px; border-radius: var(--lf-radius-full);
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .badge.barbell  { background: var(--lf-mint-100); color: #1B8A62; }
+  .badge.dumbbell { background: var(--lf-protein-100); color: var(--lf-foreground); }
+  .badge.core     { background: var(--lf-carbs-100); color: var(--lf-foreground); }
+  .badge.legs     { background: var(--lf-fat-100); color: var(--lf-foreground); }
+  /* ★ P5：分类串在右上角，与图标同一行（原来在名称下方独占一行） */
+  .tile .cat {
+    margin-left: auto; font-size: 11px; color: var(--lf-muted-foreground);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0; text-align: right;
+  }
+  /* ★ P5：图标 ↔ 标题显式 8dp（原来是 Spacer 撑开 ≈35.6dp 的洞） */
+  .tile .name {
+    margin-top: 8px; font-size: 14px; font-weight: 600; line-height: 20px;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* ★ P5：标题 ↔ 标签行 6dp + 行内 8dp（原来是 12+18.2+4） */
+  .tile .tags { display: flex; gap: 4px; margin-top: 6px; width: 100%; min-width: 0; overflow: hidden; }
+  .tag {
+    font-size: 11px; font-weight: 500; line-height: 15px;
+    padding: 2px 6px; border-radius: var(--lf-radius-full);
+    white-space: nowrap;
+  }
+  .tag.beginner { color: var(--lf-state-success); background: color-mix(in srgb, var(--lf-state-success) 12%, transparent); }
+  .tag.inter    { color: var(--lf-state-warning); background: color-mix(in srgb, var(--lf-state-warning) 12%, transparent); }
+  .tag.adv      { color: var(--lf-state-error);   background: color-mix(in srgb, var(--lf-state-error) 12%, transparent); }
+  .tag.pop      { color: var(--lf-muted-foreground); background: var(--lf-muted); }
+  .tag.user     { color: var(--lf-primary); background: var(--lf-evidence-a); }
+  .tile .h-anno {
+    margin-top: 8px; font-size: 10px; color: var(--lf-muted-foreground);
+    border-top: 1px dashed var(--lf-border); padding-top: 4px; width: 100%;
+  }
+
+  /* 改造前（对照）：Spacer 空洞 + 分类行 + 大间距 */
+  .tile.old .spacer {
+    height: 35.6px; width: 100%;
+    background: repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--lf-state-error) 10%, transparent) 0 6px,
+      transparent 6px 12px);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--lf-state-error);
+  }
+  .tile.old .name { margin-top: 0; }
+  .tile.old .cat-row { margin-top: 12px; font-size: 12px; color: var(--lf-muted-foreground); }
+  .tile.old .tags { margin-top: 4px; }
+
+  /* ── 详情抽屉 ─────────────────────────────────────────────────────── */
+  .sheet-wrap { margin: 0 16px; }
+  .sheet {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    overflow: hidden;
+  }
+  .sheet .grab { height: 18px; display: flex; align-items: center; justify-content: center; }
+  .sheet .grab i { width: 32px; height: 4px; border-radius: var(--lf-radius-full); background: var(--lf-neutral-300); }
+  .sheet .body { padding: 0 16px 16px; }
+  .sheet h3 { font-size: 17px; font-weight: 700; }
+  .sheet .sub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .sheet .block-title { font-size: 13px; font-weight: 600; margin: 14px 0 8px; }
+
+  /* ★ P5：替代动作行卡（原来是无样式 ListTile 两行文字） */
+  .alt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: var(--lf-radius-md);
+    border: 1px solid var(--lf-border); background: var(--lf-card);
+    margin-bottom: 8px;
+  }
+  .alt.pressed { background: var(--lf-muted); }
+  .alt .dot {
+    width: 36px; height: 36px; border-radius: var(--lf-radius-full);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    flex: none;
+  }
+  .alt .mid { flex: 1; min-width: 0; }
+  .alt .n { font-size: 14px; font-weight: 600; line-height: 19px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .alt .chips2 { display: flex; gap: 4px; margin-top: 4px; }
+  .alt .go { color: var(--lf-muted-foreground); font-size: 14px; flex: none; }
+  /* 骨架行（waiting 分支） */
+  .alt.skel .dot { background: var(--lf-muted); }
+  .sk { background: var(--lf-muted); border-radius: var(--lf-radius-full); display: block; }
+
+  /* ── 暗色抽查 ─────────────────────────────────────────────────────── */
+  .darkbox {
+    background: var(--lf-background); border-top: 1px solid var(--lf-border);
+    margin-top: 22px; padding-bottom: 24px;
+  }
+  .darkbox .label { font-size: 11px; color: var(--lf-muted-foreground); padding: 12px 20px 6px; }
+  html.dark .darkbox { background: var(--lf-background); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ============ 主形态：改造后的动作库（360dp） ============ -->
+  <div class="topbar">
+    <div class="back">←</div>
+    <div class="title">动作库</div>
+    <div class="add">＋</div>
+  </div>
+
+  <div class="search">🔍 搜索动作 / 肌群</div>
+
+  <div class="chips">
+    <div class="chip on">全部</div>
+    <div class="chip">胸</div>
+    <div class="chip">背</div>
+    <div class="chip">腿</div>
+    <div class="chip">肩</div>
+    <div class="chip">手臂</div>
+  </div>
+
+  <div class="sec">改造后 · 网格卡（P5 形态）</div>
+  <div class="note">
+    <b>行高构成</b>（360dp · 卡内 padding 12）：图标行 36 + <b>8</b> + 名称 20 +
+    <b>6</b> + 标签行 19 = 89；加 padding 24 ⇒ 内容高 ≈113，
+    <b>mainAxisExtent 目标 ≈125–140</b>（实测内容高 + 12 后取整；由 Flutter 侧
+    widget 测试量出并钉住，本稿只给构成拆解）。
+  </div>
+  <div class="grid">
+    <div class="tile">
+      <div class="head">
+        <div class="badge barbell">🏋</div>
+        <div class="cat">腿 · 杠铃</div>
+      </div>
+      <div class="name">杠铃深蹲</div>
+      <div class="tags">
+        <span class="tag inter">中级</span>
+        <span class="tag pop">常用度 87</span>
+      </div>
+      <div class="h-anno">高 ≈ 113 + 12 = 125</div>
+    </div>
+    <div class="tile">
+      <div class="head">
+        <div class="badge dumbbell">💪</div>
+        <div class="cat">胸 · 哑铃</div>
+      </div>
+      <div class="name">哑铃卧推</div>
+      <div class="tags">
+        <span class="tag beginner">初级</span>
+      </div>
+      <div class="h-anno">单标签也单行</div>
+    </div>
+    <div class="tile">
+      <div class="head">
+        <div class="badge core">🧘</div>
+        <div class="cat">核心 · 徒手</div>
+      </div>
+      <div class="name">平板支撑（自建）</div>
+      <div class="tags">
+        <span class="tag beginner">初级</span>
+        <span class="tag user">自建</span>
+      </div>
+      <div class="h-anno">长名省略号 · 自建徽标</div>
+    </div>
+    <div class="tile">
+      <div class="head">
+        <div class="badge legs">🦵</div>
+        <div class="cat">腿 · 器械</div>
+      </div>
+      <div class="name">腿举</div>
+      <div class="tags">
+        <span class="tag adv">高级</span>
+        <span class="tag pop">常用度 62</span>
+      </div>
+      <div class="h-anno">难度未知时走 muted 档</div>
+    </div>
+  </div>
+
+  <!-- ============ 对照：改造前 ============ -->
+  <div class="sec">对照 · 改造前的卡片（问题三处）</div>
+  <div class="note">
+    ① 图标与标题之间有 <b>Spacer 空洞 ≈35.6dp</b>（红斜纹）；② 分类串在名称下方
+    <b>独占一行</b>；③ 标题↔标签行间距 <b>≈34dp</b>（12+18.2+4）。三处叠加把
+    `mainAxisExtent` 顶到 168。
+  </div>
+  <div class="grid">
+    <div class="tile old">
+      <div class="head">
+        <div class="badge barbell">🏋</div>
+      </div>
+      <div class="spacer">Spacer ≈35.6dp</div>
+      <div class="name">杠铃深蹲</div>
+      <div class="cat-row">腿 · 杠铃</div>
+      <div class="tags">
+        <span class="tag inter">中级</span>
+        <span class="tag pop">常用度 87</span>
+      </div>
+      <div class="h-anno">mainAxisExtent: 168</div>
+    </div>
+    <div class="tile old">
+      <div class="head">
+        <div class="badge dumbbell">💪</div>
+      </div>
+      <div class="spacer">Spacer ≈35.6dp</div>
+      <div class="name">哑铃卧推</div>
+      <div class="cat-row">胸 · 哑铃</div>
+      <div class="tags">
+        <span class="tag beginner">初级</span>
+      </div>
+      <div class="h-anno">两列各留一个洞</div>
+    </div>
+  </div>
+
+  <!-- ============ 详情抽屉 ============ -->
+  <div class="sec">详情抽屉 · 替代动作行卡（需求 8）</div>
+  <div class="note">
+    左：<b>加载中</b>（新增 waiting 分支 —— 骨架行 x3，不再先闪「暂无」再跳列表）。
+    右：<b>加载完成</b> —— 图标圆 + 名称 + <b>器械 / 难度 chip</b>；整行可点，
+    点后抽屉内容原地换成该动作详情（不叠层）。最后一行示例按压态。
+  </div>
+  <div class="sheet-wrap">
+    <div class="sheet">
+      <div class="grab"><i></i></div>
+      <div class="body">
+        <h3>杠铃深蹲</h3>
+        <div class="sub">腿 · 杠铃</div>
+
+        <div class="block-title">同肌群替代动作</div>
+
+        <div class="alt skel">
+          <div class="dot"></div>
+          <div class="mid">
+            <span class="sk" style="height:14px;width:88px"></span>
+            <div class="chips2">
+              <span class="sk" style="height:11px;width:52px"></span>
+              <span class="sk" style="height:11px;width:40px"></span>
+            </div>
+          </div>
+        </div>
+        <div class="alt skel">
+          <div class="dot"></div>
+          <div class="mid">
+            <span class="sk" style="height:14px;width:104px"></span>
+            <div class="chips2">
+              <span class="sk" style="height:11px;width:44px"></span>
+            </div>
+          </div>
+        </div>
+        <div class="alt skel">
+          <div class="dot"></div>
+          <div class="mid">
+            <span class="sk" style="height:14px;width:76px"></span>
+            <div class="chips2">
+              <span class="sk" style="height:11px;width:48px"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-wrap" style="margin-top:12px">
+    <div class="sheet">
+      <div class="grab"><i></i></div>
+      <div class="body">
+        <h3>杠铃深蹲</h3>
+        <div class="sub">腿 · 杠铃</div>
+
+        <div class="block-title">同肌群替代动作</div>
+
+        <div class="alt">
+          <div class="dot" style="background:var(--lf-carbs-100)">🏋</div>
+          <div class="mid">
+            <div class="n">哈克深蹲</div>
+            <div class="chips2">
+              <span class="tag inter">中级</span>
+              <span class="tag pop">器械</span>
+            </div>
+          </div>
+          <div class="go">›</div>
+        </div>
+        <div class="alt">
+          <div class="dot" style="background:var(--lf-protein-100)">💪</div>
+          <div class="mid">
+            <div class="n">高脚杯深蹲</div>
+            <div class="chips2">
+              <span class="tag beginner">初级</span>
+              <span class="tag pop">哑铃</span>
+            </div>
+          </div>
+          <div class="go">›</div>
+        </div>
+        <div class="alt pressed">
+          <div class="dot" style="background:var(--lf-mint-100)">🧘</div>
+          <div class="mid">
+            <div class="n">徒手深蹲（自建）</div>
+            <div class="chips2">
+              <span class="tag beginner">初级</span>
+              <span class="tag user">自建</span>
+            </div>
+          </div>
+          <div class="go">›</div>
+        </div>
+        <div class="note" style="margin:2px 0 0">
+          难度未知 ⇒ chip 走 muted 档显示「难度未知」（不隐藏、不臆造）；名称一律单行省略号。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 状态矩阵：搜索防抖 / future 提升 ============ -->
+  <div class="sec">流畅度（需求 11）· 状态说明</div>
+  <div class="note">
+    <b>改造前</b>：`future: repository.search(...)` 建在 build 里 ⇒ 聚焦搜索框（键盘 inset 变化）
+    即重建 ⇒ 重新查库 ⇒ 回骨架屏。<br>
+    <b>改造后</b>：future 提到 `initState`；输入 debounce 300ms 后才更新查询并重建 future；
+    首次进入与筛选切换各只查一次。<br>
+    <b>可测断言</b>：计数 fake repository —— 连续输入 5 个字符只触发 1 次查询；
+    聚焦/失焦（键盘 inset 变化）触发 0 次新查询。
+  </div>
+  <div class="note" style="background:var(--lf-evidence-a); color:var(--lf-foreground)">
+    <b>空态</b>：保持既有文案「没有匹配的本地动作。」+ 副标题；
+    但现在只在<b>查询确实返回空</b>时出现（waiting 归骨架屏独占），两种状态不再互相冒充。
+  </div>
+
+  <!-- ============ 暗色抽查 ============ -->
+  <div class="darkbox" id="darkzone">
+    <div class="label">暗色抽查（同一形态，token 自动切档 —— 无新造色）</div>
+    <div class="grid">
+      <div class="tile">
+        <div class="head">
+          <div class="badge barbell">🏋</div>
+          <div class="cat">腿 · 杠铃</div>
+        </div>
+        <div class="name">杠铃深蹲</div>
+        <div class="tags">
+          <span class="tag inter">中级</span>
+          <span class="tag pop">常用度 87</span>
+        </div>
+      </div>
+      <div class="tile">
+        <div class="head">
+          <div class="badge core">🧘</div>
+          <div class="cat">核心 · 徒手</div>
+        </div>
+        <div class="name">平板支撑</div>
+        <div class="tags">
+          <span class="tag beginner">初级</span>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-wrap" style="margin-top:12px">
+      <div class="sheet">
+        <div class="body" style="padding-top:12px">
+          <div class="alt">
+            <div class="dot" style="background:var(--lf-carbs-100)">🏋</div>
+            <div class="mid">
+              <div class="n">哈克深蹲</div>
+              <div class="chips2">
+                <span class="tag inter">中级</span>
+                <span class="tag pop">器械</span>
+              </div>
+            </div>
+            <div class="go">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 暗色抽查区：把 darkzone 及其后内容切到暗色 token
+  document.getElementById('darkzone').classList.add('dark-zone');
+  const style = document.createElement('style');
+  style.textContent = '.dark-zone{--lf-background:#0F1412;--lf-foreground:#E8EFEB;--lf-card:#1A211D;--lf-muted:#242E28;--lf-muted-foreground:#9FB3AC;--lf-border:#2A3A32;--lf-neutral-300:#2A3A32;--lf-primary:#4ED9A6;--lf-primary-foreground:#0F1412;--lf-mint-100:#1F2823;--lf-protein-100:#3A2820;--lf-carbs-100:#3A3320;--lf-fat-100:#2A2438;--lf-evidence-a:#1F2823;--lf-shadow-1:0 1px 3px rgba(0,0,0,.30),0 1px 2px rgba(0,0,0,.24);} .dark-zone .tag.beginner{color:#4ED9A6}.dark-zone .tag.inter{color:#FFB74D}.dark-zone .tag.adv{color:#EF5350}.dark-zone .badge.barbell{color:#4ED9A6}';
+  document.head.appendChild(style);
+</script>
+
+</body>
+</html>

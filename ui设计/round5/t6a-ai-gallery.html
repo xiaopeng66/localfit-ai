@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T6a AI 创作画廊重设计 · 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5; --mint-100: #d2f5e6; --mint-300: #6fdbb0;
+      --mint-500: #2fbe8f; --mint-600: #22a877; --mint-700: #1b8a62;
+      --ink: #1a201d; --muted-ink: #6b7e78; --line: #dde5e1; --muted: #eff3f1;
+      --canvas: #f7f9f8; --card: #ffffff;
+      --protein: #ff8a65; --carbs: #ffc94d; --fat: #b39ddb; --water: #a8c4d9;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 24px 48px; background: #e7ecea; color: var(--ink);
+      font-family: var(--font); font-feature-settings: "tnum" 1; -webkit-font-smoothing: antialiased; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .intro { max-width: 800px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+    .phone { width: 360px; min-height: 320px; background: var(--canvas); border: 1px solid #c6d2cc; border-radius: 18px; overflow: hidden; }
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+    .topbar .back { color: var(--muted-ink); font-size: 18px; }
+    .topbar .title { font-size: 16px; font-weight: 650; }
+    .body { padding: 16px; }
+    .group { margin-bottom: 20px; }
+    .group-label { margin-bottom: 10px; color: var(--muted-ink); font-size: 12px; font-weight: 650; letter-spacing: .02em; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card {
+      display: flex; flex-direction: column; gap: 10px; padding: 14px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(15,36,28,.04), 0 1px 2px rgba(15,36,28,.03);
+      min-height: 132px;
+    }
+    .card .icon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; }
+    /* 稿内用图标名占位（评审标注用）：实现里是 Material IconData。 */
+    .card .icon .ic { font-family: ui-monospace, Consolas, monospace; font-size: 8px; color: var(--mint-700); text-align: center; line-height: 1.1; }
+    .icon.mint { background: var(--mint-100); }
+    .icon.warm { background: #ffe5dc; }
+    .icon.amber { background: #fff4d6; }
+    .icon.violet { background: #ede6f7; }
+    .icon.sky { background: #e2eef7; }
+    .card .name { font-size: 14px; font-weight: 650; line-height: 1.3; }
+    /* 描述逐字沿用实现里的 inputSummary（不新造文案）。 */
+    .card .desc { flex: 1; color: var(--muted-ink); font-size: 11px; line-height: 1.45; }
+    .card .cta { display: inline-flex; align-items: center; gap: 4px; color: var(--mint-700); font-size: 12px; font-weight: 650; }
+    .note { margin-top: 12px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; color: #556760; font-size: 11px; line-height: 1.6; }
+    .note strong { color: var(--ink); }
+    .note code { color: var(--mint-700); font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+
+    /* 描述框弹层 */
+    .sheet { background: var(--card); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 10px 16px 16px; box-shadow: 0 -1px 3px rgba(15,36,28,.04); }
+    .grabber { width: 36px; height: 4px; margin: 0 auto 10px; background: var(--muted); border-radius: 999px; }
+    .sheet-title { font-size: 15px; font-weight: 650; }
+    .sheet-sub { margin-top: 4px; color: var(--muted-ink); font-size: 11px; }
+    .textbox { margin-top: 12px; min-height: 96px; padding: 12px; background: var(--mint-50); border: 1px solid var(--mint-100); border-radius: 12px; color: var(--muted-ink); font-size: 13px; line-height: 1.5; }
+    .textbox.filled { color: var(--ink); }
+    .textbox .ph { color: #8fa09a; }
+    .actions { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+    .cancel { color: var(--mint-700); font-size: 14px; font-weight: 500; }
+    .primary { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 20px; border-radius: 999px; background: var(--mint-500); color: #fff; font-size: 13px; font-weight: 650; box-shadow: 0 8px 24px rgba(47,190,143,.25); }
+    .primary.disabled { background: var(--muted); color: #8fa09a; box-shadow: none; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 11px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+    th { background: var(--muted); font-weight: 650; }
+    td code { color: var(--mint-700); font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+    @media (max-width: 800px) { body { padding: 20px 0 36px; } h1, .intro { margin-left: 16px; margin-right: 16px; } .frames { gap: 24px 0; } }
+  </style>
+</head>
+<body>
+  <h1>T6a · AI 创作画廊重设计</h1>
+  <p class="intro">360dp 评审稿，对应需求 62 与 docs/32 §3 D5。<b>六张卡改成分组画廊</b>（饮食 4 张 / 训练与搭配 2 张），每张卡点击后进入 <b>描述框弹层</b>（标题=任务名、多行输入、placeholder=该任务既有 <code>inputHint</code>、主按钮「生成」<b>非空才可点</b>）；生成后切到对话分支自动发送。<br>
+  <b>图标沿用现有体系</b>（用户 74「图标什么的按现有的来」）：现实现用 Material <code>IconData</code>（<code>Icons.receipt_long_outlined</code> / <code>today_outlined</code> / <code>restaurant_outlined</code> / <code>fitness_center</code> / <code>sync_alt</code> / <code>auto_awesome_outlined</code>），本稿逐字沿用，不引新图标库；卡片文案保留各任务既有 <code>title</code>。</p>
+  <p class="intro" style="margin-top:-12px"><b>自检二轮修正</b>：① 初稿误画 emoji（与现有 <code>IconData</code> 体系不符）⇒ 改为现有图标名；② 卡片描述初稿为自拟短句，与实现里既有 <code>inputSummary</code> 不一致（其中一条已被测试断言）⇒ **逐字改回既有文案**，本稿不新造文案。分组标签与「描述需求 →」引导是本轮新增的布局元素。</p>
+
+  <main class="frames">
+    <section class="frame">
+      <div class="frame-label">A · 画廊（分组：饮食 / 训练与搭配）</div>
+      <div class="phone">
+        <div class="topbar"><span class="back">←</span><span class="title">AI 创作</span></div>
+        <div class="body">
+          <div class="group">
+            <div class="group-label">饮食</div>
+            <div class="grid">
+              <div class="card">
+                <div class="icon mint"><span class="ic">receipt_long</span></div>
+                <div class="name">解析学校菜单</div>
+                <div class="desc">把粘贴的菜单文本整理成待确认草案；确认后才发布为菜单快照。</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+              <div class="card">
+                <div class="icon warm"><span class="ic">auto_awesome</span></div>
+                <div class="name">分析菜品营养</div>
+                <div class="desc">输入菜品名与配料提示，估算每 100g 营养与证据等级</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+              <div class="card">
+                <div class="icon amber"><span class="ic">today</span></div>
+                <div class="name">生成今日吃法</div>
+                <div class="desc">用本地菜单候选和目标先算一遍，再让 AI 只在这些候选里选；</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+              <div class="card">
+                <div class="icon mint"><span class="ic">restaurant</span></div>
+                <div class="name">这道菜怎么吃</div>
+                <div class="desc">只解释怎么吃：份量、搭配与可替换方向；营养由本地目录计算，</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+            </div>
+          </div>
+          <div class="group">
+            <div class="group-label">训练与搭配</div>
+            <div class="grid">
+              <div class="card">
+                <div class="icon violet"><span class="ic">fitness_center</span></div>
+                <div class="name">训练计划</div>
+                <div class="desc">只从本地动作库组织训练计划；确认后创建为训练计划，不会自动开始会话。</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+              <div class="card">
+                <div class="icon sky"><span class="ic">sync_alt</span></div>
+                <div class="name">常吃搭配</div>
+                <div class="desc">你点名的本地食材 → AI 只在这些食材里组织搭配 → 本地重算营养（只读建议）。</div>
+                <div class="cta">描述需求 →</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">B · 描述框弹层（未输入 → 生成禁用）</div>
+      <div class="phone" style="padding:0">
+        <div style="padding:16px 16px 100px; color:#b8c6c0; font-size:11px">（画廊页被压暗）</div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">解析学校菜单</div>
+          <div class="sheet-sub">描述你的需求，生成后会在「AI 工作台」对话里继续</div>
+          <div class="textbox"><span class="ph">粘贴菜单文本（食堂/窗口、菜名、价格）</span></div>
+          <div class="actions">
+            <span class="cancel">取消</span>
+            <span class="primary disabled">生成</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">C · 已输入（生成可点）</div>
+      <div class="phone" style="padding:0">
+        <div style="padding:16px 16px 100px; color:#b8c6c0; font-size:11px">（画廊页被压暗）</div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">训练计划</div>
+          <div class="sheet-sub">描述你的需求，生成后会在「AI 工作台」对话里继续</div>
+          <div class="textbox filled">一周 4 练，增肌，家里只有哑铃</div>
+          <div class="actions">
+            <span class="cancel">取消</span>
+            <span class="primary">生成</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">D · 六卡映射与落库方式（D5）</div>
+      <div class="phone" style="min-height:auto; padding:16px">
+        <table>
+          <tr><th>卡片</th><th>结果落点</th></tr>
+          <tr><td>解析学校菜单</td><td>命令链 <code>canteen.venue/window/dish.create</code> → 编辑卡</td></tr>
+          <tr><td>分析菜品营养</td><td><code>dish.upsert</code>（每份口径）→ 编辑卡</td></tr>
+          <tr><td>生成今日吃法</td><td><b>咨询型</b>：只给建议文本，不产写库草稿</td></tr>
+          <tr><td>这道菜怎么吃</td><td>咨询型（对话原生）</td></tr>
+          <tr><td>训练计划</td><td><b>新增</b> <code>workout.plan.create</code> → 编辑卡</td></tr>
+          <tr><td>常吃搭配</td><td>咨询型（快照含菜品库/食堂目录/餐记录）</td></tr>
+        </table>
+        <div class="note"><strong>「草案不自动成为事实」不变</strong>：由编辑卡的「全部应用 / 忽略」承接（原任务卡的确认写入语义等价迁移到对话里）。</div>
+        <div class="note"><strong>不动的契约</strong>：卡片文案沿用各任务既有 <code>title</code>；placeholder 沿用既有 <code>inputHint</code>；emoji 图标沿用现有体系；无障碍标签齐全；今日页横幅仍进本页。</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

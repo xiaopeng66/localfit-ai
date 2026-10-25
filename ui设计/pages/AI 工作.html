@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 工作</title>
+    <style id="theme-vars">
+/* ==========================================================================
+   LocalFit AI — Brand CSS
+   Primary hue: mint (#2FBE8F) — single brand color system
+   Category data-viz tokens: protein / carbs / fat / water / weight
+   ========================================================================== */
+
+/* ---- Light Mode (default) ---- */
+:root {
+  /* Brand ramp — mint tonal scale */
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;   /* anchor */
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp */
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-800: #2A342F;
+  --lf-neutral-900: #1A201D;
+
+  /* Category data-viz tokens (domain-specific, not brand identity) */
+  --lf-protein: #FF8A65;   /* peach — protein */
+  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;     /* honey — carbs */
+  --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;       /* taro — fat */
+  --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;    /* salt — water */
+  --lf-weight: #C9A27E;   /* cocoa — weight */
+
+  /* State tokens */
+  --lf-state-success: #2FBE8F;
+  --lf-state-success-foreground: #FFFFFF;
+  --lf-state-warning: #FF9800;
+  --lf-state-warning-foreground: #FFFFFF;
+  --lf-state-error: #F44336;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #42A5F5;
+  --lf-state-info-foreground: #FFFFFF;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #D2F5E6;   /* mint100 — confirmed */
+  --lf-evidence-b: #FFF4D6;   /* honey100 — estimated */
+  --lf-evidence-c: #EDE6F7;   /* taro100 — incomplete */
+
+  /* Semantic surface tokens */
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-popover: #FFFFFF;
+  --lf-popover-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-input: #DDE5E1;
+  --lf-ring: #2FBE8F;
+
+  /* Primary */
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+
+  /* Radius scale (user-specified large shapes per design doc) */
+  --lf-radius-xs: 8px;
+  --lf-radius-sm: 12px;
+  --lf-radius-md: 16px;
+  --lf-radius-lg: 20px;
+  --lf-radius-xl: 24px;
+  --lf-radius-2xl: 32px;
+  --lf-radius-full: 9999px;
+
+  /* Shadows — static surfaces <= 0.05 alpha */
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-shadow-float: 0 8px 24px -8px rgba(15, 36, 28, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(15, 36, 28, 0.05);
+
+  /* Hero gradient (mint500 → mint200 → mint50, 135deg) */
+  --lf-hero-gradient: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+
+  /* Typography */
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --lf-font-display: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --lf-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* ---- Dark Mode ---- */
+html.dark {
+  /* Brand ramp — mint提亮至400 in dark */
+  --lf-mint-50:  #0F1412;
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-mint-400: #4ED9A6;   /* dark anchor (提亮) */
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp — 分层深色 */
+  --lf-neutral-50:  #0F1412;
+  --lf-neutral-100: #171E1A;
+  --lf-neutral-200: #1F2823;
+  --lf-neutral-300: #2A342F;
+  --lf-neutral-400: #3D4A45;
+  --lf-neutral-500: #556760;
+  --lf-neutral-600: #6B7E78;
+  --lf-neutral-700: #8FA09A;
+  --lf-neutral-800: #B8C6C0;
+  --lf-neutral-900: #DDE5E1;
+
+  /* Category colors — 提亮并降饱和5% */
+  --lf-protein: #FF9D7E;
+  --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;
+  --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;
+  --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+
+  /* State tokens */
+  --lf-state-success: #4ED9A6;
+  --lf-state-success-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-state-warning-foreground: #0F1412;
+  --lf-state-error: #EF5350;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #64B5F6;
+  --lf-state-info-foreground: #0F1412;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+
+  /* Semantic surface tokens */
+  --lf-background: #0F1412;
+  --lf-foreground: #DDE5E1;
+  --lf-card: #171E1A;
+  --lf-card-foreground: #DDE5E1;
+  --lf-popover: #1F2823;
+  --lf-popover-foreground: #DDE5E1;
+  --lf-muted: #1F2823;
+  --lf-muted-foreground: #8FA09A;
+  --lf-border: #2A342F;
+  --lf-input: #2A342F;
+  --lf-ring: #4ED9A6;
+
+  /* Primary */
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+
+  /* Hero gradient — dark */
+  --lf-hero-gradient: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+
+  /* Shadows — 暗色用outline替代 */
+  --lf-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-float: 0 8px 24px -8px rgba(0, 0, 0, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- Base Typography ---- */
+body {
+  font-family: var(--lf-font-sans);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display number family — w800 tabular figures */
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+}
+
+/* Tabular numbers for all data values */
+.lf-num {
+  font-variant-numeric: tabular-nums;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--lf-background);
+    --color-foreground: var(--lf-foreground);
+    --color-card: var(--lf-card);
+    --color-card-foreground: var(--lf-card-foreground);
+    --color-popover: var(--lf-popover);
+    --color-popover-foreground: var(--lf-popover-foreground);
+    --color-primary: var(--lf-primary);
+    --color-primary-foreground: var(--lf-primary-foreground);
+    --color-muted: var(--lf-muted);
+    --color-muted-foreground: var(--lf-muted-foreground);
+    --color-border: var(--lf-border);
+    --color-input: var(--lf-input);
+    --color-ring: var(--lf-ring);
+    --radius-sm: var(--lf-radius-sm);
+    --radius-md: var(--lf-radius-md);
+    --radius-lg: var(--lf-radius-lg);
+    --radius-xl: var(--lf-radius-xl);
+  }
+  @layer base {
+    body { background: var(--lf-background); color: var(--lf-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--lf-background); }
+      .text-background { color: var(--lf-background); }
+      .border-background { border-color: var(--lf-background); }
+      .ring-background { --tw-ring-color: var(--lf-background); }
+      .bg-foreground { background-color: var(--lf-foreground); }
+      .text-foreground { color: var(--lf-foreground); }
+      .border-foreground { border-color: var(--lf-foreground); }
+      .ring-foreground { --tw-ring-color: var(--lf-foreground); }
+      .bg-card { background-color: var(--lf-card); }
+      .text-card { color: var(--lf-card); }
+      .border-card { border-color: var(--lf-card); }
+      .ring-card { --tw-ring-color: var(--lf-card); }
+      .bg-card-foreground { background-color: var(--lf-card-foreground); }
+      .text-card-foreground { color: var(--lf-card-foreground); }
+      .border-card-foreground { border-color: var(--lf-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--lf-card-foreground); }
+      .bg-popover { background-color: var(--lf-popover); }
+      .text-popover { color: var(--lf-popover); }
+      .border-popover { border-color: var(--lf-popover); }
+      .ring-popover { --tw-ring-color: var(--lf-popover); }
+      .bg-popover-foreground { background-color: var(--lf-popover-foreground); }
+      .text-popover-foreground { color: var(--lf-popover-foreground); }
+      .border-popover-foreground { border-color: var(--lf-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--lf-popover-foreground); }
+      .bg-primary { background-color: var(--lf-primary); }
+      .text-primary { color: var(--lf-primary); }
+      .border-primary { border-color: var(--lf-primary); }
+      .ring-primary { --tw-ring-color: var(--lf-primary); }
+      .bg-primary-foreground { background-color: var(--lf-primary-foreground); }
+      .text-primary-foreground { color: var(--lf-primary-foreground); }
+      .border-primary-foreground { border-color: var(--lf-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--lf-primary-foreground); }
+      .bg-muted { background-color: var(--lf-muted); }
+      .text-muted { color: var(--lf-muted); }
+      .border-muted { border-color: var(--lf-muted); }
+      .ring-muted { --tw-ring-color: var(--lf-muted); }
+      .bg-muted-foreground { background-color: var(--lf-muted-foreground); }
+      .text-muted-foreground { color: var(--lf-muted-foreground); }
+      .border-muted-foreground { border-color: var(--lf-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--lf-muted-foreground); }
+      .bg-border { background-color: var(--lf-border); }
+      .text-border { color: var(--lf-border); }
+      .border-border { border-color: var(--lf-border); }
+      .ring-border { --tw-ring-color: var(--lf-border); }
+      .bg-input { background-color: var(--lf-input); }
+      .text-input { color: var(--lf-input); }
+      .border-input { border-color: var(--lf-input); }
+      .ring-input { --tw-ring-color: var(--lf-input); }
+      .bg-ring { background-color: var(--lf-ring); }
+      .text-ring { color: var(--lf-ring); }
+      .border-ring { border-color: var(--lf-ring); }
+      .ring-ring { --tw-ring-color: var(--lf-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+      @keyframes typing-dot {
+        0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+        30% { opacity: 1; transform: scale(1.15); }
+      }
+      .typing-dot { animation: typing-dot 1.4s infinite ease-in-out; }
+
+      /* 语音录制脉冲圈 */
+      @keyframes rec-pulse {
+        0% { transform: scale(1); opacity: 0.5; }
+        100% { transform: scale(1.6); opacity: 0; }
+      }
+      .rec-pulse-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        background: var(--lf-primary);
+        animation: rec-pulse 1.5s infinite ease-out;
+      }
+
+      /* 波形条动画 — 录制中，多关键帧更自然 */
+      @keyframes wave-bar {
+        0%   { transform: scaleY(0.2); }
+        15%  { transform: scaleY(0.6); }
+        30%  { transform: scaleY(1); }
+        45%  { transform: scaleY(0.7); }
+        60%  { transform: scaleY(0.9); }
+        75%  { transform: scaleY(0.4); }
+        100% { transform: scaleY(0.2); }
+      }
+      .wave-bar {
+        animation: wave-bar 1.1s infinite ease-in-out;
+        transform-origin: center;
+      }
+
+      /* 已播放波形渐进淡入 */
+      @keyframes wave-played {
+        from { opacity: 0.35; }
+        to   { opacity: 1; }
+      }
+
+      /* 图片预览入场 */
+      @keyframes img-preview-in {
+        from { opacity: 0; transform: translateY(6px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .img-preview-anim { animation: img-preview-in 0.28s cubic-bezier(0.34, 1.2, 0.64, 1); }
+
+      /* 图片预览缩略图 hover 放大 */
+      .img-thumb { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+      .img-thumb:active { transform: scale(0.94); }
+
+      button { transition: transform 0.12s ease, opacity 0.12s ease; }
+      button:active { transform: scale(0.95); opacity: 0.85; }
+      a[data-nav-key] { transition: opacity 0.12s ease; }
+      a[data-nav-key]:active { opacity: 0.6; }
+    </style>
+</head>
+<body class="font-sans antialiased" style="height:100dvh;overflow:hidden;background:var(--lf-background)">
+    <div class="max-w-md mx-auto h-full flex flex-col bg-[var(--lf-background)]">
+
+      <!-- ===== APP HEADER ===== -->
+      <header class="flex-shrink-0 z-30 bg-[var(--lf-background)]/95 backdrop-blur px-4 py-3 flex items-center gap-3 border-b border-[var(--lf-border)]">
+        <button id="back-dashboard" data-dom-id="back-dashboard" class="w-9 h-9 rounded-full bg-[var(--lf-muted)] flex items-center justify-center flex-shrink-0">
+          <i data-lucide="chevron-left" class="w-5 h-5" style="color:var(--lf-foreground)"></i>
+        </button>
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+          </div>
+          <span class="text-sm font-semibold truncate" style="color:var(--lf-foreground)">LocalFit AI</span>
+        </div>
+        <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+          <i data-lucide="user" class="w-5 h-5" style="color:var(--lf-mint-700)"></i>
+        </div>
+      </header>
+
+      <!-- ===== CHAT CONVERSATION AREA ===== -->
+      <div class="flex-1 overflow-y-auto no-scrollbar min-h-0 px-4 py-4 space-y-4">
+
+        <!-- Message 1: AI greeting -->
+        <div class="flex gap-2 items-start">
+          <!-- AI mascot avatar -->
+          <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+          </div>
+          <!-- AI bubble (left, white card with tail) -->
+          <div class="relative bg-[var(--lf-card)] rounded-[16px] px-3.5 py-2.5 max-w-[75%] shadow-[var(--lf-shadow-1)]">
+            <span class="absolute left-[-5px] top-3 w-2.5 h-2.5 bg-[var(--lf-card)]" style="transform:rotate(45deg)"></span>
+            <p class="relative text-sm leading-relaxed" style="color:var(--lf-foreground)">你好！我是你的 AI 健康助手。今天想和你一起规划饮食和运动，有什么我能帮你的吗？😊</p>
+          </div>
+        </div>
+
+        <!-- Message 2: User question -->
+        <div class="flex gap-2 items-start justify-end">
+          <!-- User bubble (right, mint gradient with tail) -->
+          <div class="relative rounded-[16px] px-3.5 py-2.5 max-w-[75%]" style="background:linear-gradient(135deg, var(--lf-mint-400), var(--lf-mint-500))">
+            <span class="absolute right-[-5px] top-3 w-2.5 h-2.5" style="background:var(--lf-mint-500); transform:rotate(45deg)"></span>
+            <p class="relative text-sm leading-relaxed" style="color:var(--lf-primary-foreground)">帮我看看今天还能吃什么？</p>
+          </div>
+        </div>
+
+        <!-- Message 3: AI with embedded feature card -->
+        <div class="flex gap-2 items-start">
+          <!-- AI mascot avatar -->
+          <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+          </div>
+          <div class="max-w-[75%] space-y-2">
+            <!-- text bubble -->
+            <div class="relative bg-[var(--lf-card)] rounded-[16px] px-3.5 py-2.5 shadow-[var(--lf-shadow-1)]">
+              <span class="absolute left-[-5px] top-3 w-2.5 h-2.5 bg-[var(--lf-card)]" style="transform:rotate(45deg)"></span>
+              <p class="relative text-sm leading-relaxed" style="color:var(--lf-foreground)">为你定制的理想计划已生成~</p>
+            </div>
+            <!-- feature card with 3 mini panels -->
+            <div class="bg-[var(--lf-card)] rounded-[16px] p-3.5 shadow-[var(--lf-shadow-1)] border border-[var(--lf-border)]">
+              <div class="grid grid-cols-3 gap-2">
+                <!-- Panel 1: 三餐控热量 -->
+                <div class="text-center">
+                  <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-1.5" style="background:var(--lf-mint-50)">
+                    <i data-lucide="flame" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+                  </div>
+                  <p class="text-[10px] font-medium" style="color:var(--lf-foreground)">三餐控热量</p>
+                </div>
+                <!-- Panel 2: 个性化定制 -->
+                <div class="text-center">
+                  <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-1.5" style="background:var(--lf-mint-50)">
+                    <i data-lucide="target" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+                  </div>
+                  <p class="text-[10px] font-medium" style="color:var(--lf-foreground)">个性化定制</p>
+                </div>
+                <!-- Panel 3: 营养巧分配 -->
+                <div class="text-center">
+                  <div class="w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-1.5" style="background:var(--lf-mint-50)">
+                    <i data-lucide="pie-chart" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+                  </div>
+                  <p class="text-[10px] font-medium" style="color:var(--lf-foreground)">营养巧分配</p>
+                </div>
+              </div>
+              <!-- orange "点击查看" badge -->
+              <div class="mt-3 flex justify-end">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium" style="background:var(--lf-protein-100); color:var(--lf-protein)">
+                  <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                  点击查看
+                </span>
+              </div>
+            </div>
+            <!-- primary CTA button -->
+            <button id="cta-write-plan" data-dom-id="cta-write-plan" class="w-full rounded-[16px] py-2.5 text-sm font-semibold flex items-center justify-center gap-2" style="background:linear-gradient(135deg, var(--lf-mint-400), var(--lf-mint-500)); color:var(--lf-primary-foreground); box-shadow:0 4px 16px -4px color-mix(in srgb, var(--lf-primary) 35%, transparent)">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              立即查看专属理想方案
+            </button>
+          </div>
+        </div>
+
+        <!-- Message 4: AI follow-up -->
+        <div class="flex gap-2 items-start">
+          <!-- AI mascot avatar -->
+          <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+          </div>
+          <!-- AI bubble (left) -->
+          <div class="relative bg-[var(--lf-card)] rounded-[16px] px-3.5 py-2.5 max-w-[75%] shadow-[var(--lf-shadow-1)]">
+            <span class="absolute left-[-5px] top-3 w-2.5 h-2.5 bg-[var(--lf-card)]" style="transform:rotate(45deg)"></span>
+            <p class="relative text-sm leading-relaxed" style="color:var(--lf-foreground)">（激动地搓搓手）你的专属计划准备好啦！三餐怎么吃、每天怎么安排，我都帮你规划好了～快点击看看吧</p>
+          </div>
+        </div>
+
+        <!-- Message 5: User thanks -->
+        <div class="flex gap-2 items-start justify-end">
+          <!-- User bubble (right) -->
+          <div class="relative rounded-[16px] px-3.5 py-2.5 max-w-[75%]" style="background:linear-gradient(135deg, var(--lf-mint-400), var(--lf-mint-500))">
+            <span class="absolute right-[-5px] top-3 w-2.5 h-2.5" style="background:var(--lf-mint-500); transform:rotate(45deg)"></span>
+            <p class="relative text-sm leading-relaxed" style="color:var(--lf-primary-foreground)">好的，谢谢！</p>
+          </div>
+        </div>
+
+        <!-- Message 5b: User image message -->
+        <div class="flex gap-2 items-start justify-end">
+          <div class="relative max-w-[75%]">
+            <span class="absolute right-[-5px] top-3 w-2.5 h-2.5 z-10" style="background:var(--lf-mint-500); transform:rotate(45deg)"></span>
+            <div class="rounded-[16px] overflow-hidden" style="width:180px; height:140px; box-shadow:var(--lf-shadow-1)">
+              <div class="w-full h-full flex items-center justify-center relative" style="background:linear-gradient(135deg, #D4A574, #E8C9A0, #C4956C)">
+                <i data-lucide="image" class="w-8 h-8" style="color:var(--lf-neutral-50); opacity:0.6"></i>
+                <span class="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-medium backdrop-blur" style="background:rgba(0,0,0,0.35); color:#fff">早餐_三明治.jpg</span>
+                <span class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center" style="background:rgba(0,0,0,0.35)">
+                  <i data-lucide="check" class="w-3 h-3" style="color:#fff"></i>
+                </span>
+              </div>
+            </div>
+            <p class="text-[10px] mt-1 text-right" style="color:var(--lf-muted-foreground)">帮我分析一下这个三明治</p>
+          </div>
+        </div>
+
+        <!-- Message 5c: AI reply to image -->
+        <div class="flex gap-2 items-start">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+          </div>
+          <div class="relative bg-[var(--lf-card)] rounded-[16px] px-3.5 py-2.5 max-w-[75%] shadow-[var(--lf-shadow-1)]">
+            <span class="absolute left-[-5px] top-3 w-2.5 h-2.5 bg-[var(--lf-card)]" style="transform:rotate(45deg)"></span>
+            <p class="relative text-sm leading-relaxed" style="color:var(--lf-foreground)">已识别！全麦三明治约 320 大卡，蛋白质 18g，碳水 35g，脂肪 12g。搭配蔬菜很健康，今天的早餐满分~ 🥪</p>
+          </div>
+        </div>
+
+        <!-- Message 5d: User voice message -->
+        <div class="flex gap-2 items-start justify-end">
+          <div class="relative rounded-[16px] px-3 py-2.5 max-w-[75%] flex items-center gap-2.5" style="background:linear-gradient(135deg, var(--lf-mint-400), var(--lf-mint-500))">
+            <span class="absolute right-[-5px] top-3 w-2.5 h-2.5" style="background:var(--lf-mint-500); transform:rotate(45deg)"></span>
+            <button class="relative w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,0.25)">
+              <i data-lucide="play" class="w-3.5 h-3.5" style="color:var(--lf-primary-foreground)"></i>
+            </button>
+            <!-- waveform — 已播放部分高亮，未播放部分半透明 -->
+            <div class="flex items-center gap-[2px] h-6">
+              <span class="w-[3px] h-4 rounded-full" style="background:rgba(255,255,255,0.95)"></span>
+              <span class="w-[3px] h-2 rounded-full" style="background:rgba(255,255,255,0.9)"></span>
+              <span class="w-[3px] h-5 rounded-full" style="background:rgba(255,255,255,0.9)"></span>
+              <span class="w-[3px] h-3 rounded-full" style="background:rgba(255,255,255,0.85)"></span>
+              <span class="w-[3px] h-1.5 rounded-full" style="background:rgba(255,255,255,0.85)"></span>
+              <span class="w-[3px] h-4 rounded-full" style="background:rgba(255,255,255,0.8)"></span>
+              <span class="w-[3px] h-2.5 rounded-full" style="background:rgba(255,255,255,0.45)"></span>
+              <span class="w-[3px] h-3.5 rounded-full" style="background:rgba(255,255,255,0.4)"></span>
+              <span class="w-[3px] h-2 rounded-full" style="background:rgba(255,255,255,0.4)"></span>
+              <span class="w-[3px] h-3 rounded-full" style="background:rgba(255,255,255,0.35)"></span>
+              <span class="w-[3px] h-1.5 rounded-full" style="background:rgba(255,255,255,0.35)"></span>
+              <span class="w-[3px] h-2.5 rounded-full" style="background:rgba(255,255,255,0.35)"></span>
+              <span class="w-[3px] h-1 rounded-full" style="background:rgba(255,255,255,0.3)"></span>
+              <span class="w-[3px] h-2 rounded-full" style="background:rgba(255,255,255,0.3)"></span>
+            </div>
+            <span class="text-[10px] font-medium flex-shrink-0 lf-num" style="color:var(--lf-primary-foreground)">3″</span>
+          </div>
+        </div>
+
+        <!-- Message 6: AI typing indicator -->
+        <div class="flex gap-2 items-start">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-mint-100)">
+            <i data-lucide="sprout" class="w-5 h-5" style="color:var(--lf-primary)"></i>
+          </div>
+          <div class="relative bg-[var(--lf-card)] rounded-[16px] px-4 py-3.5 max-w-[75%] shadow-[var(--lf-shadow-1)]">
+            <span class="absolute left-[-5px] top-3 w-2.5 h-2.5 bg-[var(--lf-card)]" style="transform:rotate(45deg)"></span>
+            <div class="relative flex items-center gap-1.5">
+              <span class="typing-dot w-2 h-2 rounded-full" style="background:var(--lf-muted-foreground)"></span>
+              <span class="typing-dot w-2 h-2 rounded-full" style="background:var(--lf-muted-foreground);animation-delay:0.2s"></span>
+              <span class="typing-dot w-2 h-2 rounded-full" style="background:var(--lf-muted-foreground);animation-delay:0.4s"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== CHAT INPUT BAR (sticky above bottom nav) ===== -->
+      <div class="flex-shrink-0 bg-[var(--lf-card)] border-t border-[var(--lf-border)]">
+        <!-- quick action buttons row -->
+        <div class="flex items-center gap-2 px-3 pt-2.5 pb-1 overflow-x-auto no-scrollbar">
+          <button data-dom-id="cta-photo-scan" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap flex-shrink-0" style="background:var(--lf-mint-50); border-color:var(--lf-mint-200); color:var(--lf-primary)">
+            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            拍照识别
+          </button>
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap flex-shrink-0" style="background:var(--lf-muted); border-color:var(--lf-border); color:var(--lf-foreground)">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            手动记录
+          </button>
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium whitespace-nowrap flex-shrink-0" style="background:var(--lf-muted); border-color:var(--lf-border); color:var(--lf-foreground)">
+            <i data-lucide="utensils" class="w-3.5 h-3.5"></i>
+            我可以吃吗
+          </button>
+        </div>
+
+        <!-- image preview strip — 已选状态（选中图片后显示） -->
+        <div data-dom-id="image-preview-bar" class="img-preview-anim flex items-center gap-2.5 px-3 pt-2 pb-1">
+          <div class="img-thumb relative flex-shrink-0">
+            <div class="w-14 h-14 rounded-[12px] flex items-center justify-center border-2" style="background:linear-gradient(135deg, #D4A574, #E8C9A0, #C4956C); border-color:var(--lf-mint-200)">
+              <i data-lucide="image" class="w-6 h-6" style="color:var(--lf-neutral-50); opacity:0.7"></i>
+            </div>
+            <button data-dom-id="btn-remove-image" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style="background:var(--lf-state-error); box-shadow:0 2px 6px rgba(244,67,54,0.3)">
+              <i data-lucide="x" class="w-3 h-3" style="color:#fff"></i>
+            </button>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium truncate" style="color:var(--lf-foreground)">早餐_三明治.jpg</p>
+            <p class="text-[10px]" style="color:var(--lf-muted-foreground)">已添加 1 张图片</p>
+          </div>
+          <button class="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-medium border border-dashed" style="background:transparent; border-color:var(--lf-mint-300); color:var(--lf-primary)">
+            <i data-lucide="plus" class="w-3 h-3"></i>
+            添加
+          </button>
+        </div>
+
+        <!-- input row (default state: text input) -->
+        <div data-dom-id="input-row-text" class="flex items-center gap-2 px-3 pb-2">
+          <!-- image upload button -->
+          <button data-dom-id="btn-image-upload" class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-muted)">
+            <i data-lucide="plus" class="w-5 h-5" style="color:var(--lf-muted-foreground)"></i>
+          </button>
+          <!-- voice input button (tap to start recording) -->
+          <button data-dom-id="btn-voice-input" class="relative w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-muted)">
+            <i data-lucide="mic" class="w-5 h-5 relative z-10" style="color:var(--lf-muted-foreground)"></i>
+          </button>
+          <!-- text input -->
+          <div class="flex-1 rounded-[16px] px-3.5 py-2.5" style="background:var(--lf-muted)">
+            <input type="text" placeholder="对话记录饮食和运动" class="w-full bg-transparent text-sm outline-none" style="color:var(--lf-foreground)" />
+          </div>
+          <!-- send button -->
+          <button data-dom-id="btn-send" class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-primary)">
+            <i data-lucide="send" class="w-4 h-4" style="color:var(--lf-primary-foreground)"></i>
+          </button>
+        </div>
+
+        <!-- voice recording state (replaces input row when recording) -->
+        <div data-dom-id="input-row-voice" class="hidden items-center gap-2 px-3 pb-2">
+          <!-- cancel button -->
+          <button data-dom-id="btn-voice-cancel" class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-muted)">
+            <i data-lucide="x" class="w-5 h-5" style="color:var(--lf-muted-foreground)"></i>
+          </button>
+          <!-- recording waveform + timer -->
+          <div class="flex-1 rounded-[16px] px-3.5 py-2.5 flex items-center gap-2.5" style="background:var(--lf-muted)">
+            <div class="relative w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:var(--lf-state-error)">
+              <span class="rec-pulse-ring"></span>
+            </div>
+            <div class="flex items-center gap-[2px] h-6 flex-1">
+              <span class="wave-bar w-[3px] h-2 rounded-full" style="background:var(--lf-primary); animation-delay:0s"></span>
+              <span class="wave-bar w-[3px] h-5 rounded-full" style="background:var(--lf-primary); animation-delay:0.12s"></span>
+              <span class="wave-bar w-[3px] h-3 rounded-full" style="background:var(--lf-primary); animation-delay:0.24s"></span>
+              <span class="wave-bar w-[3px] h-6 rounded-full" style="background:var(--lf-primary); animation-delay:0.06s"></span>
+              <span class="wave-bar w-[3px] h-4 rounded-full" style="background:var(--lf-primary); animation-delay:0.18s"></span>
+              <span class="wave-bar w-[3px] h-2.5 rounded-full" style="background:var(--lf-primary); animation-delay:0.3s"></span>
+              <span class="wave-bar w-[3px] h-5 rounded-full" style="background:var(--lf-primary); animation-delay:0.1s"></span>
+              <span class="wave-bar w-[3px] h-3.5 rounded-full" style="background:var(--lf-primary); animation-delay:0.22s"></span>
+              <span class="wave-bar w-[3px] h-2 rounded-full" style="background:var(--lf-primary); animation-delay:0.34s"></span>
+              <span class="wave-bar w-[3px] h-4 rounded-full" style="background:var(--lf-primary); animation-delay:0.05s"></span>
+              <span class="wave-bar w-[3px] h-3 rounded-full" style="background:var(--lf-primary); animation-delay:0.17s"></span>
+              <span class="wave-bar w-[3px] h-5.5 rounded-full" style="background:var(--lf-primary); animation-delay:0.29s"></span>
+              <span class="wave-bar w-[3px] h-2.5 rounded-full" style="background:var(--lf-primary); animation-delay:0.11s"></span>
+              <span class="wave-bar w-[3px] h-3 rounded-full" style="background:var(--lf-primary); animation-delay:0.23s"></span>
+              <span class="wave-bar w-[3px] h-4.5 rounded-full" style="background:var(--lf-primary); animation-delay:0.35s"></span>
+              <span class="wave-bar w-[3px] h-2 rounded-full" style="background:var(--lf-primary); animation-delay:0.07s"></span>
+            </div>
+            <span class="text-xs font-medium lf-num flex-shrink-0" style="color:var(--lf-foreground)">00:03</span>
+          </div>
+          <!-- send voice button -->
+          <button data-dom-id="btn-voice-send" class="relative w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style="background:var(--lf-primary)">
+            <i data-lucide="send" class="w-4 h-4 relative z-10" style="color:var(--lf-primary-foreground)"></i>
+          </button>
+        </div>
+
+        <!-- footer disclaimer -->
+        <p class="text-[10px] text-center pb-1.5" style="color:var(--lf-muted-foreground)">内容由AI生成，请勿从事违法活动</p>
+      </div>
+
+      <!-- ===== BOTTOM NAV ===== -->
+      <div class="flex-shrink-0" style="background:var(--lf-card); padding-bottom:env(safe-area-inset-bottom)">
+        <nav data-mobile-nav="global" class="relative w-full max-w-md mx-auto grid grid-cols-5 h-[64px] items-center px-2 border-t border-[var(--lf-border)] bg-[var(--lf-card)]/95 backdrop-blur"><div class="w-full contents"><a data-nav-key="dashboard" data-dom-id="nav-dashboard" data-active="true" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="home" class="w-5 h-5 shrink-0" style="color:var(--lf-primary)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-primary);font-weight:500">今日</span></a><a data-nav-key="nutrition" data-dom-id="nav-nutrition" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="utensils" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">饮食</span></a><a data-nav-key="ai" data-dom-id="nav-ai-workbench" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><span class="flex items-center justify-center w-14 h-14 rounded-full -mt-4" style="background:linear-gradient(135deg,var(--lf-mint-500),var(--lf-mint-600));box-shadow:0 0 0 2px var(--lf-background),0 4px 12px rgba(47,190,143,0.3)"><i data-lucide="sparkles" class="w-5 h-5 shrink-0" style="color:#fff"></i></span><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">AI</span></a><a data-nav-key="training" data-dom-id="nav-training" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="dumbbell" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">训练</span></a><a data-nav-key="settings" data-dom-id="nav-settings" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="user" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">我的</span></a></div></nav>
+      </div>
+
+    </div>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

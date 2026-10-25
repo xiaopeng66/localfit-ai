@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="url(#mint-01-tray-mark)"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>

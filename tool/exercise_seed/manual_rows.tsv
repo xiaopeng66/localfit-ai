@@ -1,0 +1,15 @@
+# 上游没有对应条目的 v2 动作（docs/28 §7.3：换源不能让用户库里已有的动作消失）
+#
+# 七列：id / 名称 / 肌群 / 器械 / 难度 / 常用度 / 为什么必须手写
+#
+# 这些行的事实（肌群/器械/难度/常用度）沿用 v2 种子，id 也沿用 v2——
+# 导入时 `insertOnConflictUpdate` 按 id 覆盖，用户已有的引用不会断。
+# 注意每一条都写清了「上游为什么没有」：不是懒得找，是上游确实没有这个动作；
+# 上游有更细变体的（如杠铃片前平举、颈后宽握引体）在库里另有条目，不是重复。
+ex-wide-grip-pullup	宽握引体向上	back	bodyweight	advanced	64	上游只有 Wide-Grip_Rear_Pull-Up（颈后），没有正握宽握引体向上
+ex-lunge	箭步蹲	legs	bodyweight	beginner	66	上游没有徒手原地箭步蹲（只有行走/哑铃/杠铃版）
+ex-side-lunge	侧箭步蹲	legs	bodyweight	intermediate	42	上游没有侧向箭步蹲
+ex-bulgarian-split-squat	保加利亚分腿蹲	legs	dumbbell	intermediate	54	上游没有保加利亚分腿蹲
+ex-calf-raise	小腿提踵	legs	bodyweight	beginner	80	上游提踵全带器械（史密斯/哑铃/弹力带），没有徒手版
+ex-front-raise	哑铃前平举	shoulders	dumbbell	beginner	74	上游前平举只有 Front_Plate_Raise（杠铃片）
+ex-burpee	波比跳	fullBody	bodyweight	advanced	72	上游整库没有波比跳

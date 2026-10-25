@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>

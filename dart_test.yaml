@@ -1,0 +1,7 @@
+# 交互门禁标签（docs/58 §2）：四个门禁文件都带 `@Tags(['interaction-gate'])`。
+#
+# 用途：
+# - B1 期间（故意红）全量回归用 `--exclude-tags interaction-gate` 排除；
+# - B2 之后用 `--tags interaction-gate` 单独复跑四层门禁。
+tags:
+  interaction-gate:

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-p3-mono" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#17875F" stroke-width="42" stroke-linecap="round"/>
+    <path d="M332 297.5 L452 297.5 L500 200 L552 386 L600 297.5 L692 297.5" fill="none" stroke="#17875F" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

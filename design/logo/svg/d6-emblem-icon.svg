@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="url(#mint-02f-gauge-mark)" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="url(#mint-02f-gauge-mark)"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>

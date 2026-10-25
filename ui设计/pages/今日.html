@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日</title>
+    <style id="theme-vars">
+/* ==========================================================================
+   LocalFit AI — Brand CSS
+   Primary hue: mint (#2FBE8F) — single brand color system
+   Category data-viz tokens: protein / carbs / fat / water / weight
+   ========================================================================== */
+
+/* ---- Light Mode (default) ---- */
+:root {
+  /* Brand ramp — mint tonal scale */
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;   /* anchor */
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp */
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-800: #2A342F;
+  --lf-neutral-900: #1A201D;
+
+  /* Category data-viz tokens (domain-specific, not brand identity) */
+  --lf-protein: #FF8A65;   /* peach — protein */
+  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;     /* honey — carbs */
+  --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;       /* taro — fat */
+  --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;    /* salt — water */
+  --lf-weight: #C9A27E;   /* cocoa — weight */
+
+  /* State tokens */
+  --lf-state-success: #2FBE8F;
+  --lf-state-success-foreground: #FFFFFF;
+  --lf-state-warning: #FF9800;
+  --lf-state-warning-foreground: #FFFFFF;
+  --lf-state-error: #F44336;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #42A5F5;
+  --lf-state-info-foreground: #FFFFFF;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #D2F5E6;   /* mint100 — confirmed */
+  --lf-evidence-b: #FFF4D6;   /* honey100 — estimated */
+  --lf-evidence-c: #EDE6F7;   /* taro100 — incomplete */
+
+  /* Semantic surface tokens */
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-popover: #FFFFFF;
+  --lf-popover-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-input: #DDE5E1;
+  --lf-ring: #2FBE8F;
+
+  /* Primary */
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+
+  /* Radius scale — restrained 4/8/12/16px */
+  --lf-radius-xs: 4px;
+  --lf-radius-sm: 8px;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-xl: 16px;
+  --lf-radius-2xl: 16px;
+  --lf-radius-full: 9999px;
+
+  /* Shadows — static surfaces <= 0.05 alpha */
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  /* Floating-layer shadows (modal/popover/dropdown/drawer/overlay only) */
+  --lf-shadow-float: 0 8px 24px -8px rgba(15, 36, 28, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(15, 36, 28, 0.05);
+
+  /* Hero gradient (mint500 → mint200 → mint50, 135deg) */
+  --lf-hero-gradient: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+
+  /* Typography */
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --lf-font-display: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --lf-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* ---- Dark Mode ---- */
+html.dark {
+  /* Brand ramp — mint提亮至400 in dark */
+  --lf-mint-50:  #0F1412;
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-mint-400: #4ED9A6;   /* dark anchor (提亮) */
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp — 分层深色 */
+  --lf-neutral-50:  #0F1412;
+  --lf-neutral-100: #171E1A;
+  --lf-neutral-200: #1F2823;
+  --lf-neutral-300: #2A342F;
+  --lf-neutral-400: #3D4A45;
+  --lf-neutral-500: #556760;
+  --lf-neutral-600: #6B7E78;
+  --lf-neutral-700: #8FA09A;
+  --lf-neutral-800: #B8C6C0;
+  --lf-neutral-900: #DDE5E1;
+
+  /* Category colors — 提亮并降饱和5% */
+  --lf-protein: #FF9D7E;
+  --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;
+  --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;
+  --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+
+  /* State tokens */
+  --lf-state-success: #4ED9A6;
+  --lf-state-success-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-state-warning-foreground: #0F1412;
+  --lf-state-error: #EF5350;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #64B5F6;
+  --lf-state-info-foreground: #0F1412;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+
+  /* Semantic surface tokens */
+  --lf-background: #0F1412;
+  --lf-foreground: #DDE5E1;
+  --lf-card: #171E1A;
+  --lf-card-foreground: #DDE5E1;
+  --lf-popover: #1F2823;
+  --lf-popover-foreground: #DDE5E1;
+  --lf-muted: #1F2823;
+  --lf-muted-foreground: #8FA09A;
+  --lf-border: #2A342F;
+  --lf-input: #2A342F;
+  --lf-ring: #4ED9A6;
+
+  /* Primary */
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+
+  /* Hero gradient — dark */
+  --lf-hero-gradient: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+
+  /* Shadows — 暗色用outline替代 */
+  --lf-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-float: 0 8px 24px -8px rgba(0, 0, 0, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- Base Typography ---- */
+body {
+  font-family: var(--lf-font-sans);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display number family — w800 tabular figures */
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+}
+
+/* Tabular numbers for all data values */
+.lf-num {
+  font-variant-numeric: tabular-nums;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--lf-background);
+    --color-foreground: var(--lf-foreground);
+    --color-card: var(--lf-card);
+    --color-card-foreground: var(--lf-card-foreground);
+    --color-popover: var(--lf-popover);
+    --color-popover-foreground: var(--lf-popover-foreground);
+    --color-primary: var(--lf-primary);
+    --color-primary-foreground: var(--lf-primary-foreground);
+    --color-muted: var(--lf-muted);
+    --color-muted-foreground: var(--lf-muted-foreground);
+    --color-border: var(--lf-border);
+    --color-input: var(--lf-input);
+    --color-ring: var(--lf-ring);
+    --radius-sm: var(--lf-radius-sm);
+    --radius-md: var(--lf-radius-md);
+    --radius-lg: var(--lf-radius-lg);
+    --radius-xl: var(--lf-radius-xl);
+  }
+  @layer base {
+    body { background: var(--lf-background); color: var(--lf-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--lf-background); }
+      .text-background { color: var(--lf-background); }
+      .border-background { border-color: var(--lf-background); }
+      .ring-background { --tw-ring-color: var(--lf-background); }
+      .bg-foreground { background-color: var(--lf-foreground); }
+      .text-foreground { color: var(--lf-foreground); }
+      .border-foreground { border-color: var(--lf-foreground); }
+      .ring-foreground { --tw-ring-color: var(--lf-foreground); }
+      .bg-card { background-color: var(--lf-card); }
+      .text-card { color: var(--lf-card); }
+      .border-card { border-color: var(--lf-card); }
+      .ring-card { --tw-ring-color: var(--lf-card); }
+      .bg-card-foreground { background-color: var(--lf-card-foreground); }
+      .text-card-foreground { color: var(--lf-card-foreground); }
+      .border-card-foreground { border-color: var(--lf-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--lf-card-foreground); }
+      .bg-popover { background-color: var(--lf-popover); }
+      .text-popover { color: var(--lf-popover); }
+      .border-popover { border-color: var(--lf-popover); }
+      .ring-popover { --tw-ring-color: var(--lf-popover); }
+      .bg-popover-foreground { background-color: var(--lf-popover-foreground); }
+      .text-popover-foreground { color: var(--lf-popover-foreground); }
+      .border-popover-foreground { border-color: var(--lf-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--lf-popover-foreground); }
+      .bg-primary { background-color: var(--lf-primary); }
+      .text-primary { color: var(--lf-primary); }
+      .border-primary { border-color: var(--lf-primary); }
+      .ring-primary { --tw-ring-color: var(--lf-primary); }
+      .bg-primary-foreground { background-color: var(--lf-primary-foreground); }
+      .text-primary-foreground { color: var(--lf-primary-foreground); }
+      .border-primary-foreground { border-color: var(--lf-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--lf-primary-foreground); }
+      .bg-muted { background-color: var(--lf-muted); }
+      .text-muted { color: var(--lf-muted); }
+      .border-muted { border-color: var(--lf-muted); }
+      .ring-muted { --tw-ring-color: var(--lf-muted); }
+      .bg-muted-foreground { background-color: var(--lf-muted-foreground); }
+      .text-muted-foreground { color: var(--lf-muted-foreground); }
+      .border-muted-foreground { border-color: var(--lf-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--lf-muted-foreground); }
+      .bg-border { background-color: var(--lf-border); }
+      .text-border { color: var(--lf-border); }
+      .border-border { border-color: var(--lf-border); }
+      .ring-border { --tw-ring-color: var(--lf-border); }
+      .bg-input { background-color: var(--lf-input); }
+      .text-input { color: var(--lf-input); }
+      .border-input { border-color: var(--lf-input); }
+      .ring-input { --tw-ring-color: var(--lf-input); }
+      .bg-ring { background-color: var(--lf-ring); }
+      .text-ring { color: var(--lf-ring); }
+      .border-ring { border-color: var(--lf-ring); }
+      .ring-ring { --tw-ring-color: var(--lf-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+      /* Safe-area helpers for fixed bottom surfaces */
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      .bottom-safe { bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="mx-auto max-w-[430px] bg-background px-4 pt-2 pb-32">
+      <!-- Header -->
+      <header class="flex items-center justify-between pt-3 pb-4">
+        <div>
+          <p class="text-[12px] text-[var(--lf-muted-foreground)] lf-num">9月23日 周二</p>
+          <h1 class="lf-display text-[22px] leading-tight text-[var(--lf-foreground)] mt-0.5">早安，小林</h1>
+          <p class="text-[12px] text-[var(--lf-muted-foreground)] mt-1">距离目标还差 <span class="text-[var(--lf-mint-600)] font-semibold lf-num">552</span> kcal</p>
+        </div>
+        <button class="relative h-11 w-11 rounded-[16px] overflow-hidden ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+          <span class="absolute inset-0 bg-[var(--lf-mint-100)] flex items-center justify-center text-[15px] font-semibold text-[var(--lf-mint-700)]">林</span>
+        </button>
+      </header>
+
+      <!-- CalorieRing + macro breakdown -->
+      <section data-dom-id="calorie-ring" class="rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)]">今日热量</h2>
+            <p class="text-[12px] text-[var(--lf-muted-foreground)] mt-0.5 lf-num">目标 1800 kcal</p>
+          </div>
+          <span class="inline-flex items-center gap-1 rounded-[8px] bg-[var(--lf-mint-50)] px-2 py-1 text-[11px] font-medium text-[var(--lf-mint-700)]">
+            <i data-lucide="flame" class="w-3.5 h-3.5"></i>燃脂中
+          </span>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- Ring -->
+          <div class="relative h-[120px] w-[120px] shrink-0">
+            <svg viewBox="0 0 120 120" class="h-full w-full -rotate-90">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--lf-muted)" stroke-width="10"/>
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--lf-primary)" stroke-width="10" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="101.3"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="lf-display text-[26px] text-[var(--lf-foreground)] lf-num">1248</span>
+              <span class="text-[11px] text-[var(--lf-muted-foreground)] mt-0.5 lf-num">/ 1800 kcal</span>
+              <span class="text-[11px] font-semibold text-[var(--lf-mint-600)] mt-0.5 lf-num">69%</span>
+            </div>
+          </div>
+
+          <!-- Macro breakdown -->
+          <div class="flex-1 space-y-2.5">
+            <div>
+              <div class="flex items-center justify-between text-[12px]">
+                <span class="flex items-center gap-1.5 text-[var(--lf-foreground)]"><span class="h-2 w-2 rounded-full bg-[var(--lf-protein)]"></span>蛋白质</span>
+                <span class="text-[var(--lf-muted-foreground)] lf-num">42 / 60 g</span>
+              </div>
+              <div class="mt-1 h-1.5 w-full rounded-full bg-[var(--lf-muted)]">
+                <div class="h-full rounded-full bg-[var(--lf-protein)]" style="width: 70%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-[12px]">
+                <span class="flex items-center gap-1.5 text-[var(--lf-foreground)]"><span class="h-2 w-2 rounded-full bg-[var(--lf-carbs)]"></span>碳水化合物</span>
+                <span class="text-[var(--lf-muted-foreground)] lf-num">156 / 200 g</span>
+              </div>
+              <div class="mt-1 h-1.5 w-full rounded-full bg-[var(--lf-muted)]">
+                <div class="h-full rounded-full bg-[var(--lf-carbs)]" style="width: 78%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between text-[12px]">
+                <span class="flex items-center gap-1.5 text-[var(--lf-foreground)]"><span class="h-2 w-2 rounded-full bg-[var(--lf-fat)]"></span>脂肪</span>
+                <span class="text-[var(--lf-muted-foreground)] lf-num">38 / 50 g</span>
+              </div>
+              <div class="mt-1 h-1.5 w-full rounded-full bg-[var(--lf-muted)]">
+                <div class="h-full rounded-full bg-[var(--lf-fat)]" style="width: 76%"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-1 text-[11px] text-[var(--lf-muted-foreground)]">
+              <span>蛋白 <b class="text-[var(--lf-protein)] lf-num">30%</b></span>
+              <span>碳水 <b class="text-[var(--lf-carbs)] lf-num">50%</b></span>
+              <span>脂肪 <b class="text-[var(--lf-fat)] lf-num">20%</b></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Weight chart + 本周趋势 -->
+      <section data-dom-id="weight-chart" class="mt-4 rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)]">本周体重</h2>
+            <p class="text-[12px] text-[var(--lf-muted-foreground)] mt-0.5 lf-num">69.4 kg <span class="text-[var(--lf-mint-600)]">↓ 0.8</span></p>
+          </div>
+          <span class="rounded-[8px] bg-[var(--lf-muted)] px-2 py-1 text-[11px] text-[var(--lf-muted-foreground)]">周</span>
+        </div>
+
+        <div class="relative">
+          <svg viewBox="0 0 320 130" class="w-full" preserveAspectRatio="none" style="height:130px">
+            <defs>
+              <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--lf-mint-500)" stop-opacity="0.18"/>
+                <stop offset="100%" stop-color="var(--lf-mint-500)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="16" y1="20" x2="304" y2="20" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+            <line x1="16" y1="65" x2="304" y2="65" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+            <line x1="16" y1="110" x2="304" y2="110" stroke="var(--lf-border)" stroke-width="1" stroke-dasharray="3 4"/>
+            <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100 L304,110 L16,110 Z" fill="url(#weightFill)"/>
+            <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100" fill="none" stroke="var(--lf-mint-500)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="16" cy="20" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="64" cy="40" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="112" cy="60" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="160" cy="50" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="208" cy="80" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="256" cy="90" r="3" fill="var(--lf-card)" stroke="var(--lf-mint-500)" stroke-width="2"/>
+            <circle cx="304" cy="100" r="4" fill="var(--lf-mint-500)"/>
+          </svg>
+          <div class="mt-1 flex justify-between px-1 text-[10px] text-[var(--lf-muted-foreground)] lf-num">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+        </div>
+
+        <!-- 本周趋势 mini section -->
+        <div class="mt-4 pt-4 border-t border-[var(--lf-border)]">
+          <h3 class="text-[13px] font-medium text-[var(--lf-foreground)] mb-3">本周趋势</h3>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div class="rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-[var(--lf-muted-foreground)]">体重</span>
+                <i data-lucide="trending-down" class="w-3.5 h-3.5 text-[var(--lf-weight)]"></i>
+              </div>
+              <p class="lf-display text-[16px] text-[var(--lf-foreground)] mt-1 lf-num">69.4<span class="text-[10px] text-[var(--lf-muted-foreground)] font-normal"> kg</span></p>
+              <svg viewBox="0 0 60 24" class="mt-1 w-full" preserveAspectRatio="none" style="height:24px">
+                <polyline points="2,6 11,9 20,12 29,11 38,16 47,18 58,20" fill="none" stroke="var(--lf-weight)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="text-[10px] text-[var(--lf-mint-600)] mt-1 lf-num">↓ 0.8 kg</p>
+            </div>
+            <div class="rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-[var(--lf-muted-foreground)]">体脂率</span>
+                <i data-lucide="trending-down" class="w-3.5 h-3.5 text-[var(--lf-mint-600)]"></i>
+              </div>
+              <p class="lf-display text-[16px] text-[var(--lf-foreground)] mt-1 lf-num">18.2<span class="text-[10px] text-[var(--lf-muted-foreground)] font-normal"> %</span></p>
+              <svg viewBox="0 0 60 24" class="mt-1 w-full" preserveAspectRatio="none" style="height:24px">
+                <polyline points="2,8 11,6 20,10 29,9 38,13 47,15 58,17" fill="none" stroke="var(--lf-mint-600)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="text-[10px] text-[var(--lf-mint-600)] mt-1 lf-num">↓ 0.4 %</p>
+            </div>
+            <div class="rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] text-[var(--lf-muted-foreground)]">肌肉量</span>
+                <i data-lucide="trending-up" class="w-3.5 h-3.5 text-[var(--lf-protein)]"></i>
+              </div>
+              <p class="lf-display text-[16px] text-[var(--lf-foreground)] mt-1 lf-num">31.5<span class="text-[10px] text-[var(--lf-muted-foreground)] font-normal"> kg</span></p>
+              <svg viewBox="0 0 60 24" class="mt-1 w-full" preserveAspectRatio="none" style="height:24px">
+                <polyline points="2,18 11,16 20,14 29,15 38,11 47,9 58,7" fill="none" stroke="var(--lf-protein)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <p class="text-[10px] text-[var(--lf-protein)] mt-1 lf-num">↑ 0.3 kg</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AI Workbench CTA -->
+      <a data-dom-id="cta-ai-workbench" href="#" class="mt-4 flex items-center gap-3 rounded-[16px] p-4 ring-1 ring-[var(--lf-border)]" style="background:var(--lf-hero-gradient);box-shadow:var(--lf-shadow-1)">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-[var(--lf-card)]">
+          <i data-lucide="sparkles" class="w-5 h-5" style="color:var(--lf-mint-600)"></i>
+        </div>
+        <div class="flex-1">
+          <p class="text-[14px] font-semibold" style="color:var(--lf-primary-foreground)">AI 健康助手</p>
+          <p class="text-[11px]" style="color:var(--lf-primary-foreground);opacity:0.8">获取个性化饮食与训练建议</p>
+        </div>
+        <i data-lucide="chevron-right" class="w-5 h-5" style="color:var(--lf-primary-foreground);opacity:0.6"></i>
+      </a>
+
+      <!-- Meal timeline -->
+      <section data-dom-id="meal-timeline" class="mt-4 rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-[15px] font-semibold text-[var(--lf-foreground)]">今日饮食</h2>
+          <div class="flex items-center gap-2">
+            <a data-dom-id="cta-view-menu" href="#" class="inline-flex items-center gap-1 text-[12px] text-[var(--lf-mint-600)]">
+              <i data-lucide="book-open" class="w-3.5 h-3.5"></i>菜单
+            </a>
+            <a data-dom-id="cta-quick-log" href="#" class="inline-flex items-center gap-1 text-[12px] text-[var(--lf-mint-600)]">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>记录
+            </a>
+          </div>
+        </div>
+
+        <ol class="relative space-y-3 before:absolute before:top-2 before:bottom-2 before:left-[7px] before:w-px before:bg-[var(--lf-border)]">
+          <li class="relative flex gap-3">
+            <span class="relative z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-[var(--lf-mint-100)] ring-2 ring-[var(--lf-mint-500)]"></span>
+            <div class="flex-1 rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-medium text-[var(--lf-foreground)]">早餐</span>
+                <span class="text-[11px] text-[var(--lf-muted-foreground)] lf-num">08:00 · 423 kcal</span>
+              </div>
+              <p class="text-[11px] text-[var(--lf-muted-foreground)] mt-1">燕麦粥 · 水煮蛋 · 蓝莓</p>
+            </div>
+          </li>
+          <li class="relative flex gap-3">
+            <span class="relative z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-[var(--lf-mint-100)] ring-2 ring-[var(--lf-mint-500)]"></span>
+            <div class="flex-1 rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-medium text-[var(--lf-foreground)]">午餐</span>
+                <span class="text-[11px] text-[var(--lf-muted-foreground)] lf-num">12:30 · 730 kcal</span>
+              </div>
+              <p class="text-[11px] text-[var(--lf-muted-foreground)] mt-1">鸡胸沙拉 · 糙米饭 · 西兰花</p>
+            </div>
+          </li>
+          <li class="relative flex gap-3">
+            <span class="relative z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-[var(--lf-carbs-100)] ring-2 ring-[var(--lf-carbs)]"></span>
+            <div class="flex-1 rounded-[16px] bg-[var(--lf-muted)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-medium text-[var(--lf-foreground)]">下午茶</span>
+                <span class="text-[11px] text-[var(--lf-muted-foreground)] lf-num">15:30 · 95 kcal</span>
+              </div>
+              <p class="text-[11px] text-[var(--lf-muted-foreground)] mt-1">黑咖啡 · 杏仁 15g</p>
+            </div>
+          </li>
+          <li class="relative flex gap-3">
+            <span class="relative z-10 mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-dashed border-[var(--lf-border)] bg-[var(--lf-card)]"></span>
+            <div class="flex-1 rounded-[16px] border border-dashed border-[var(--lf-border)] p-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-medium text-[var(--lf-muted-foreground)]">晚餐 · 计划</span>
+                <span class="text-[11px] text-[var(--lf-muted-foreground)] lf-num">18:30 · 预估 460 kcal</span>
+              </div>
+              <p class="text-[11px] text-[var(--lf-muted-foreground)] mt-1">清蒸鱼 · 藜麦 · 时蔬</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <!-- Quick stats -->
+      <section class="mt-4 grid grid-cols-2 gap-3">
+        <div class="rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1.5 text-[12px] text-[var(--lf-muted-foreground)]"><i data-lucide="droplets" class="w-3.5 h-3.5 text-[var(--lf-water)]"></i>饮水</span>
+            <span class="text-[11px] text-[var(--lf-mint-600)] lf-num">达标 75%</span>
+          </div>
+          <p class="lf-display text-[18px] text-[var(--lf-foreground)] mt-1 lf-num">1.5<span class="text-[11px] text-[var(--lf-muted-foreground)] font-normal"> / 2.0 L</span></p>
+          <div class="mt-2 h-1.5 w-full rounded-full bg-[var(--lf-muted)]">
+            <div class="h-full rounded-full bg-[var(--lf-water)]" style="width: 75%"></div>
+          </div>
+        </div>
+        <div class="rounded-[16px] bg-[var(--lf-card)] p-4 ring-1 ring-[var(--lf-border)]" style="box-shadow: var(--lf-shadow-1)">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1.5 text-[12px] text-[var(--lf-muted-foreground)]"><i data-lucide="footprints" class="w-3.5 h-3.5 text-[var(--lf-mint-600)]"></i>步数</span>
+            <span class="text-[11px] text-[var(--lf-state-warning)] lf-num">还差 1.4k</span>
+          </div>
+          <p class="lf-display text-[18px] text-[var(--lf-foreground)] mt-1 lf-num">6,602<span class="text-[11px] text-[var(--lf-muted-foreground)] font-normal"> 步</span></p>
+          <div class="mt-2 h-1.5 w-full rounded-full bg-[var(--lf-muted)]">
+            <div class="h-full rounded-full bg-[var(--lf-mint-500)]" style="width: 82%"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom nav -->
+    <nav data-mobile-nav="global" class="relative w-full max-w-md mx-auto grid grid-cols-5 h-[64px] items-center px-2 border-t border-[var(--lf-border)] bg-[var(--lf-card)]/95 backdrop-blur"><div class="w-full contents"><a data-nav-key="dashboard" data-dom-id="nav-dashboard" data-active="true" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="home" class="w-5 h-5 shrink-0" style="color:var(--lf-primary)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-primary);font-weight:500">今日</span></a><a data-nav-key="nutrition" data-dom-id="nav-nutrition" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="utensils" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">饮食</span></a><a data-nav-key="ai" data-dom-id="nav-ai-workbench" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><span class="flex items-center justify-center w-14 h-14 rounded-full -mt-4" style="background:linear-gradient(135deg,var(--lf-mint-500),var(--lf-mint-600));box-shadow:0 0 0 2px var(--lf-background),0 4px 12px rgba(47,190,143,0.3)"><i data-lucide="sparkles" class="w-5 h-5 shrink-0" style="color:#fff"></i></span><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">AI</span></a><a data-nav-key="training" data-dom-id="nav-training" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="dumbbell" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">训练</span></a><a data-nav-key="settings" data-dom-id="nav-settings" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="user" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">我的</span></a></div></nav>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

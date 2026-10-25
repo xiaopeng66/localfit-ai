@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n4-gradient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n4-gradient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-n4-gradient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    <linearGradient id="pg-n4-gradient" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FFC94D"/>
+      <stop offset="0.5" stop-color="#FF8A65"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n4-gradient)">
+    
+    <g filter="url(#soft-n4-gradient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g filter="url(#tight-n4-gradient)" opacity="0.85"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="32.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#E9FFF7" stroke-width="10.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+    <g filter="url(#soft-n4-gradient)" opacity="0.5"><path d="M332 297.5 L452 297.5 L500 202 L552 384 L600 297.5 L692 297.5" fill="none" stroke="url(#pg-n4-gradient)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g filter="url(#tight-n4-gradient)" opacity="0.85"><path d="M332 297.5 L452 297.5 L500 202 L552 384 L600 297.5 L692 297.5" fill="none" stroke="url(#pg-n4-gradient)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M332 297.5 L452 297.5 L500 202 L552 384 L600 297.5 L692 297.5" fill="none" stroke="url(#pg-n4-gradient)" stroke-width="32.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M332 297.5 L452 297.5 L500 202 L552 384 L600 297.5 L692 297.5" fill="none" stroke="#FFEDD9" stroke-width="10.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+  </g>
+</svg>

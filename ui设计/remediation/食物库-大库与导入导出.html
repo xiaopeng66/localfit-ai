@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食物库 · 大库与导入导出 — 设计稿（S5 · docs/31 需求 51–57）</title>
+<!--
+  ============================================================================
+  LocalFit AI 第四轮 S5 设计稿（docs/31 §1 需求 51–57 / §2 D7）
+  ----------------------------------------------------------------------------
+  用户原话：「升级一下食物库的数据库格式，我需要一个大库，大库数据分为内置和
+  自建，食物需要内置/自建标签，品牌（可以留空），种类，热量，蛋白质，碳水，
+  脂肪几大指标，自建需要用户在食物库手动添加，大库数据可以导出为csv格式，
+  然后设置界面需要留有添加食物数据入口，支持导入符合格式的新食物数据，
+  加入大库数据中（添加的食物可以识别内置/自建标签），如果有重复的食物数据
+  支持提示去重。」
+
+  裁决 D7（不新建第二张表）：大库 = 既有 `Foods` 单表用起来。
+    ① 种类落库：内置行按名字确定性回填（FoodCategory.classify），
+       自建行由表单下拉选择（枚举，非自由文本）；
+    ② CSV：新增 foodsCsv() 导出（列 = 需求 52 七项 + 名称）与导入器，
+       导入走同一个 FoodRepository.create（不绕开校验 ⇒ 导入行都是「自建」）；
+    ③ 去重：按 (名称, 品牌) 归一化（trim + 大小写 + 全角半角）比对，
+       命中**提示**而非静默跳过；
+    ④ 入口：设置页新增「添加食物数据」行 → 弹层两动作（手动添加 / 导入 CSV）；
+       导出复用既有「导出 CSV」组，新增「导出食物库 CSV」行。
+
+  CSV 格式（本稿 ⑤ 帧）：表头 8 列，
+    name,brand,category,kcal_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,origin
+    category 取中文标签（主食/蛋白质食物/…），origin 取 内置/自建；
+    导入侧同时认中文标签与枚举 id（staple/…），category 留空则按名字归类。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5; --lf-mint-100: #D2F5E6; --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0; --lf-mint-400: #4ED9A6; --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877; --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8; --lf-neutral-100: #EFF3F1; --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0; --lf-neutral-400: #8FA09A; --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760; --lf-neutral-700: #3D4A45; --lf-neutral-900: #1A201D;
+  --lf-state-success: #2FBE8F; --lf-state-warning: #FF9800; --lf-state-error: #F44336;
+  --lf-background: #F7F9F8; --lf-foreground: #1A201D; --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D; --lf-muted: #EFF3F1; --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1; --lf-ring: #2FBE8F; --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px; --lf-radius-lg: 16px; --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823; --lf-mint-200: #242E28; --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32; --lf-neutral-400: #8FA09A; --lf-neutral-500: #9FB3AC;
+  --lf-state-success: #4ED9A6; --lf-state-warning: #FFB74D; --lf-state-error: #EF5350;
+  --lf-background: #0F1412; --lf-foreground: #E8EFEB; --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB; --lf-muted: #1F2622; --lf-muted-foreground: #9FB3AC;
+  --lf-border: #242E28;
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* 评审稿兜底：任何超长不可断内容都允许断行，保证 360dp 视口内不横向溢出 */
+  body, .note, .fbox, .dline, .stat, .bigact, .dupex { overflow-wrap: anywhere; min-width: 0; }
+  .statline > .stat, .actionrow > span { min-width: 0; }
+  body {
+    background: var(--lf-background); color: var(--lf-foreground);
+    font-family: var(--lf-font-sans); font-size: 14px; line-height: 1.45;
+  }
+  /* frame 必须钉死 360：headless Edge 的窗口有 ~500px 最小宽度（评审截图
+     实测 layout 视口 483），不钉宽度整帧会被拉宽、右侧在裁切时被切掉。
+     同款脚手架见 今日-体重卡-v2.html 的 .frame（width:360 + overflow:hidden）。 */
+  .frame { width: 360px; min-height: 120px; padding: 0 0 20px; overflow: hidden; }
+  .frame .label {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--lf-neutral-100); color: var(--lf-neutral-600);
+    font-size: 12px; font-weight: 600; padding: 8px 16px;
+    border-bottom: 1px solid var(--lf-border);
+  }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark { background: var(--lf-background); }
+  .pad { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .note {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 12px; padding: 10px 12px; font-size: 11px;
+    color: var(--lf-muted-foreground);
+  }
+  .note b { color: var(--lf-card-foreground); }
+  .num { font-feature-settings: "tnum" 1; }
+
+  /* 设置行 */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 16px; box-shadow: var(--lf-shadow-1);
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border-bottom: 1px solid var(--lf-border); font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .ric {
+    width: 20px; height: 20px; border-radius: 6px; background: var(--lf-mint-100);
+    color: var(--lf-mint-700); display: flex; align-items: center; justify-content: center;
+    font-size: 11px; flex: none; font-weight: 700;
+  }
+  .row .rtitle { flex: 1; color: var(--lf-card-foreground); }
+  .row .chev { color: var(--lf-muted-foreground); }
+  .grouptitle { font-size: 12px; color: var(--lf-muted-foreground); padding: 0 2px; }
+
+  /* 弹层 */
+  .sheet {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 16px; overflow: hidden;
+  }
+  .stitle { font-size: 16px; font-weight: 600; padding: 16px 16px 4px; color: var(--lf-card-foreground); }
+  .ssub { font-size: 12px; color: var(--lf-muted-foreground); padding: 0 16px 12px; }
+  .sbody { padding: 0 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .actionrow {
+    display: flex; gap: 10px; padding: 12px 16px 16px;
+    border-top: 1px solid var(--lf-border);
+  }
+  .actionrow .cancel {
+    flex: 1; text-align: center; padding: 11px 0; border-radius: 12px;
+    border: 1px solid var(--lf-border); color: var(--lf-muted-foreground);
+    font-size: 14px; font-weight: 600;
+  }
+  .actionrow .primary {
+    flex: 2; text-align: center; padding: 11px 0; border-radius: 12px;
+    background: var(--lf-mint-500); color: #fff; font-size: 14px; font-weight: 600;
+  }
+  .bigact {
+    display: flex; align-items: center; gap: 12px; padding: 14px;
+    border: 1px solid var(--lf-border); border-radius: 12px;
+  }
+  .bigact .bic {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    background: var(--lf-mint-100); color: var(--lf-mint-700);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
+  }
+  .bigact .bt { font-size: 14px; font-weight: 600; color: var(--lf-card-foreground); }
+  .bigact .bs { font-size: 11px; color: var(--lf-muted-foreground); margin-top: 2px; }
+
+  .field .flabel { font-size: 11px; color: var(--lf-muted-foreground); margin-bottom: 6px; }
+  .fbox {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--lf-border); border-radius: 10px; padding: 11px 12px;
+    font-size: 14px; color: var(--lf-card-foreground);
+  }
+  .fbox .sel { color: var(--lf-muted-foreground); font-size: 12px; }
+  .fbox .fempty { color: var(--lf-muted-foreground); }
+
+  .statline { display: flex; gap: 8px; }
+  .stat {
+    flex: 1; border: 1px solid var(--lf-border); border-radius: 10px;
+    padding: 10px; text-align: center;
+  }
+  .stat .sv { font-size: 18px; font-weight: 700; color: var(--lf-card-foreground); }
+  .stat .sl { font-size: 10px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .stat.dup .sv { color: var(--lf-state-warning); }
+  .stat.err .sv { color: var(--lf-state-error); }
+
+  .dupex {
+    border: 1px dashed var(--lf-border); border-radius: 10px; padding: 8px 10px;
+    font-size: 11px; color: var(--lf-muted-foreground);
+  }
+  .dupex .dline { display: flex; justify-content: space-between; padding: 3px 0; }
+  .dupex .tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    background: var(--lf-mint-100); color: var(--lf-mint-700); flex: none;
+  }
+  .tag.user { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+
+  code {
+    font-family: ui-monospace, Consolas, monospace; font-size: 10.5px;
+    background: var(--lf-muted); border-radius: 4px; padding: 1px 4px;
+    color: var(--lf-card-foreground);
+  }
+  .csv {
+    background: var(--lf-muted); border-radius: 10px; padding: 10px 12px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 10.5px;
+    color: var(--lf-card-foreground); white-space: pre; overflow-x: auto; line-height: 1.7;
+  }
+  .csv .h { color: var(--lf-mint-700); font-weight: 700; }
+</style>
+</head>
+<body>
+
+  <div class="frame">
+    <div class="label"><span>① 设置页 · 现状对照：食材库组只有「添加自定义食材」，导出组没有食物库</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="grouptitle">食材库（现状）</div>
+      <div class="card">
+        <div class="row"><span class="ric">搜</span><span class="rtitle">食物数据库</span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">＋</span><span class="rtitle">添加自定义食材</span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">学</span><span class="rtitle">维护地点 / 窗口 / 菜品</span><span class="chev">›</span></div>
+      </div>
+      <div class="grouptitle">备份（现状）</div>
+      <div class="card">
+        <div class="row"><span class="ric">表</span><span class="rtitle">导出 CSV（餐次）</span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">表</span><span class="rtitle">导出训练 CSV</span><span class="chev">›</span></div>
+      </div>
+      <div class="note">
+        需求 55 缺口：设置页<b>没有</b>「添加食物数据」入口（只有单条手动添加）；
+        需求 54 缺口：全仓<b>没有</b>食物库 CSV 导出（<code>csv_exporters.dart</code>
+        只有 meals / training 两张）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>② 设置页 · 改造后：「添加食物数据」入口 + 「导出食物库 CSV」</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="grouptitle">食材库（改造后）</div>
+      <div class="card">
+        <div class="row"><span class="ric">搜</span><span class="rtitle">食物数据库</span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">＋</span><span class="rtitle">添加自定义食材</span><span class="chev">›</span></div>
+        <div class="row" style="background:var(--lf-mint-50)"><span class="ric">库</span><span class="rtitle"><b>添加食物数据</b></span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">学</span><span class="rtitle">维护地点 / 窗口 / 菜品</span><span class="chev">›</span></div>
+      </div>
+      <div class="grouptitle">备份（改造后）</div>
+      <div class="card">
+        <div class="row"><span class="ric">表</span><span class="rtitle">导出 CSV（餐次）</span><span class="chev">›</span></div>
+        <div class="row"><span class="ric">表</span><span class="rtitle">导出训练 CSV</span><span class="chev">›</span></div>
+        <div class="row" style="background:var(--lf-mint-50)"><span class="ric">表</span><span class="rtitle"><b>导出食物库 CSV</b></span><span class="chev">›</span></div>
+      </div>
+      <div class="note">
+        新增两行（Key：<code>settings-food-data</code> / <code>backup-export-foods-csv</code>）。
+        「添加自定义食材」保留不动——它是最短路径的单条手动添加；「添加食物数据」
+        是本需求的大库入口（批量导入 + 模板说明）。Key 三处同改（docs/21 §5）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>③ 「添加食物数据」弹层：两个动作</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">添加食物数据</div>
+        <div class="ssub">数据进入同一个本地食物库；导入行会标记为「自建」。</div>
+        <div class="sbody">
+          <div class="bigact">
+            <span class="bic">＋</span>
+            <div><div class="bt">手动添加一种食物</div><div class="bs">填名称 / 品牌 / 种类 / 四大指标，逐条入库</div></div>
+          </div>
+          <div class="bigact">
+            <span class="bic">⇪</span>
+            <div><div class="bt">从 CSV 文件导入</div><div class="bs">支持本库导出的格式；重复项会先提示再决定</div></div>
+          </div>
+        </div>
+        <div class="actionrow"><span class="cancel">取消</span></div>
+      </section>
+      <div class="note">
+        Key：<code>food-data-sheet-manual</code> / <code>food-data-sheet-import</code>。
+        导入走<b>同一个</b> <code>FoodRepository.create</code>（D7 ②：不绕开校验）
+        ⇒ 导入行一律 <code>isUserCreated=true</code>（自建）——CSV 里的 origin 列
+        只作展示与对照，不改变落库身份（如实：导入不伪造「内置」身份）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>④ 导入预览与去重提示（需求 57：提示，不静默跳过）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">导入预览 · 食物.csv</div>
+        <div class="sbody" style="padding-top:10px">
+          <div class="statline">
+            <div class="stat"><div class="sv num">312</div><div class="sl">可导入</div></div>
+            <div class="stat dup"><div class="sv num">4</div><div class="sl">与库内重复</div></div>
+            <div class="stat err"><div class="sv num">1</div><div class="sl">格式错误跳过</div></div>
+          </div>
+          <div class="dupex">
+            <div class="dline"><span>鸡蛋 <span style="color:var(--lf-muted-foreground)">（无品牌）</span></span><span class="tag">内置</span></div>
+            <div class="dline"><span>鸡胸肉 <span style="color:var(--lf-muted-foreground)">（无品牌）</span></span><span class="tag">内置</span></div>
+            <div class="dline"><span>全麦面包 <span style="color:var(--lf-muted-foreground)">（某烘焙）</span></span><span class="tag user">自建</span></div>
+            <div class="dline"><span>无糖酸奶 <span style="color:var(--lf-muted-foreground)">（某乳业）</span></span><span class="tag">内置</span></div>
+            <div style="margin-top:4px">重复判定：名称 + 品牌（trim / 忽略大小写 / 全角半角归一）</div>
+          </div>
+          <div class="fbox"><span>格式错误：第 18 行「蛋白质 abc g」不是数字</span></div>
+        </div>
+        <div class="actionrow">
+          <span class="cancel">跳过重复，导入 312 条</span>
+          <span class="primary">全部导入</span>
+        </div>
+        <div style="text-align:center; padding:0 16px 14px; font-size:12px; color:var(--lf-muted-foreground)">取消</div>
+      </section>
+      <div class="note">
+        需求 57 的「提示去重」= **先给账再看怎么导**：重复条目列出样例与库内身份
+        （内置/自建徽标），由用户选「跳过重复」或「仍然导入」——**不静默丢弃、
+        也不强制覆盖**（foods 无唯一约束，D7 ④ / §6.4）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>⑤ 新建食物弹层 · 增「种类」下拉（需求 53：自建行由表单选择）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">新建食物</div>
+        <div class="sbody">
+          <div class="field">
+            <div class="flabel">食物名称</div>
+            <div class="fbox"><span>无糖酸奶</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">品牌（可选）</div>
+            <div class="fbox"><span class="fempty">—</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">种类</div>
+            <div class="fbox"><span>乳制品</span><span class="sel">▼ 枚举下拉，非自由文本</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 热量（kcal）</div>
+            <div class="fbox"><span class="num">62</span><span style="color:var(--lf-muted-foreground)">kcal</span></div>
+          </div>
+        </div>
+        <div class="actionrow"><span class="cancel">取消</span><span class="primary">保存</span></div>
+      </section>
+      <div class="note">
+        种类 = <code>FoodCategory</code> 枚举下拉（10 档：主食/蛋白质食物/蔬菜/水果/
+        乳制品/饮品/零食甜点/调味品/预制餐食/其他），默认「其他」。
+        落库为枚举 id（如 <code>dairy</code>）。**内置 49,444 行按名字确定性回填**
+        （<code>FoodCategory.classify</code>，幂等，只补 <code>category IS NULL</code> 的
+        seed 行），不改种子 assets（§6.7）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>⑥ CSV 格式规范（导出 ⇄ 导入同一格式，往返无损）</span><span>360dp</span></div>
+    <div class="pad">
+      <!-- 表头一行为 86 列字符，360dp 里放不下（pre 不换行会被裁）——折两行，
+           实际导出仍是单行表头。 -->
+      <div class="csv"><span class="h">name,brand,category,kcal_per_100g,
+protein_per_100g,carbs_per_100g,fat_per_100g,origin</span>
+"鸡蛋","","蛋白质食物","144","13.3","2.8","8.8","内置"
+"全麦面包","某烘焙","主食","246","9","45","3.4","自建"
+"无糖酸奶","","乳制品","62","3.2","4.8","3.1","内置"</div>
+      <div class="note">
+        列 = 需求 52 七项 + 名称。RFC 4180 全字段加引号（与既有导出同一
+        <code>_render</code>），文件带 UTF-8 BOM（表格软件直开不乱码），换行
+        <code>\r\n</code>。<b>导入侧宽容</b>：认中文标签也认枚举 id
+        （「乳制品」= <code>dairy</code>）；<code>category</code> 留空按名字归类；
+        <code>brand</code> 留空 = 无品牌；origin 只作对照不改变「导入即自建」。
+        导入上限 16 MiB（纯判据，与菜单导入同思路）。
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LocalFit AI · 食物与动作库精修</title>
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <div class="studio-shell">
+    <header class="masthead">
+      <div class="masthead-top">
+        <a class="brand" href="index.html?variant=a&amp;page=today">LocalFit AI</a>
+        <nav class="header-links" aria-label="设计预览导航">
+          <a href="details.html" aria-current="page">本轮细节精修</a>
+          <a href="overview.html">A 五页总览</a>
+          <a href="compare.html">三方案对比</a>
+        </nav>
+      </div>
+      <div class="intro">
+        <h1>食物与动作，回到熟悉的图形界面。</h1>
+        <p class="intro-copy">恢复食物单行卡、环形营养详情与动作双列网格。仍然使用原来的薄荷绿与营养数据色，不把图形换成文字列表。</p>
+      </div>
+    </header>
+    <main>
+      <p class="scroll-hint">三个预览均为 360px 浅色样例，框内可独立操作。下方链接可单独打开或查看深色；所有修改仅在当前框内，刷新重置。</p>
+      <section class="preview-region" aria-label="本轮三个重点界面" tabindex="0">
+        <div class="preview-grid compare-grid">
+          <figure class="preview-card">
+            <figcaption class="preview-caption"><h2>食物库</h2><p>原版分类图标、单行名称与小热量环</p></figcaption>
+            <div class="phone-viewport"><iframe class="phone-frame" src="index.html?embed=1&amp;variant=a&amp;page=nutrition&amp;tab=foods&amp;width=360" title="食物库 · 360px 浅色样例" width="360" height="900"></iframe></div>
+            <a class="preview-link" href="index.html?variant=a&amp;page=nutrition&amp;tab=foods">单独打开食物库</a>
+          </figure>
+          <figure class="preview-card">
+            <figcaption class="preview-caption"><h2>食物详情</h2><p>热量环与三行营养对齐，编辑删除留在底部</p></figcaption>
+            <div class="phone-viewport"><iframe class="phone-frame" src="index.html?embed=1&amp;variant=a&amp;page=nutrition&amp;tab=foods&amp;food=milk&amp;width=360" title="食物详情 · 360px 浅色样例" width="360" height="900"></iframe></div>
+            <a class="preview-link" href="index.html?variant=a&amp;page=nutrition&amp;tab=foods&amp;food=milk">单独打开详情</a> · <a class="preview-link" href="index.html?variant=a&amp;page=nutrition&amp;tab=foods&amp;food=milk&amp;theme=dark">深色</a>
+          </figure>
+          <figure class="preview-card">
+            <figcaption class="preview-caption"><h2>训练动作库</h2><p>肌群图标、器械底色、搜索与同肌群替代</p></figcaption>
+            <div class="phone-viewport"><iframe class="phone-frame" src="index.html?embed=1&amp;variant=a&amp;page=training&amp;view=exercise-library&amp;width=360" title="动作库 · 360px 浅色样例" width="360" height="900"></iframe></div>
+            <a class="preview-link" href="index.html?variant=a&amp;page=training&amp;view=exercise-library">单独打开动作库</a> · <a class="preview-link" href="index.html?variant=a&amp;page=training&amp;view=exercise-library&amp;theme=dark">深色</a>
+          </figure>
+        </div>
+      </section>
+    </main>
+    <footer class="preview-footer">
+      <p>HTML 设计稿，不读取或修改原生 App；导入、导出与备份仍仅展示操作说明。</p>
+      <nav class="footer-links" aria-label="更多预览"><a href="index.html?variant=a&amp;page=settings">查看我的与数据管理</a><a href="VERIFICATION.md">验证记录</a></nav>
+    </footer>
+  </div>
+</body>
+</html>

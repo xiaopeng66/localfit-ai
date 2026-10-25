@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>

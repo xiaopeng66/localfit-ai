@@ -1,0 +1,1287 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>LocalFit AI · 发散方案（全部）</title><style>
+  :root { --ink:#17251E; --ink2:#5A6B62; --ink3:#93A29A; --line:#E7ECE8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:44px 52px 60px; background:#FAFBF9; color:var(--ink);
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  h1 { font-size:28px; margin:0 0 6px; letter-spacing:-.4px; }
+  .sub { color:var(--ink2); font-size:14px; margin-bottom:26px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:0 52px; }
+  .cell { padding:26px 0 30px; border-top:1px solid var(--line); }
+  .hero { width:250px; margin-bottom:20px; }
+  .hero svg { width:100%; height:auto; border-radius:24%; box-shadow:0 10px 26px rgba(23,37,30,.13); display:block; }
+  .ladder { display:flex; align-items:flex-end; gap:22px; margin-bottom:18px; }
+  .ladder-cell { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .ladder-cell span { font-size:11px; color:var(--ink3); }
+  .s svg { display:block; border-radius:22%; }
+  .s128 svg { width:128px; height:128px; box-shadow:0 5px 14px rgba(23,37,30,.10); }
+  .s64 svg  { width:64px;  height:64px;  box-shadow:0 3px 9px rgba(23,37,30,.09); }
+  .s48 svg  { width:48px;  height:48px;  box-shadow:0 2px 7px rgba(23,37,30,.08); }
+  .s32 svg  { width:32px;  height:32px; }
+  .s24 svg  { width:24px;  height:24px; }
+  h2 { font-size:21px; margin:0 0 4px; letter-spacing:-.2px; }
+  .tag { font-size:12.5px; color:#1FA377; margin-bottom:8px; }
+  .note { margin:0; font-size:13.5px; line-height:1.65; color:var(--ink2); }
+</style></head>
+<body><h1>LocalFit AI · 发散方案（全部）</h1><div class="sub">发散探索 · 色彩 / 线条 / 构图各不相同　｜　色彩仍取自 app_colors.dart 的色板</div>
+<div class="grid">
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>深色霓虹</h2>
+    <div class="tag">深色沉浸 · 发光细线</div>
+    <p class="note">训练页的深色沉浸往图标上搬：近黑底、薄荷霓虹细环带外晕，三颗宏量色点收在里面。整组方案里唯一用暗底的。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d2-minimal-line" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <path d="M 603.66 260.16 A 268 268 0 1 1 420.34 260.16" fill="none" stroke="#1FA377" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="512" cy="512" r="58" fill="#2FBE8F"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>极简单线</h2>
+    <div class="tag">奶油底 · 一根细线</div>
+    <p class="note">把「环」减到不能再减：奶油底上一根等宽细线加一颗圆心，没有任何填充色块。安静、克制，和花哨的同类健康 App 拉开距离。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d3-stitch" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d3-stitch)"/>
+  
+    <circle cx="512" cy="512" r="268" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" pathLength="1000" stroke-dasharray="0.1 36.937"/>
+    <circle cx="744.09" cy="378.00" r="46" fill="#FF8A65"/>
+    <circle cx="512.00" cy="780.00" r="46" fill="#FFC94D"/>
+    <circle cx="279.91" cy="378.00" r="46" fill="#B39DDB"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>缝线点阵</h2>
+    <div class="tag">点状线条 · 手作感</div>
+    <p class="note">环改成一圈均匀的白色圆点，像缝线或串珠，上面缀三颗宏量色珠。线条语言从「实线」换成「点」，是全组里最俏皮的一个。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d4-iris" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path d="M 512.00 240.00 A 272 272 0 0 1 582.40 249.27" fill="none" stroke="#2fbe8f" stroke-width="88"/>
+    <path d="M 582.40 249.27 A 272 272 0 0 1 648.00 276.44" fill="none" stroke="#3ec496" stroke-width="88"/>
+    <path d="M 648.00 276.44 A 272 272 0 0 1 704.33 319.67" fill="none" stroke="#4dca9e" stroke-width="88"/>
+    <path d="M 704.33 319.67 A 272 272 0 0 1 747.56 376.00" fill="none" stroke="#5dd0a5" stroke-width="88"/>
+    <path d="M 747.56 376.00 A 272 272 0 0 1 774.73 441.60" fill="none" stroke="#7dc69d" stroke-width="88"/>
+    <path d="M 774.73 441.60 A 272 272 0 0 1 784.00 512.00" fill="none" stroke="#abb189" stroke-width="88"/>
+    <path d="M 784.00 512.00 A 272 272 0 0 1 774.73 582.40" fill="none" stroke="#d89c76" stroke-width="88"/>
+    <path d="M 774.73 582.40 A 272 272 0 0 1 747.56 648.00" fill="none" stroke="#ff8d64" stroke-width="88"/>
+    <path d="M 747.56 648.00 A 272 272 0 0 1 704.33 704.33" fill="none" stroke="#ff9f5d" stroke-width="88"/>
+    <path d="M 704.33 704.33 A 272 272 0 0 1 648.00 747.56" fill="none" stroke="#ffb156" stroke-width="88"/>
+    <path d="M 648.00 747.56 A 272 272 0 0 1 582.40 774.73" fill="none" stroke="#ffc44f" stroke-width="88"/>
+    <path d="M 582.40 774.73 A 272 272 0 0 1 512.00 784.00" fill="none" stroke="#efc06b" stroke-width="88"/>
+    <path d="M 512.00 784.00 A 272 272 0 0 1 441.60 774.73" fill="none" stroke="#d9b394" stroke-width="88"/>
+    <path d="M 441.60 774.73 A 272 272 0 0 1 376.00 747.56" fill="none" stroke="#c3a6bd" stroke-width="88"/>
+    <path d="M 376.00 747.56 A 272 272 0 0 1 319.67 704.33" fill="none" stroke="#b2a0db" stroke-width="88"/>
+    <path d="M 319.67 704.33 A 272 272 0 0 1 276.44 648.00" fill="none" stroke="#afacda" stroke-width="88"/>
+    <path d="M 276.44 648.00 A 272 272 0 0 1 249.27 582.40" fill="none" stroke="#acb7da" stroke-width="88"/>
+    <path d="M 249.27 582.40 A 272 272 0 0 1 240.00 512.00" fill="none" stroke="#a8c2d9" stroke-width="88"/>
+    <path d="M 240.00 512.00 A 272 272 0 0 1 249.27 441.60" fill="none" stroke="#86bcc1" stroke-width="88"/>
+    <path d="M 249.27 441.60 A 272 272 0 0 1 276.44 376.00" fill="none" stroke="#5eb2a4" stroke-width="88"/>
+    <path d="M 276.44 376.00 A 272 272 0 0 1 319.67 319.67" fill="none" stroke="#36a887" stroke-width="88"/>
+    <path d="M 319.67 319.67 A 272 272 0 0 1 376.00 276.44" fill="none" stroke="#21a67a" stroke-width="88"/>
+    <path d="M 376.00 276.44 A 272 272 0 0 1 441.60 249.27" fill="none" stroke="#26ae81" stroke-width="88"/>
+    <path d="M 441.60 249.27 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#2ab688" stroke-width="88"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>彩虹光圈</h2>
+    <div class="tag">无缺口 · 多色渐变</div>
+    <p class="note">闭合的粗环沿圆周做薄荷→珊瑚→蜜黄→雾紫→海盐的渐变，没有缺口。一眼是「营养光谱」，也是全组里颜色最丰富的一个。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>扇形餐盘</h2>
+    <div class="tag">平涂色块 · 无描边</div>
+    <p class="note">整张方案里唯一没有「线条」的：圆盘直接切成三块扇形平涂，中挖奶油圆孔。营养素比例即图形，俯视是一份搭配好的餐。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <linearGradient id="dark-d6-emblem" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#179167"/>
+      <stop offset="1" stop-color="#0A4F37"/>
+    </linearGradient>
+  <rect width="1024" height="1024" rx="232" fill="url(#dark-d6-emblem)"/>
+  
+    <path d="M512 268 L742 354 L742 512 C742 636 660 716 512 758 C364 716 282 636 282 512 L282 354 Z"
+      fill="none" stroke="#FFFFFF" stroke-width="46" stroke-linejoin="round"/>
+    <path fill="#A5E2CB" transform="rotate(38 512 512)"
+      d="M512 399.2 C596.3 433.9 613.7 528.1 512 624.8 C410.3 528.1 459.9 433.9 512 399.2 Z"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>深绿盾徽</h2>
+    <div class="tag">徽章 · 描边盾形</div>
+    <p class="note">底色压到深绿（薄荷 800→900），白描边盾形 + 浅薄荷叶。讲「数据留在本机」，气质从清新App 变成可信工具。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d7-lineart" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FAFBF9"/>
+  
+    <g fill="none" stroke="#17875F" stroke-width="30" stroke-linecap="round">
+      <path d="M300 560 A212 212 0 0 0 724 560"/>
+      <path d="M452 800 L572 800"/>
+      <path d="M344 306 L648 566"/>
+      <path d="M436 278 L744 566"/>
+    </g>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>线稿碗筷</h2>
+    <div class="tag">单色线稿 · 食物符号</div>
+    <p class="note">一笔等宽线勾出碗和筷子，不用任何填充。食堂场景最直白的符号，也是全组里唯一具象画食物的。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d8-pulse" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  
+    <path d="M 689.41 300.57 A 276 276 0 1 1 334.59 300.57" fill="none" stroke="#2FBE8F" stroke-width="40" stroke-linecap="round"/>
+    <path d="M334.6 300.6 L452 300.6 L508 210 L560 388 L604 300.6 L689.4 300.6"
+      fill="none" stroke="#FF8A65" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>脉搏环</h2>
+    <div class="tag">健身 · 心电图线</div>
+    <p class="note">环在正上方破开，接一段心电 spikes——「记录」与「训练」在同一条线上。珊瑚色脉搏从薄荷环里跳出来，是全组里最有动感的。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>LF 字标</h2>
+    <div class="tag">字母组合 · 圆头笔画</div>
+    <p class="note">LocalFit 的 L 和 F 用圆头粗笔画拼出来，同一条基线。唯一带字母的方案，品牌感最强、也最依赖识读；F 的中横用薄荷 300 做一点色彩层次。</p>
+  </section>
+
+  <section class="cell">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d10-candy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#F0FBF7"/>
+  
+    <path d="M 777.03 450.81 A 272 272 0 0 1 591.53 772.11" fill="none" stroke="#FFB89E" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 432.47 772.11 A 272 272 0 0 1 246.97 450.81" fill="none" stroke="#C9B9E7" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 326.50 313.07 A 272 272 0 0 1 512.00 240.00" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 512.00 240.00 A 272 272 0 0 1 697.50 313.07" fill="none" stroke="#FFDA85" stroke-width="96" stroke-linecap="round"/>
+    <path d="M 783.83 502.51 A 272 272 0 0 1 726.34 679.46" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round" opacity="0.55"/>
+</svg>
+</div><span>24</span></div>
+    </div>
+    <h2>粉彩软糖</h2>
+    <div class="tag">低饱和 · 高光质感</div>
+    <p class="note">三段粉彩粗弧（蜜桃/蜂蜜/香芋的 300 档）拼环，弧上加一道白色高光模拟软糖的光泽。全组里饱和度最低、最「奶油」的。</p>
+  </section></div></body></html>

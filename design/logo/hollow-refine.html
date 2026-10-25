@@ -1,0 +1,774 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>LocalFit AI · 空心管管径细化</title>
+<style>
+  :root { --ink:#17251E; --ink2:#5A6B62; --ink3:#93A29A; --line:#E7ECE8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:44px 52px 60px; background:#FAFBF9; color:var(--ink);
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  h1 { font-size:28px; margin:0 0 6px; letter-spacing:-.4px; }
+  .sub { color:var(--ink2); font-size:14px; margin-bottom:10px; }
+  .row { display:grid; grid-template-columns:320px 1fr; gap:0 44px; align-items:center;
+         padding:30px 0; border-top:1px solid var(--line); }
+  .row:first-of-type { border-top:none; margin-top:18px; }
+  .hero { width:300px; }
+  .hero svg { width:100%; height:auto; border-radius:24%; box-shadow:0 10px 26px rgba(23,37,30,.13); display:block; }
+  h2 { font-size:22px; margin:0 0 6px; letter-spacing:-.2px; }
+  .tag { font-size:13px; color:#1FA377; margin-bottom:20px; }
+  .ladder { display:flex; align-items:flex-end; gap:24px; }
+  .ladder-cell { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .ladder-cell span { font-size:11px; color:var(--ink3); }
+  .s svg { display:block; border-radius:22%; }
+  .s128 svg { width:128px; height:128px; box-shadow:0 5px 14px rgba(23,37,30,.10); }
+  .s64 svg  { width:64px;  height:64px;  box-shadow:0 3px 9px rgba(23,37,30,.09); }
+  .s48 svg  { width:48px;  height:48px;  box-shadow:0 2px 7px rgba(23,37,30,.08); }
+  .s32 svg  { width:32px;  height:32px; }
+  .s24 svg  { width:24px;  height:24px; }
+  .note { margin:22px 0 0; font-size:14px; line-height:1.7; color:var(--ink2); max-width:880px; }
+</style></head>
+<body>
+  <h1>空心管 · 管径细化</h1>
+  <div class="sub">骨架不变：近黑底 · 空心玻璃管 · 薄荷环 + 悬浮珊瑚脉搏　｜　变量：管径 / 管壁 / 气口 / 管端切口 / 管内材质</div>
+  
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>N3 · 空心管（对照）</h2>
+      <div class="tag">管径 46 · 壁 12 · 气口 12</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-n3-hollow"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-n3-hollow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-n3-hollow)">
+    
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-n3-hollow)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">你选中的版本，放在最前作对照。管径 46、管壁 12、气口 12。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H1 · 细管大缝</h2>
+      <div class="tag">管径 34 · 壁 7 · 气口 20</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h1-slim"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h1-slim" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h1-slim)">
+    
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h1-slim)" opacity="0.5"><path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#FF8A65" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M386 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L638 297.5" fill="none" stroke="#0F1412" stroke-width="20.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">管径减到 34、壁削到 7、气口拉大到 20。整根管子变细一圈，缝的存在感更强，图标整体变轻、变透气；代价是 24px 下管壁只剩不足 1px。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H2 · 粗管紧缝</h2>
+      <div class="tag">管径 60 · 壁 17 · 气口 8</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">反方向：管径加粗到 60、壁加厚到 17、气口收紧到 8。灯管的实体感最强，近看像真的玻璃管，24px 下线条依然粗壮清晰——最「耐小尺寸」的一版。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H3 · 薄壁宽缝</h2>
+      <div class="tag">管径 46 · 壁 7 · 气口 24</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h3-thinwall"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h3-thinwall" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h3-thinwall)">
+    
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h3-thinwall)" opacity="0.5"><path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M402 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L622 297.5" fill="none" stroke="#0F1412" stroke-width="32.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">管径不动、壁削到 7、气口拉到 24。管子薄得像 LED 灯带而不是玻璃管，断开感最明确；和 H1 的区别是外径保持饱满，只把壁掏薄。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H4 · 平头切口</h2>
+      <div class="tag">圆头改平头 · 开口管端</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">管端从圆头封口改成平头切口——管端是开口的圆环截面，像用切管器切出来的。工业感最重，也和其它方案圆头的「软」彻底区分开。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H5 · 管内微光</h2>
+      <div class="tag">挖芯掺色 · 气体未全灭</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h5-innerlight"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h5-innerlight" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h5-innerlight)">
+    
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h5-innerlight)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#19342a" stroke-width="22.0" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">几何与对照版完全一致，只把挖芯的底色换成掺了 10% 薄荷的 #152821——管内像有没熄灭的气体。全组最微妙的一版，近看有惊喜、远看几乎不变。</p>
+    </div>
+  </section>
+</body></html>

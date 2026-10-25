@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日 · 体重卡重设计 — 整改设计稿（R2）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第三轮 设计稿（R2 · docs/30）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖需求（docs/30 §1 需求 2，用户 2026-10-08 原话）：
+    「今日页面的体重卡，周/月切换的按钮太大了，上下宽度也很大，按钮不好看，
+      你重新设计一下，另外月视图的显示好像有问题，还有，数据做成柱状图，
+      左边要有坐标，下边的本周趋势三个小卡片不要了，不需要统计体脂率和肌肉量了。」
+
+  逐句 → 本稿的改动点：
+   ① 「切换按钮太大了，上下宽度也很大」→ 改造前 `LfSegmentedToggle`
+      （`lf_segmented.dart`）**视觉上是一块 76×48 的灰底大块**，里面浮着一颗
+      24dp 的小白胶囊 —— 大的是那块灰底（`Container(padding: 2)` 包着
+      `SizedBox(height: 44)`），不是胶囊本身。→ 改造后：**两颗 B3 档胶囊**
+      （视觉高 32、各自成块，没有外包灰底）。
+      **实测更正（2026-10-08）**：`LfPillButton` 的**布局高也是 48dp** ——
+      `TextButton` 的 `MaterialTapTargetSize.padded` 会撑高布局盒（实测
+      `getSize` = 48×48，见 §右侧注）。所以「卡头行高 48 → 32」**不成立**：
+      行高两版都是 48（触达硬规则的下限）。本稿的收益是**视觉重量**（灰底
+      大块消失、两颗独立胶囊各 32dp），不是布局高度。
+   ② 「月视图的显示好像有问题」→ **真缺陷，根因已定位**：分箱固定 7 天
+      （`weight_chart_points.dart:14` `weightMonthBucketDays = 7`），记录 **2–7 条**时
+      只产出 **1 个点**，而卡片 `points.length < 2` 就渲染空态「还没有体重记录」——
+      **明明有记录却说没有**（§3 逐条对照）。→ 改造后：分箱数自适应
+      `bucket = max(1, (n/5).ceil())` ⇒ n≥2 恒有 ≥2 根柱；n=1 柱图画**单根柱**；
+      空态**只在 0 条记录**时出现（那时文案才是真的）。
+   ③ 「数据做成柱状图，左边要有坐标」→ 折线（`weight_line_chart.dart`）→
+      **柱状图 + 左侧 y 轴三档刻度 + 顶部单位 kg**（§2 起所有图）。
+      y 轴**不从 0 起**：体重从 0 画会把 1.4kg 的波动压成一条平线（与热量柱图口径
+      不同，注释与实现里都写明）。
+   ④ 「下边的本周趋势三个小卡片不要了，不需要统计体脂率和肌肉量了」→ 卡底
+      「本周趋势/本月趋势」标题 + Divider + 3×`TrendTile`（体重/体脂率/肌肉量）
+      **整段删除**；`TrendTile`/`MiniSparkline` 若无其他生产调用点则整件删除。
+      **数据层不动**：体脂率/肌肉量仍在 `Measurements` 落库，只是本卡不再统计显示。
+
+  与现状的差异（像素级）：卡头行高 48 → 32；图 130dp 折线 → 132dp 柱图 + 34dp 轴列；
+  卡底「趋势」段（≈ 88dp）整段退场 ⇒ 卡总高从 ≈ 300dp 收到 ≈ 216dp。
+
+  不在本稿范围：体重录入弹层、步数卡（docs/29 §P9 已交付，形态不动）。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+  字阶按 token 表实测档位取（micro 10 / label 11 / caption 12 / body 14 / title 15 /
+  titleLarge 16 / headline 18），不新造档（docs/21 §2.6.2）。
+
+  尺寸按 360dp 逻辑宽画：页面左右 16dp（`LfDimens.pagePadding`）、卡圆角 16、
+  卡内 padding 16（`LfDimens.cardPadding`）。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA;
+    color: #1A201D;
+    font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; color: #1A201D; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; color: #1A201D; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note + .note { margin-top: 6px; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+/* 暗色帧：CSS 变量需要在帧上**重新声明**一遍（html.dark 是根选择器，
+   帧在 body 里够不着）——沿用 ui设计/remediation/食堂-地点与菜品.html 的写法。 */
+.frame.theme-dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-900: #DDE5E1;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+  .frame.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .card { background: var(--lf-card); border-color: var(--lf-border); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+
+  /* ── 编号标记 ───────────────────────────────────────────────────────── */
+  .pinb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%; vertical-align: middle;
+    background: #1A201D; color: #FFFFFF; font-size: 9px; font-weight: 700;
+    margin-right: 4px; flex: none;
+  }
+
+  /* ── 卡（DesignCard：白底 + 1px 描边 + 16 圆角 + shadow-1 + 内边距 16）── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .card + .card { margin-top: 8px; }
+  .ctitle { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .csub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .num { font-feature-settings: "tnum" 1; }
+  .delta-down { color: var(--lf-mint-700); font-weight: 600; }
+  html.dark .delta-down, .frame.theme-dark .delta-down { color: var(--lf-mint-400); }
+
+  /* ── ① 改造前：LfSegmentedToggle（布局高 48dp）────────────────────── */
+  .segmented {
+    display: inline-flex; background: var(--lf-muted);
+    border-radius: var(--lf-radius-full); padding: 2px;
+  }
+  .segmented .seg {
+    min-width: 36px; height: 24px; display: inline-flex;
+    align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--lf-muted-foreground);
+    border-radius: var(--lf-radius-full);
+  }
+  .segmented .seg.on {
+    background: var(--lf-card); color: var(--lf-mint-700);
+    box-shadow: 0 1px 2px rgba(15,36,28,0.10);
+  }
+  html.dark .segmented .seg.on, .frame.theme-dark .segmented .seg.on { color: var(--lf-mint-400); }
+  /* 改造前控件真实占位 48dp 的可视化（评审用，非实现物） */
+  .ghost48 { outline: 1px dashed #F44336; outline-offset: 0; position: relative; }
+  .ghost48::after {
+    content: "布局占位 48dp"; position: absolute; right: 0; top: -13px;
+    font-size: 8px; color: #F44336; white-space: nowrap;
+  }
+
+  /* ── ② 改造后：两颗 B3 胶囊（视觉 32 / 命中盒 48 不参与布局）──────── */
+  .pills { display: inline-flex; gap: 6px; align-items: center; }
+  .pillbtn {
+    height: 32px; padding: 0 14px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 12px; font-weight: 600;
+    border-radius: var(--lf-radius-full); cursor: default;
+  }
+  .pillbtn.muted { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .pillbtn.soft  { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  html.dark .pillbtn.soft, .frame.theme-dark .pillbtn.soft { color: var(--lf-mint-400); }
+  /* 视觉胶囊外框（仅稿里示意）。注意：实现里 LfPillButton 的**布局盒是
+     48×48**（MaterialTapTargetSize.padded），这里画的 32dp 是它的**可见**高度。 */
+  .hit48 { position: relative; }
+  .hit48::after {
+    content: ""; position: absolute; left: -8px; right: -8px; top: -8px; bottom: -8px;
+    border: 1px dashed rgba(47,190,143,0.45); border-radius: 999px;
+  }
+
+  /* ── 图：柱状图 + 左侧 y 轴 ────────────────────────────────────────── */
+  /* 单位 kg 单独占一条 16dp 带，且**左端对齐绘图区**（padding-left = 轴列 30 + 间隙 8）。
+     不能贴左边：最高那档刻度在 `top:0` 且 `translateY(-50%)`，文字上半截会溢出到
+     这条带里（实测溢出 ~5dp）——`kg` 若贴左就会与它叠成「kg71.0」。 */
+  .unitband {
+    height: 16px; display: flex; align-items: flex-end;
+    font-size: 9px; color: var(--lf-muted-foreground); padding-left: 38px;
+  }
+  .chart { display: flex; gap: 8px; align-items: flex-end; }
+  .yaxis {
+    width: 30px; flex: none; position: relative; height: 132px;
+    font-size: 10px; color: var(--lf-muted-foreground);
+    font-feature-settings: "tnum" 1;
+  }
+  .yaxis .unit { display: none; }
+  .yaxis .tick { position: absolute; right: 0; transform: translateY(-50%); }
+  .plot { flex: 1; position: relative; height: 132px; }
+  .grid { position: absolute; inset: 0; }
+  .grid i {
+    position: absolute; left: 0; right: 0; height: 1px;
+    border-top: 1px dashed var(--lf-border);
+  }
+  .bars {
+    position: absolute; inset: 0; display: flex; align-items: flex-end;
+    gap: 8px; padding: 0 2px;
+  }
+  .bars .b { flex: 1; max-width: 40px; display: flex; align-items: flex-end; justify-content: center; }
+  .bars .b > i {
+    display: block; width: 100%; border-radius: 6px 6px 0 0;
+    background: var(--lf-mint-500); min-height: 4px;
+  }
+  .bars .b.last > i { background: var(--lf-mint-600); }
+  .xlabels {
+    display: flex; gap: 8px; padding: 0 2px; margin-top: 6px;
+    margin-left: 38px; /* 轴列 30 + gap 8 */
+  }
+  .xlabels span {
+    flex: 1; max-width: 40px; text-align: center; font-size: 10px;
+    color: var(--lf-muted-foreground); font-feature-settings: "tnum" 1;
+  }
+  .xlabels span.wide { font-size: 9px; }
+  .xlabels span.last { color: var(--lf-foreground); font-weight: 600; }
+
+  /* ── ③ 改造前：折线图（现状逐像素复制，用于对照）─────────────────── */
+  .linewrap svg { width: 100%; display: block; }
+  .linewrap .labels {
+    display: flex; justify-content: space-between; padding: 0 4px; margin-top: 4px;
+    font-size: 10px; color: var(--lf-muted-foreground);
+  }
+  .linewrap .labels span { flex: 1; text-align: center; }
+
+  /* ── 改造前：卡底三格趋势（整段待删）──────────────────────────────── */
+  .hr { height: 1px; background: var(--lf-border); border: 0; margin: 16px 0 12px; }
+  .sect-title { font-size: 13px; font-weight: 500; color: var(--lf-card-foreground); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .tile { background: var(--lf-muted); border-radius: var(--lf-radius-lg); padding: 12px; }
+  .tile .lbl { font-size: 11px; color: var(--lf-muted-foreground); }
+  .tile .val { font-size: 16px; color: var(--lf-foreground); margin-top: 4px; font-weight: 600; }
+  .tile .val small { font-size: 10px; color: var(--lf-muted-foreground); font-weight: 400; }
+  .tile .delta { font-size: 10px; margin-top: 4px; }
+  .strike {
+    position: relative; border: 1px dashed #F44336; border-radius: var(--lf-radius-lg);
+    padding: 8px; margin-top: 12px;
+  }
+  .strike::before {
+    content: "整段删除"; position: absolute; right: 6px; top: -9px;
+    background: #F44336; color: #FFFFFF; font-size: 8px; padding: 1px 5px;
+    border-radius: 999px; font-weight: 700;
+  }
+
+  /* ── 空态（改造后只在 0 条记录时出现）────────────────────────────── */
+  .empty {
+    height: 132px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 6px; color: var(--lf-muted-foreground);
+  }
+  .empty .t { font-size: 12px; }
+  .empty .s { font-size: 10px; }
+  .badge-warn {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+    border-radius: 999px; background: #FFF4D6; color: #8A6D1B;
+    font-size: 10px; font-weight: 600;
+  }
+  .badge-bad {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+    border-radius: 999px; background: #FFE3E0; color: #B3261E;
+    font-size: 10px; font-weight: 600;
+  }
+  .text-btn {
+    height: 24px; padding: 0 6px; display: inline-flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 500; color: var(--lf-mint-700);
+  }
+  .text-btn .plus { font-size: 13px; line-height: 1; }
+  .row-between { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .row-gap { display: flex; align-items: center; gap: 8px; }
+  .mt12 { margin-top: 12px; }
+  .mt8 { margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>今日 · 体重卡重设计 — R2 设计稿（docs/30 需求 2）</h1>
+  <p class="intro">
+    四帧：①改造前（对照）· ②改造后周视图 · ③改造后月视图 · ④月视图缺陷前后对照 · ⑤暗色抽查。<br>
+    逐帧黑底编号点对应下方注释里的同一编号。令牌与 <code>ui设计/pages/训练.html</code> 同源。
+  </p>
+  <div class="legend">
+    <b>本稿三条硬主张</b>：<br>
+    ① <b>切换控件</b>：从「76×48 灰底 + 内浮 24dp 小胶囊」改为
+    <span class="kw">两颗各自成块的 32dp 胶囊</span>（<code>LfPillButton</code>，B3 档）。
+    <b>行高不变</b>（实现里布局盒 48×48，触达硬规则）—— 改的是视觉重量。<br>
+    ② <b>月视图</b>：分箱 7 天固定 → <span class="kw">≤5 箱自适应</span>（<code>bucket = max(1, ceil(n/5))</code>），
+    空态**只在 0 条记录**出现（改造前 1–7 条都在说谎）。<br>
+    ③ <b>图</b>：折线 → 柱状图 + <span class="kw">左侧 y 轴三档刻度 + 单位 kg</span>；
+    y 轴<b>不从 0 起</b>（体重从 0 画会把 1.4kg 波动压成平线）。<br>
+    另：卡底「本周趋势」标题 + 3× 趋势格（体重/体脂率/肌肉量）<b>整段退场</b>——数据仍在
+    <code>Measurements</code> 落库，只是本卡不再统计显示。
+  </div>
+
+  <!-- ================= ① 改造前 ================= -->
+  <h2>① 改造前（对照）：周/月切换占位 48dp · 折线无 y 轴 · 卡底三格趋势</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 现状（dashboard_weight_card.dart）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">本周体重</div>
+              <div class="csub num">最新 69.4 kg <span class="delta-down">↓ 0.8</span></div>
+            </div>
+            <div class="row-gap">
+              <span class="text-btn"><span class="plus">＋</span>添加</span>
+              <span class="segmented ghost48">
+                <span class="seg on">周</span><span class="seg">月</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="mt12 linewrap">
+            <svg viewBox="0 0 320 130" preserveAspectRatio="none" style="height:130px">
+              <defs>
+                <linearGradient id="wFillBefore" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#2FBE8F" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#2FBE8F" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line x1="16" y1="20"  x2="304" y2="20"  stroke="#DDE5E1" stroke-width="1" stroke-dasharray="3 4"/>
+              <line x1="16" y1="65"  x2="304" y2="65"  stroke="#DDE5E1" stroke-width="1" stroke-dasharray="3 4"/>
+              <line x1="16" y1="110" x2="304" y2="110" stroke="#DDE5E1" stroke-width="1" stroke-dasharray="3 4"/>
+              <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100 L304,110 L16,110 Z" fill="url(#wFillBefore)"/>
+              <path d="M16,20 L64,40 L112,60 L160,50 L208,80 L256,90 L304,100" fill="none" stroke="#2FBE8F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="16"  cy="20"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="64"  cy="40"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="112" cy="60"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="160" cy="50"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="208" cy="80"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="256" cy="90"  r="3" fill="#FFFFFF" stroke="#2FBE8F" stroke-width="2"/>
+              <circle cx="304" cy="100" r="4" fill="#2FBE8F"/>
+            </svg>
+            <div class="labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          </div>
+
+          <div class="strike">
+            <hr class="hr" style="margin-top:0">
+            <div class="sect-title">本周趋势</div>
+            <div class="tiles">
+              <div class="tile">
+                <div class="lbl">体重</div>
+                <div class="val num">69.4<small> kg</small></div>
+                <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+                  <polyline points="2,6 11,9 20,12 29,11 38,16 47,18 58,20" fill="none" stroke="#C9A27E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="delta delta-down num">↓ 0.8 kg</div>
+              </div>
+              <div class="tile">
+                <div class="lbl">体脂率</div>
+                <div class="val num">18.2<small> %</small></div>
+                <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+                  <polyline points="2,8 11,10 20,9 29,13 38,12 47,15 58,14" fill="none" stroke="#B39DDB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="delta num" style="color:var(--lf-muted-foreground)">↓ 0.3 %</div>
+              </div>
+              <div class="tile">
+                <div class="lbl">肌肉量</div>
+                <div class="val num">52.1<small> kg</small></div>
+                <svg viewBox="0 0 60 24" preserveAspectRatio="none" style="height:24px;margin-top:4px;width:100%">
+                  <polyline points="2,14 11,13 20,15 29,12 38,11 47,10 58,9" fill="none" stroke="#4ED9A6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="delta num" style="color:var(--lf-muted-foreground)">↑ 0.2 kg</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>改造前三个问题都在这一帧里</b>：<br>
+        ① <b>切换控件占位 48dp</b>——红虚线是控件的真实布局盒。`LfSegmentedToggle` 每段
+        <code>SizedBox(height: 44)</code>（最小触达）**直接参与布局**，外层 <code>padding: 2</code>
+        ⇒ 48dp。视觉胶囊只有 24dp，「大」的是它撑出来的空白；卡头行也因此被撑到 48，
+        与左侧「本周体重 + 最新值」两行文字（15+2+12 ≈ 40dp）对不齐。<br>
+        ② <b>折线没有 y 轴</b>——三条虚线网格只有位置没有数值，用户看不出 69.4 是在
+        什么范围里波动（网格常数 <code>y=20/65/110</code> 与数据无关）。<br>
+        ③ <b>卡底三格趋势是重复信息</b>：体重那一格与卡头「最新 69.4」同一份数据；
+        体脂率/肌肉量两格用户点名不要了。
+      </div>
+      <div class="note">
+        <b>还有第四个（本帧看不见的）</b>：月视图在 1–7 条记录时<b>产不出第二个点</b>，
+        于是走「还没有体重记录」空态 —— 见 §4 的逐条对照。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ② 改造后 · 周视图 ================= -->
+  <h2>② 改造后 · 周视图：两颗 32dp 胶囊 + 柱状图（左轴三档 + kg）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 周视图（默认）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">本周体重</div>
+              <div class="csub num">最新 69.4 kg <span class="delta-down">↓ 0.8</span></div>
+            </div>
+            <div class="row-gap">
+              <span class="hit48"><span class="pillbtn soft">周</span></span>
+              <span class="hit48"><span class="pillbtn muted">月</span></span>
+            </div>
+          </div>
+
+          <div class="mt12 unitband">kg</div>
+          <div class="chart">
+            <div class="yaxis">
+              <span class="tick" style="top:0">71.0</span>
+              <span class="tick" style="top:66px">69.9</span>
+              <span class="tick" style="top:132px">68.8</span>
+            </div>
+            <div class="plot">
+              <div class="grid">
+                <i style="top:0"></i><i style="top:65.5px"></i><i style="top:131px"></i>
+              </div>
+              <div class="bars">
+                <div class="b"><i style="height:33px"></i></div>
+                <div class="b"><i style="height:77px"></i></div>
+                <div class="b"><i style="height:44px"></i></div>
+                <div class="b"><i style="height:55px"></i></div>
+                <div class="b"><i style="height:88px"></i></div>
+                <div class="b"><i style="height:110px"></i></div>
+                <div class="b last"><i style="height:99px"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="xlabels">
+            <span>一</span><span>二</span><span>三</span><span>四</span>
+            <span>五</span><span>六</span><span class="last">日</span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>①② 切换控件</b>：两颗 <code>LfPillButton</code>（B3 档，视觉高 32）——
+        选中 <code>soft</code>（mint-100 底 + mint-700 字），未选 <code>muted</code>。
+        <b>Key 全保留</b>：<code>dashboard-weight-range</code> /
+        <code>-week</code> / <code>-month</code>（既有测试不动）。<br>
+        <b>「太大」到底大在哪（设备实测口径）</b>：改造前那块
+        <code>LfSegmentedToggle</code> 的<b>可见灰底</b>是 <b>76×48</b>
+        （<code>Container(padding: 2)</code> 包 <code>SizedBox(height: 44)</code>），
+        灰底里浮着一颗 24dp 的小白胶囊 —— 一颗小胶囊套在大灰块里，
+        这是用户说「不好看」的直接原因。<br>
+        改造后每颗胶囊<b>自己就是块</b>（32dp 高、无外包灰底），视觉重量从
+        「76×48 灰块」降到「两颗 32dp 胶囊」。<br>
+        <b>诚实更正</b>：<code>LfPillButton</code> 的布局盒实测 <b>48×48</b>
+        （<code>MaterialTapTargetSize.padded</code> 撑的），所以卡头<b>行高不变</b>
+        （48，触达硬规则下限）。本改动的收益是视觉重量，不是行高。
+      </div>
+      <div class="note">
+        <b>③ 柱状图 + 左轴</b>：三档刻度取「数据真实 min/max 外扩 25% 后取整」——
+        本周 69.2–70.6 ⇒ 轴 68.8–71.0，刻度 <b>68.8 / 69.9 / 71.0</b>（如实标注，
+        不四舍五入到假整数）。顶部单位 <code>kg</code> 只写一次。<br>
+        柱宽按点数自适应（周 7 根 ≈ 30dp、月 ≤5 根 ≤40dp），圆角顶 6；<b>末柱（最新一天）
+        用 mint-600</b> 与历史柱区分。柱底不是 0 —— 这是与热量柱图**故意不同**的口径，
+        实现注释会写明「体重从 0 画会把 1.4kg 波动压成一条平线」。<br>
+        语义：<code>ChartSemantics</code> 一行摘要（全仓图表的既有做法）。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③ 改造后 · 月视图 ================= -->
+  <h2>③ 改造后 · 月视图：≤5 箱自适应（10 条 → 5 箱，每箱 2 条均值）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 月视图（10 条记录）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">体重趋势</div>
+              <div class="csub num">最新 69.4 kg <span class="delta-down">↓ 1.6</span></div>
+            </div>
+            <div class="row-gap">
+              <span class="hit48"><span class="pillbtn muted">周</span></span>
+              <span class="hit48"><span class="pillbtn soft">月</span></span>
+            </div>
+          </div>
+
+          <div class="mt12 unitband">kg</div>
+          <div class="chart">
+            <div class="yaxis">
+              <span class="tick" style="top:0">72.2</span>
+              <span class="tick" style="top:66px">70.6</span>
+              <span class="tick" style="top:132px">69.0</span>
+            </div>
+            <div class="plot">
+              <div class="grid">
+                <i style="top:0"></i><i style="top:65.5px"></i><i style="top:131px"></i>
+              </div>
+              <div class="bars">
+                <div class="b"><i style="height:28px"></i></div>
+                <div class="b"><i style="height:50px"></i></div>
+                <div class="b"><i style="height:78px"></i></div>
+                <div class="b"><i style="height:97px"></i></div>
+                <div class="b last"><i style="height:110px"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="xlabels">
+            <span class="wide">8/8</span><span class="wide">8/16</span><span class="wide">8/22</span>
+            <span class="wide">8/27</span><span class="wide last">9/2</span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>分箱口径改写</b>（<code>weight_chart_points.dart</code>）：<br>
+        <code>bucket = max(1, (n / 5).ceil())</code> —— 30 天窗口里不管有多少条记录，
+        最终**箱数 ≤ 5**（保持 320dp 里可读的柱宽），且 <code>n ≥ 2 恒有 ≥ 2 根柱</code>。<br>
+        n=10 ⇒ bucket=2 ⇒ 5 箱（本帧）；n=12 ⇒ bucket=3 ⇒ 4 箱；
+        n=30 ⇒ bucket=6 ⇒ 5 箱；<b>n=1 ⇒ bucket=1 ⇒ 1 箱 ⇒ 画单根柱</b>（不再走空态）。<br>
+        每箱均值 + 标签取【箱内最后一天】（与旧口径一致，日期单调递增）；语义摘要里
+        仍如实写「8/8 这一格是 2 天的均值」（<code>sampleDays</code> 字段继续存在）。
+      </div>
+      <div class="note">
+        <b>轴随数据变</b>：本月 69.2–71.6 ⇒ 外扩 25% ⇒ 69.0–72.2。<br>
+        单根柱（n=1）时 min==max，轴按 <b>±0.5kg</b> 固定带宽展开（柱落正中），
+        避免「除零」或「退化成一整根柱子」。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ④ 月视图缺陷前后对照 ================= -->
+  <h2>④ 月视图缺陷对照：1–7 条记录时改造前在说谎（本包要修的真缺陷）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 月视图（5 条记录）——说谎</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card" style="border-color:#F44336">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">体重趋势</div>
+              <div class="csub num">最新 69.4 kg</div>
+            </div>
+            <div class="row-gap">
+              <span class="segmented"><span class="seg">周</span><span class="seg on">月</span></span>
+            </div>
+          </div>
+          <div class="mt12 empty">
+            <span class="t">还没有体重记录</span>
+            <span class="s">称一次体重就能看到趋势</span>
+          </div>
+          <div class="mt8" style="text-align:center">
+            <span class="badge-bad">库里明明有 5 条记录</span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造后 · 月视图（5 条记录）——如实画</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card" style="border-color:#2FBE8F">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">体重趋势</div>
+              <div class="csub num">最新 69.4 kg <span class="delta-down">↓ 1.2</span></div>
+            </div>
+            <div class="row-gap">
+              <span class="hit48"><span class="pillbtn muted">周</span></span>
+              <span class="hit48"><span class="pillbtn soft">月</span></span>
+            </div>
+          </div>
+          <div class="mt12 unitband">kg</div>
+          <div class="chart">
+            <div class="yaxis">
+              <span class="tick" style="top:0">71.4</span>
+              <span class="tick" style="top:66px">70.3</span>
+              <span class="tick" style="top:132px">69.2</span>
+            </div>
+            <div class="plot">
+              <div class="grid"><i style="top:0"></i><i style="top:65.5px"></i><i style="top:131px"></i></div>
+              <div class="bars">
+                <div class="b"><i style="height:30px"></i></div>
+                <div class="b"><i style="height:58px"></i></div>
+                <div class="b"><i style="height:84px"></i></div>
+                <div class="b"><i style="height:99px"></i></div>
+                <div class="b last"><i style="height:112px"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="xlabels">
+            <span class="wide">8/10</span><span class="wide">8/15</span><span class="wide">8/21</span>
+            <span class="wide">8/26</span><span class="wide last">9/2</span>
+          </div>
+        </section>
+      </div>
+      <div class="note">
+        <b>改造后（5 条）</b>：bucket = max(1, ceil(5/5)) = 1 ⇒ 5 箱，一天一根柱。
+      </div>
+    </div>
+  </div>
+  <div class="legend" style="margin-top:10px">
+    <b>缺陷台账（本包 R2 修复）</b><br>
+    · <b>n=5</b>：旧 <code>bucket=7</code> ⇒ <code>sublist(0,5)</code> 一箱 ⇒ <b>1 个点</b> ⇒
+      <code>length &lt; 2</code> ⇒ 空态「还没有体重记录」。<b>5 条记录被说成 0 条。</b><br>
+    · <b>n=1</b>：新口径 1 箱 ⇒ 画单根柱（柱图天然支持单点）；空态文案只在 <b>n=0</b> 时出现。<br>
+    · 既有测试 <code>dashboard_steps_and_weight_test.dart</code> 里「10 条按 7 一箱 = 7+3」的断言
+      按新口径改写为「10 条 → bucket=2 → 5 箱」，不允许删断言换绿。
+  </div>
+
+  <!-- ================= ⑤ 暗色抽查 ================= -->
+  <h2>⑤ 暗色抽查（与亮色同一套结构，只换 token）</h2>
+  <div class="row">
+    <div class="frame theme-dark">
+      <div class="label"><span>改造后 · 周视图（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">本周体重</div>
+              <div class="csub num">最新 69.4 kg <span class="delta-down">↓ 0.8</span></div>
+            </div>
+            <div class="row-gap">
+              <span class="hit48"><span class="pillbtn soft">周</span></span>
+              <span class="hit48"><span class="pillbtn muted">月</span></span>
+            </div>
+          </div>
+          <div class="mt12 unitband">kg</div>
+          <div class="chart">
+            <div class="yaxis">
+              <span class="tick" style="top:0">71.0</span>
+              <span class="tick" style="top:66px">69.9</span>
+              <span class="tick" style="top:132px">68.8</span>
+            </div>
+            <div class="plot">
+              <div class="grid"><i style="top:0"></i><i style="top:65.5px"></i><i style="top:131px"></i></div>
+              <div class="bars">
+                <div class="b"><i style="height:33px"></i></div>
+                <div class="b"><i style="height:77px"></i></div>
+                <div class="b"><i style="height:44px"></i></div>
+                <div class="b"><i style="height:55px"></i></div>
+                <div class="b"><i style="height:88px"></i></div>
+                <div class="b"><i style="height:110px"></i></div>
+                <div class="b last"><i style="height:99px"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="xlabels">
+            <span>一</span><span>二</span><span>三</span><span>四</span>
+            <span>五</span><span>六</span><span class="last">日</span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="frame theme-dark">
+      <div class="label"><span>改造后 · 零记录空态（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="row-between">
+            <div>
+              <div class="ctitle">本周体重</div>
+              <div class="csub">还没有记录</div>
+            </div>
+            <div class="row-gap">
+              <span class="hit48"><span class="pillbtn soft">周</span></span>
+              <span class="hit48"><span class="pillbtn muted">月</span></span>
+            </div>
+          </div>
+          <div class="mt12 empty">
+            <span class="t">还没有体重记录</span>
+            <span class="s">称一次体重就能看到趋势</span>
+          </div>
+        </section>
+      </div>
+      <div class="note">
+        空态<b>只在 0 条记录</b>时出现 —— 这时「还没有体重记录」是真话。
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>暗色注意</b>：柱色 mint-500/600 在暗底上仍可辨（--lf-mint-500 #2FBE8F 未在
+        暗色块里改写，仅 100/200/300 被压深）；「↓」差值字用 mint-300（暗色 token 已改）。
+        y 轴刻度/单位用 <code>mutedForeground</code>（暗色 #9FB3AC）。
+      </div>
+      <div class="note">
+        <b>删除物清单</b>（本包一并处理）：<code>lf_segmented.dart</code> 整件（体重卡是唯一
+        生产调用点）、<code>trend_tile.dart</code> 的 <code>TrendTile</code>/
+        <code>MiniSparkline</code>/<code>TrendDirection</code>（生产调用点只有体重卡）、
+        <code>weight_line_chart.dart</code>（被柱图取代）。
+        对应测试文件同步删除或改写（不允许留下 grep 不到实现的空断言）。
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

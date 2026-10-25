@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的 · 健康数据图形化 + 成就分级 — 整改设计稿（P2+P3）</title>
+<!--
+  ============================================================================
+  LocalFit AI 2.0 「界面与体验治理」设计稿（P2 健康数据 + P3 成就分级）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现（lib/app/design/widgets/）。
+
+  覆盖的需求：
+   【P2 · docs/29 §P2 / 裁决 D10】
+    · 需求 4：健康数据三行太丑，要图形化（settings_page.dart `_HealthMetricsCard`）
+    · 裁决 D10：三指标必须用【三种不同的图形语言】，不照抄「三条一样的条」
+        - BMI   → 分档刻度尺（灰/绿/橙/红 四段 + 指示器 + 档位文字）
+                  分档口径 = 中国成人标准 WS/T 428-2013：<18.5 偏瘦 / 18.5–23.9 正常
+                  / 24.0–27.9 超重 / ≥28.0 肥胖（与 docs/21 §7.2 的 BMI 派生同一套边界）
+        - BMR   → 区间指示（数值 + 它相对「每日目标热量区间」的位置）。
+                  区间**不是编的**：取 Goals 表里该用户自己的 calorieMin/Max（App 早已
+                  在算、也在今日页展示过），只做「静息消耗 vs 目标区间」的对照。
+                  目标行缺失 ⇒ 不给区间、不给档位文字（诚实空态）。
+        - 水分  → 进度环（今日已饮 / 目标 的达成度）。目标缺失 ⇒ 环不填、不给百分比。
+    · 颜色只用设计系统既有 token（--lf-muted / --lf-state-success / --lf-state-warning
+      / --lf-state-error / --lf-water / --lf-primary），不新造色。
+
+   【P3 · docs/29 §P3】需求 5：成就四个小卡片太丑；分等级、进度条/标识、文字不换行
+    · 形态：**横向行卡**（一枚 44dp 勋章环 + 名称 + 进度条 + `n/目标` + 等级徽标），
+      解锁的行再挂一枚「已解锁」徽标 —— 取代原来的 4 列灰瓦片网格。
+    · 等级：铜 / 银 / 金 三档，**纯展示层派生**（progress < 0.5 铜；0.5 ≤ p < 1 银；
+      p = 1 金 = 已解锁）。不落库、不改 schema、不动 `_evaluateAchievements` 的口径。
+    · 颜色同样只用既有 token：铜 = `--lf-weight`（棕铜）、银 = `--lf-muted-foreground`
+      （灰）、金 = `--lf-carbs`（琥珀金）；徽标底色是这三色的淡染，文字用前景色。
+    · 名称 `maxLines: 1` **不换行也不省略**（信息性文本不许被省略号吃掉）——
+      放不下时整体等比缩小（Flutter 侧 `FittedBox.scaleDown`）。
+    · `n/目标` 的 n 与进度条**同源**（都是 `ProfileAchievement.progress`），
+      因为成就是「写一次」的语义（`unlockedAt` 落库不回收、进度取历史最大值），
+      拿「当前实时计数」去配历史进度会出现「条满着、数字却掉下来」的自相矛盾。
+    · 口径冲突如实记：本轮目标文字写的是「进度环」，`docs/29` §P3 与用户原话
+      （需求 5）写的是「进度条」——本稿两者都留：勋章环给「等级感」、进度条给
+      「精确刻度」，同一条 progress 的两种读法。证据文件里记了这一处冲突。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/我的.html 的
+  <style id="theme-vars">（该文件是 UI 唯一依据）。本目录的文件不被任何测试解析，
+  所以复制会漂移 —— 实现时以 Flutter 侧 LfColors 为准，本稿只用于形态评审。
+
+  评审方式：无头 Edge 渲染 360dp 宽截图（ui设计/remediation/我的-健康数据.jpg）。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;  --lf-mint-100: #D2F5E6;  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;  --lf-mint-400: #4ED9A6;  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8; --lf-neutral-100: #EFF3F1; --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0; --lf-neutral-400: #8FA09A; --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760; --lf-neutral-700: #3D4A45; --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65; --lf-carbs: #FFC94D; --lf-fat: #B39DDB;
+  --lf-water: #A8C4D9;   --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F; --lf-state-warning: #FF9800; --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6; --lf-evidence-b: #FFF4D6; --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8; --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF; --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1; --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1; --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F; --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px; --lf-radius-lg: 16px; --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-50: #0F1412; --lf-mint-100: #1F2823; --lf-mint-200: #242E28;
+  --lf-mint-400: #4ED9A6; --lf-mint-500: #2FBE8F; --lf-mint-600: #22A877;
+  --lf-neutral-100: #1F2823; --lf-neutral-200: #242E28; --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A; --lf-neutral-500: #9FB3AC;
+  --lf-water: #A8C4D9;
+  --lf-background: #0F1412; --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D; --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28; --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6; --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--lf-background); color: var(--lf-foreground);
+    font-family: var(--lf-font-sans); -webkit-font-smoothing: antialiased;
+  }
+  .page { width: 360px; margin: 0 auto; padding: 16px 0 28px; }
+  .section-title {
+    font-size: 12px; font-weight: 500; color: var(--lf-muted-foreground);
+    padding: 0 4px 8px;
+  }
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 12px; margin: 0 16px 8px;
+  }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .metric-name { font-size: 12px; font-weight: 500; color: var(--lf-muted-foreground); }
+  .tier {
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--lf-radius-full);
+    white-space: nowrap;
+  }
+  .tier--normal  { color: #1B8A62; background: var(--lf-evidence-a); }
+  .tier--thin    { color: var(--lf-neutral-600); background: var(--lf-muted); }
+  .tier--over    { color: #B26A00; background: var(--lf-evidence-b); }
+  .tier--obese   { color: #C62828; background: #FDE7E7; }
+  .tier--plain   { color: var(--lf-muted-foreground); background: var(--lf-muted); }
+  .value { display: flex; align-items: baseline; gap: 4px; margin-top: 2px; }
+  .value .n { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .value .u { font-size: 11px; color: var(--lf-muted-foreground); }
+  .caption { font-size: 11px; color: var(--lf-muted-foreground); }
+
+  /* ── BMI 分档刻度尺 ───────────────────────────────────────────────── */
+  .ruler { margin-top: 10px; }
+  .ruler-track {
+    display: flex; height: 8px; border-radius: var(--lf-radius-full);
+    overflow: hidden; position: relative;
+  }
+  .seg { height: 100%; }
+  .seg--thin  { background: var(--lf-neutral-300); }
+  .seg--normal{ background: var(--lf-state-success); }
+  .seg--over  { background: var(--lf-state-warning); }
+  .seg--obese { background: var(--lf-state-error); }
+  /* 指示器：「你在这里」竖条 —— 白描边竖条压在任何档位色上都看得见，
+     比三角更小更清晰，且不遮住相邻档位色的边界 */
+  .pin {
+    position: absolute; top: -3px; width: 4px; height: 14px;
+    border-radius: var(--lf-radius-full);
+    background: var(--lf-foreground);
+    border: 1.5px solid #FFFFFF;
+    transform: translateX(-2px);
+    box-shadow: 0 0 2px rgba(15, 36, 28, 0.45);
+  }
+  .axis { display: flex; justify-content: space-between; margin-top: 4px; }
+  .axis span, .band-names span { font-size: 9px; color: var(--lf-muted-foreground); }
+  .band-names { display: flex; margin-top: 2px; }
+  .band-names span { text-align: center; }
+  .band-names .thin  { width: 17.5%; }
+  .band-names .normal{ width: 27.5%; }
+  .band-names .over  { width: 20%; }
+  .band-names .obese { width: 35%; }
+
+  /* ── BMR 区间指示 ─────────────────────────────────────────────────── */
+  .band-wrap { position: relative; height: 22px; margin-top: 10px; }
+  .band-track {
+    position: absolute; top: 7px; left: 0; right: 0; height: 8px;
+    background: var(--lf-muted); border-radius: var(--lf-radius-full);
+  }
+  .band-target {
+    position: absolute; top: 7px; height: 8px; border-radius: var(--lf-radius-full);
+    background: var(--lf-mint-200); border: 1px solid var(--lf-mint-500);
+  }
+  .band-marker {
+    position: absolute; top: 3px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--lf-foreground); border: 3px solid var(--lf-card);
+    transform: translateX(-8px); box-shadow: 0 1px 2px rgba(15,36,28,0.25);
+  }
+  .band-marker--below { background: var(--lf-state-info); }
+
+  /* ── 饮水进度环 ───────────────────────────────────────────────────── */
+  .ring-row { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .ring {
+    width: 72px; height: 72px; border-radius: 50%;
+    background:
+      radial-gradient(closest-side, var(--lf-card) 74%, transparent 75% 100%),
+      conic-gradient(var(--lf-water) 0turn var(--p), var(--lf-muted) var(--p) 1turn);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ring-label { font-size: 15px; font-weight: 700; }
+  .ring-side .big { font-size: 22px; font-weight: 700; }
+  .ring-side .unit { font-size: 11px; color: var(--lf-muted-foreground); }
+
+  /* ── 成就行卡（P3） ───────────────────────────────────────────────── */
+  /* 勋章环：外环 = 等级色弧（进度）+ muted 轨道，内盘 = 锁定 muted / 解锁实心等级色。
+     图标位：本稿用 CSS 画的挂锁 + ✓ 占位（emoji 在无头 Edge 里不渲染）；
+     实现用 Material Icons（local_fire_department / restaurant_menu / fitness_center /
+     apple 对应四条成就，lock_outline 对应未解锁）。 */
+  .ach-card { padding: 0; }
+  .ach-row { display: flex; align-items: center; gap: 12px; padding: 12px; }
+  .ach-row + .ach-row { border-top: 1px solid var(--lf-border); }
+  .medal {
+    position: relative; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%;
+    background: conic-gradient(var(--tier) 0turn var(--p), var(--lf-muted) var(--p) 1turn);
+  }
+  /* 内盘必须用 ::before：::after 与真子元素同为定位元素时按 DOM 顺序靠后绘制，
+     会把图标整块盖住（第一版渲染里挂锁与 ✓ 全被吃掉就是这么来的）。 */
+  .medal::before {
+    content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--disc);
+  }
+  .medal .ico {
+    position: absolute; inset: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1;
+  }
+  .ico .lock {
+    display: block; width: 11px; height: 9px; border-radius: 2px;
+    background: var(--lf-muted-foreground); position: relative;
+  }
+  .ico .lock::before {
+    content: ""; position: absolute; left: 1.5px; top: -5px; width: 8px; height: 7px;
+    border: 2px solid var(--lf-muted-foreground); border-bottom: none; border-radius: 4px 4px 0 0;
+  }
+  .ico.check { font-size: 18px; font-weight: 700; }
+  .ach-body { flex: 1; min-width: 0; }
+  .ach-line1 { display: flex; align-items: center; gap: 8px; }
+  .ach-name { flex: 1; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .ach-line2 { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .ach-bar {
+    flex: 1; height: 6px; border-radius: var(--lf-radius-full);
+    background: var(--lf-muted); overflow: hidden;
+  }
+  .ach-bar i { display: block; height: 100%; border-radius: var(--lf-radius-full); background: var(--tier); }
+  .ach-count { font-size: 11px; color: var(--lf-muted-foreground); white-space: nowrap; }
+  .ach-tag { font-size: 11px; font-weight: 600; color: var(--lf-foreground); white-space: nowrap; }
+  /* 等级徽标：淡染底 + 前景字（两个主题都不用换色，Flutter 侧用 tier.withValues(alpha) 同款） */
+  .tier--bronze { color: var(--lf-foreground); background: rgba(201, 162, 126, 0.20); }
+  .tier--silver { color: var(--lf-foreground); background: rgba(107, 126, 120, 0.16); }
+  .tier--gold   { color: var(--lf-foreground); background: rgba(255, 201, 77, 0.24); }
+
+  /* ── 评审辅助：状态矩阵 ───────────────────────────────────────────── */
+  .review-note {
+    width: 360px; margin: 20px auto 0; padding: 12px 16px;
+    border-top: 1px dashed var(--lf-border); color: var(--lf-muted-foreground);
+    font-size: 11px; line-height: 1.7;
+  }
+  .matrix { width: 360px; margin: 8px auto 0; padding: 0 16px; display: grid; gap: 8px; }
+  .matrix h3 { font-size: 11px; font-weight: 600; color: var(--lf-muted-foreground); margin-top: 8px; }
+  .mini { border: 1px solid var(--lf-border); border-radius: var(--lf-radius-md); padding: 8px; background: var(--lf-card); }
+  .dark-shell { background: #0F1412; padding: 12px 0; border-radius: var(--lf-radius-lg); width: 360px; margin: 8px auto 0; }
+</style>
+</head>
+<body>
+
+<!-- ===================== 主形态（360dp） ===================== -->
+<div class="page">
+  <div class="section-title" style="padding-left:20px">健康数据</div>
+
+  <!-- ① BMI：分档刻度尺 -->
+  <div class="card">
+    <div class="row">
+      <span class="metric-name">BMI</span>
+      <span class="tier tier--normal">正常</span>
+    </div>
+    <div class="value"><span class="n num">22.6</span></div>
+    <div class="ruler">
+      <div class="ruler-track">
+        <div class="seg seg--thin"   style="width:17.5%"></div>
+        <div class="seg seg--normal" style="width:27.5%"></div>
+        <div class="seg seg--over"   style="width:20%"></div>
+        <div class="seg seg--obese"  style="width:35%"></div>
+        <div class="pin" style="left:55.7%"></div>
+      </div>
+      <div class="band-names">
+        <span class="thin">偏瘦</span><span class="normal">正常</span>
+        <span class="over">超重</span><span class="obese">肥胖</span>
+      </div>
+      <div class="axis"><span>15</span><span>18.5</span><span>24</span><span>28</span><span>35</span></div>
+    </div>
+  </div>
+
+  <!-- ② BMR：区间指示（静息消耗 vs 每日目标区间） -->
+  <div class="card">
+    <div class="row">
+      <span class="metric-name">基础代谢率</span>
+      <span class="tier tier--plain">低于目标区间</span>
+    </div>
+    <div class="value"><span class="n num">1,480</span><span class="u">kcal/天</span></div>
+    <div class="band-wrap">
+      <div class="band-track"></div>
+      <div class="band-target" style="left:64%; width:9%"></div>
+      <div class="band-marker band-marker--below" style="left:27%"></div>
+    </div>
+    <div class="axis" style="margin-top:2px">
+      <span>1,330</span><span>目标 1,900–2,100</span><span>2,310</span>
+    </div>
+  </div>
+
+  <!-- ③ 水分摄入目标：进度环 -->
+  <div class="card">
+    <div class="row"><span class="metric-name">水分摄入目标</span></div>
+    <div class="ring-row">
+      <div class="ring" style="--p:0.75turn"><span class="ring-label num">75%</span></div>
+      <div class="ring-side">
+        <div><span class="big num">2.0</span><span class="unit"> L</span></div>
+        <div class="caption">今日已饮 1.5 L</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 成就：分等级行卡（P3 · 需求 5） -->
+  <div class="section-title" style="padding-left:20px; margin-top:14px">成就</div>
+  <div class="card ach-card">
+    <!-- 已解锁：金 + 实心勋章 + 第 2 行原位换成「已解锁」 -->
+    <div class="ach-row" style="--tier:var(--lf-carbs); --p:1turn; --disc:var(--lf-carbs)">
+      <div class="medal"><span class="ico check" style="color:#1A201D">✓</span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">7天连续打卡</span><span class="tier tier--gold">金</span></div>
+        <div class="ach-line2">
+          <div class="ach-bar"><i style="width:100%"></i></div>
+          <span class="ach-tag">已解锁</span>
+        </div>
+      </div>
+    </div>
+    <!-- 银：进度过半未满（5/7 = 0.71） -->
+    <div class="ach-row" style="--tier:var(--lf-muted-foreground); --p:0.71turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">营养达人</span><span class="tier tier--silver">银</span></div>
+        <div class="ach-line2">
+          <div class="ach-bar"><i style="width:71%"></i></div>
+          <span class="ach-count num">5/7</span>
+        </div>
+      </div>
+    </div>
+    <!-- 银：正好压在 0.5 边界上（含等号 ⇒ 银） -->
+    <div class="ach-row" style="--tier:var(--lf-muted-foreground); --p:0.5turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">运动健将</span><span class="tier tier--silver">银</span></div>
+        <div class="ach-line2">
+          <div class="ach-bar"><i style="width:50%"></i></div>
+          <span class="ach-count num">5/10</span>
+        </div>
+      </div>
+    </div>
+    <!-- 铜：刚起步（7/30 = 0.23） -->
+    <div class="ach-row" style="--tier:var(--lf-weight); --p:0.23turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">健康饮食</span><span class="tier tier--bronze">铜</span></div>
+        <div class="ach-line2">
+          <div class="ach-bar"><i style="width:23%"></i></div>
+          <span class="ach-count num">7/30</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 评审用状态矩阵 ===================== -->
+<div class="review-note">
+  <b>状态矩阵</b>（评审用；实现后逐条进 widget 测试）：BMI 分档边界 18.4/18.5/23.9/24.0/27.9/28.0；
+  任一指标缺数据 ⇒ 只给「—」与空轨道，<b>不给档位文字</b>（不编假档）。
+</div>
+
+<div class="matrix">
+  <h3>BMI 四档 + 空态</h3>
+  <div class="mini">
+    <div class="row"><span class="metric-name">BMI</span><span class="tier tier--thin">偏瘦</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">18.4</span></div>
+    <div class="ruler"><div class="ruler-track">
+      <div class="seg seg--thin" style="width:17.5%"></div><div class="seg seg--normal" style="width:27.5%"></div>
+      <div class="seg seg--over" style="width:20%"></div><div class="seg seg--obese" style="width:35%"></div>
+      <div class="pin" style="left:17%"></div></div></div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">BMI</span><span class="tier tier--normal">正常</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">23.9</span></div>
+    <div class="ruler"><div class="ruler-track">
+      <div class="seg seg--thin" style="width:17.5%"></div><div class="seg seg--normal" style="width:27.5%"></div>
+      <div class="seg seg--over" style="width:20%"></div><div class="seg seg--obese" style="width:35%"></div>
+      <div class="pin" style="left:44.5%"></div></div></div>
+    <div class="caption" style="margin-top:6px">边界：23.9 ⇒「正常」，24.0 ⇒「超重」（同一支尺上只差 0.5%）</div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">BMI</span><span class="tier tier--over">超重</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">27.9</span></div>
+    <div class="ruler"><div class="ruler-track">
+      <div class="seg seg--thin" style="width:17.5%"></div><div class="seg seg--normal" style="width:27.5%"></div>
+      <div class="seg seg--over" style="width:20%"></div><div class="seg seg--obese" style="width:35%"></div>
+      <div class="pin" style="left:62%"></div></div></div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">BMI</span><span class="tier tier--obese">肥胖</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">28.0</span></div>
+    <div class="ruler"><div class="ruler-track">
+      <div class="seg seg--thin" style="width:17.5%"></div><div class="seg seg--normal" style="width:27.5%"></div>
+      <div class="seg seg--over" style="width:20%"></div><div class="seg seg--obese" style="width:35%"></div>
+      <div class="pin" style="left:65%"></div></div></div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">BMI</span></div>
+    <div class="value"><span class="n num" style="font-size:20px; color:var(--lf-muted-foreground)">—</span></div>
+    <div class="ruler"><div class="ruler-track">
+      <div class="seg" style="width:17.5%; background:var(--lf-muted)"></div>
+      <div class="seg" style="width:27.5%; background:var(--lf-muted)"></div>
+      <div class="seg" style="width:20%; background:var(--lf-muted)"></div>
+      <div class="seg" style="width:35%; background:var(--lf-muted)"></div>
+    </div></div>
+    <div class="caption" style="margin-top:6px">缺体重或身高 ⇒ 轨道全灰、无指示器、<b>不放档位文字</b>（不编假档）</div>
+  </div>
+
+  <h3>BMR 三态 + 无目标区间</h3>
+  <div class="mini">
+    <div class="row"><span class="metric-name">基础代谢率</span><span class="tier tier--normal">落在目标区间内</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">1,950</span><span class="u">kcal/天</span></div>
+    <div class="band-wrap"><div class="band-track"></div>
+      <div class="band-target" style="left:40%; width:20%"></div>
+      <div class="band-marker" style="left:50%"></div></div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">基础代谢率</span><span class="tier tier--over">高于目标区间</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">2,320</span><span class="u">kcal/天</span></div>
+    <div class="band-wrap"><div class="band-track"></div>
+      <div class="band-target" style="left:20%; width:14%"></div>
+      <div class="band-marker" style="left:82%; background:var(--lf-state-warning)"></div></div>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="metric-name">基础代谢率</span></div>
+    <div class="value"><span class="n num" style="font-size:20px">1,480</span><span class="u">kcal/天</span></div>
+    <div class="band-wrap"><div class="band-track" style="background:var(--lf-muted)"></div>
+      <div class="band-marker" style="left:50%; background:var(--lf-neutral-400)"></div></div>
+    <div class="caption" style="margin-top:2px">无目标行 ⇒ 只标静息消耗、<b>不给区间也不给档位文字</b></div>
+  </div>
+
+  <h3>饮水环三态</h3>
+  <div class="mini" style="display:flex; gap:12px; align-items:center">
+    <div class="ring" style="--p:0turn; width:56px; height:56px"><span class="ring-label num" style="font-size:12px">0%</span></div>
+    <div class="ring" style="--p:0.75turn; width:56px; height:56px"><span class="ring-label num" style="font-size:12px">75%</span></div>
+    <div class="ring" style="--p:1turn; width:56px; height:56px"><span class="ring-label num" style="font-size:12px">100%</span></div>
+    <div class="caption" style="flex:1">已饮 0 / 未达标 / 达标；超过 100% 时环满、文字给真实值（如 120%）</div>
+  </div>
+  <div class="mini" style="display:flex; gap:12px; align-items:center">
+    <div class="ring" style="--p:0turn; width:56px; height:56px; background:radial-gradient(closest-side, var(--lf-card) 74%, transparent 75% 100%), conic-gradient(var(--lf-muted) 0turn 1turn)">
+      <span class="ring-label num" style="font-size:12px">—</span></div>
+    <div class="caption" style="flex:1">无目标 ⇒ 环空 + 「—」，不拿 2.0 L 默认值冒充用户目标</div>
+  </div>
+
+  <h3>成就等级五态（progress → 铜 / 银 / 金）</h3>
+  <div class="caption" style="margin-bottom:2px">矩阵用 target=100 的示意行，把档位边界压在整十数上；真实目标是 7 / 7 / 10 / 30。</div>
+  <div class="mini" style="padding:0">
+    <div class="ach-row" style="--tier:var(--lf-weight); --p:0turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">连续打卡</span><span class="tier tier--bronze">铜</span></div>
+        <div class="ach-line2"><div class="ach-bar"><i style="width:0%"></i></div><span class="ach-count num">0/100</span></div>
+      </div>
+    </div>
+    <div class="ach-row" style="--tier:var(--lf-weight); --p:0.49turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">连续打卡</span><span class="tier tier--bronze">铜</span></div>
+        <div class="ach-line2"><div class="ach-bar"><i style="width:49%"></i></div><span class="ach-count num">49/100</span></div>
+      </div>
+    </div>
+    <div class="ach-row" style="--tier:var(--lf-muted-foreground); --p:0.5turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">连续打卡</span><span class="tier tier--silver">银</span></div>
+        <div class="ach-line2"><div class="ach-bar"><i style="width:50%"></i></div><span class="ach-count num">50/100</span></div>
+      </div>
+    </div>
+    <div class="ach-row" style="--tier:var(--lf-muted-foreground); --p:0.99turn; --disc:var(--lf-muted)">
+      <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">连续打卡</span><span class="tier tier--silver">银</span></div>
+        <div class="ach-line2"><div class="ach-bar"><i style="width:99%"></i></div><span class="ach-count num">99/100</span></div>
+      </div>
+    </div>
+    <div class="ach-row" style="--tier:var(--lf-carbs); --p:1turn; --disc:var(--lf-carbs)">
+      <div class="medal"><span class="ico check" style="color:#1A201D">✓</span></div>
+      <div class="ach-body">
+        <div class="ach-line1"><span class="ach-name">连续打卡</span><span class="tier tier--gold">金</span></div>
+        <div class="ach-line2"><div class="ach-bar"><i style="width:100%"></i></div><span class="ach-tag">已解锁</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">
+    边界：<b>0.49 ⇒ 铜</b>、<b>0.50 ⇒ 银</b>（含等号，不是大于）；<b>只有 1.0 才是金</b>，
+    而 progress ≥ 1 必然已被 loader 落库（`unlockedAt`），所以「金 ⇔ 已解锁」永远同步、不会闪。
+    progress 非有限值（NaN / ±∞）⇒ 按铜兜底、弧不画。
+  </div>
+
+  <h3>2.0× 字号 · 320dp（名称仍单行，行高不变）</h3>
+  <div class="mini" style="width:288px; padding:0; margin:0 auto">
+    <div class="ach-row" style="--tier:var(--lf-carbs); --p:1turn; --disc:var(--lf-carbs)">
+      <div class="medal"><span class="ico check" style="color:#1A201D">✓</span></div>
+      <div class="ach-body">
+        <div class="ach-line1">
+          <span class="ach-name" style="font-size:26px">7天连续打卡</span>
+          <span class="tier tier--gold" style="font-size:22px; padding:2px 8px">金</span>
+        </div>
+        <div class="ach-line2" style="margin-top:8px">
+          <div class="ach-bar" style="height:8px"><i style="width:100%"></i></div>
+          <span class="ach-tag" style="font-size:22px">已解锁</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">
+    实测排得下：名称 6 字 × 26px = 156 ≤ 可用 162px，徽标与第 2 行都还有余量。
+    实现仍包一层 FittedBox(scaleDown) 兜底 —— 更长的名称或更大字号时<b>等比缩小，不换行也不省略</b>
+    （信息性文本不许被省略号吃掉）；已解锁只在第 2 行原位替换 `n/目标`，不新增行 ⇒
+    <b>四行等高</b>与解锁状态无关。
+  </div>
+</div>
+
+<!-- ===================== 暗色抽查 ===================== -->
+<div class="review-note"><b>暗色</b>（同一套 token，形态不变；只抽查对比度）</div>
+<div class="dark-shell">
+  <div class="page" style="padding-bottom:0" >
+    <div class="section-title" style="padding-left:20px; color:#9FB3AC">健康数据</div>
+    <div style="--lf-card:#1A211D; --lf-card-foreground:#E8EFEB; --lf-border:#2A3A32; --lf-muted:#242E28; --lf-muted-foreground:#9FB3AC; --lf-foreground:#E8EFEB; --lf-neutral-300:#2A3A32; --lf-mint-200:#1F2823; --lf-mint-500:#2FBE8F; --lf-evidence-a:#1F2823; --lf-evidence-b:#242E28; --lf-evidence-c:#242E28; --lf-background:#0F1412">
+      <div class="card" style="margin-bottom:8px">
+        <div class="row"><span class="metric-name" style="color:#9FB3AC">BMI</span>
+          <span class="tier" style="color:#4ED9A6; background:#1F2823">正常</span></div>
+        <div class="value"><span class="n num" style="color:#E8EFEB">22.6</span></div>
+        <div class="ruler"><div class="ruler-track">
+          <div class="seg" style="width:17.5%; background:#2A3A32"></div>
+          <div class="seg seg--normal" style="width:27.5%"></div>
+          <div class="seg seg--over" style="width:20%"></div>
+          <div class="seg seg--obese" style="width:35%"></div>
+          <div class="pin" style="left:55.7%; border-top-color:#E8EFEB"></div></div></div>
+      </div>
+      <div class="card" style="margin-bottom:8px">
+        <div class="row"><span class="metric-name" style="color:#9FB3AC">基础代谢率</span>
+          <span class="tier tier--plain" style="color:#9FB3AC; background:#242E28">低于目标区间</span></div>
+        <div class="value"><span class="n num" style="color:#E8EFEB">1,480</span><span class="u" style="color:#9FB3AC">kcal/天</span></div>
+        <div class="band-wrap"><div class="band-track" style="background:#242E28"></div>
+          <div class="band-target" style="left:64%; width:9%"></div>
+          <div class="band-marker band-marker--below" style="left:27%; border-color:#1A211D"></div></div>
+      </div>
+      <div class="card">
+        <div class="row"><span class="metric-name" style="color:#9FB3AC">水分摄入目标</span></div>
+        <div class="ring-row">
+          <div class="ring" style="--p:0.75turn; background:radial-gradient(closest-side, #1A211D 74%, transparent 75% 100%), conic-gradient(#A8C4D9 0turn 0.75turn, #242E28 0.75turn 1turn)">
+            <span class="ring-label num" style="color:#E8EFEB">75%</span></div>
+          <div class="ring-side">
+            <div><span class="big num" style="color:#E8EFEB">2.0</span><span class="unit" style="color:#9FB3AC"> L</span></div>
+            <div class="caption" style="color:#9FB3AC">今日已饮 1.5 L</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="padding-left:20px; margin-top:14px; color:#9FB3AC">成就</div>
+      <div class="card ach-card" style="margin-bottom:8px">
+        <div class="ach-row" style="--tier:var(--lf-weight); --p:0.23turn; --disc:#242E28">
+          <div class="medal"><span class="ico"><i class="lock"></i></span></div>
+          <div class="ach-body">
+            <div class="ach-line1"><span class="ach-name" style="color:#E8EFEB">健康饮食</span><span class="tier tier--bronze" style="color:#E8EFEB">铜</span></div>
+            <div class="ach-line2">
+              <div class="ach-bar" style="background:#242E28"><i style="width:23%"></i></div>
+              <span class="ach-count num" style="color:#9FB3AC">7/30</span>
+            </div>
+          </div>
+        </div>
+        <div class="ach-row" style="--tier:var(--lf-carbs); --p:1turn; --disc:var(--lf-carbs)">
+          <div class="medal"><span class="ico check" style="color:#1A201D">✓</span></div>
+          <div class="ach-body">
+            <div class="ach-line1"><span class="ach-name" style="color:#E8EFEB">7天连续打卡</span><span class="tier tier--gold" style="color:#E8EFEB">金</span></div>
+            <div class="ach-line2">
+              <div class="ach-bar" style="background:#242E28"><i style="width:100%"></i></div>
+              <span class="ach-tag" style="color:#E8EFEB">已解锁</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

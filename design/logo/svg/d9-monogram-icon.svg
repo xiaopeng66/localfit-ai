@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d9-monogram" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-d9-monogram)"/>
+  
+    <g fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M330 306 L330 700 L520 700"/>
+      <path d="M566 306 L566 700"/>
+      <path d="M566 306 L712 306"/>
+    </g>
+    <path d="M566 500 L676 500" fill="none" stroke="#A5E2CB" stroke-width="82" stroke-linecap="round"/>
+</svg>

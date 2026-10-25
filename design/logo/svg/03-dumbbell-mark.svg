@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-mark"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="url(#mint-03-dumbbell-mark)"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="url(#mint-03-dumbbell-mark)"/>
+    <g clip-path="url(#bar-03-dumbbell-mark)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>

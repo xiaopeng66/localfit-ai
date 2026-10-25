@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 2,
+  "checkedOn": "2026-10-14",
+  "demoDate": "2026-10-13",
+  "scope": "LocalFit AI design/round7 HTML prototype only",
+  "acceptance": {
+    "status": "incomplete",
+    "previewAvailable": true,
+    "visualReview": "incomplete",
+    "guiVisualGate": "incomplete",
+    "reason": "Screenshots are archived, but screenshot/image reads returned serialized image data without a reliable visual inspection result. Automated checks and DOM observations do not establish visual acceptance."
+  },
+  "automated": {
+    "passed": true,
+    "errors": [],
+    "tests": {
+      "total": 116,
+      "passed": 116,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "exit": 0,
+      "command": [
+        "node", "--test", "graphs.test.cjs", "interaction.test.cjs", "model.test.cjs", "view.test.cjs"
+      ],
+      "log": "E:/AI/Zcode/tmp/localfit-ui-round7-polish-20261013/final-command-0.log",
+      "boundary": "Model, rendered-template and minimal-DOM event tests, not a native browser or Flutter test suite."
+    },
+    "syntax": [
+      { "file": "app.js", "command": ["node", "--check", "app.js"], "exit": 0 },
+      { "file": "model.js", "command": ["node", "--check", "model.js"], "exit": 0 },
+      { "file": "studio.js", "command": ["node", "--check", "studio.js"], "exit": 0 }
+    ],
+    "html": {
+      "compare.html": { "missing": [], "external": [], "duplicateIds": [] },
+      "details.html": { "missing": [], "external": [], "duplicateIds": [] },
+      "index.html": { "missing": [], "external": [], "duplicateIds": [] },
+      "overview.html": { "missing": [], "external": [], "duplicateIds": [] }
+    },
+    "protected": {
+      "count": 907,
+      "changed": [],
+      "missing": [],
+      "baseline": "E:/AI/Zcode/tmp/localfit-ui-round7-20261013/baseline.json",
+      "scope": [
+        "lib", "test", "integration_test (if present)", "android", "ios", "tool",
+        "design/round6", "ui设计", "pubspec.yaml", "pubspec.lock", "STATUS.md",
+        "docs/INDEX.md", "docs/32-ui-redesign-round5-plan.md"
+      ],
+      "wholeWorkspaceAudit": false
+    },
+    "foodAssets": {
+      "count": 10,
+      "identicalToOriginal": true,
+      "sourceDirectory": "assets/icons/food_categories/",
+      "sourcePathBase": "project root",
+      "comparison": "byte-for-byte"
+    },
+    "script": "E:/AI/Zcode/tmp/localfit-ui-round7-polish-20261013/verify_polish.py",
+    "rawResult": "E:/AI/Zcode/tmp/localfit-ui-round7-polish-20261013/final-verification.json",
+    "rawResultCaveat": "The raw script reports foodAssets separately from its passed predicate; the count and identicalToOriginal result were also checked for this report."
+  },
+  "codeReview": {
+    "scope": "Food-detail recording entry, stable focus identity and related regression cases",
+    "reportedP0ToP2Findings": 0,
+    "boundary": "Read-only patch review, not whole-repository or visual acceptance."
+  },
+  "browser": {
+    "backend": "ZCode in-app browser",
+    "service": "http://127.0.0.1:18767/",
+    "serviceRestarted": false,
+    "verifiedPreviewUrls": [
+      "http://127.0.0.1:18767/details.html",
+      "http://127.0.0.1:18767/compare.html",
+      "http://127.0.0.1:18767/overview.html",
+      "http://127.0.0.1:18767/index.html?variant=a&page=today"
+    ],
+    "latestEntry": {
+      "url": "http://127.0.0.1:18767/details.html",
+      "title": "LocalFit AI · 食物与动作库精修",
+      "iframeWidth": 360,
+      "iframeHeight": 900,
+      "foodCount": 8,
+      "exerciseCount": 10,
+      "milkKcal": 64,
+      "milkProteinGrams": 3.2,
+      "milkCarbsGrams": 5,
+      "milkFatGrams": 3.6,
+      "recordEditDeleteControlsPresent": true
+    },
+    "latestExerciseObservations": {
+      "mode": "360px, dark theme, prototype large-text mode",
+      "search": "深蹲",
+      "searchResultCount": 4,
+      "chestIntersectionCount": 0,
+      "legIntersectionCount": 4,
+      "opener": "高脚杯深蹲",
+      "replacement": "杠铃深蹲",
+      "dialogCountAfterReplacement": 1,
+      "dialogCountAfterClose": 0,
+      "focusReturnedToOriginalCard": true,
+      "navigationRestoredAfterReturn": true,
+      "displayedVolumeAfterReturnKg": 2720,
+      "evidenceType": "Normal clicks and fills with read-only DOM/geometry observations; not a complete screenshot-validated GUI gate."
+    },
+    "layout": {
+      "historicalMatrix": {
+        "checkedOn": "2026-10-13",
+        "combinations": 127,
+        "pageLevelHorizontalOverflowObserved": false,
+        "fullyRerunAfterPolish": false
+      },
+      "polishSupplement": {
+        "foodViews": ["food library", "food detail"],
+        "widths": [360, 390, 430],
+        "themes": ["light", "dark"],
+        "largeTextSupplement": "360px dark food views and exercise library",
+        "exerciseGridColumns": 2,
+        "pageLevelHorizontalOverflowObserved": false,
+        "evidenceType": "Read-only DOM geometry; visual review remains incomplete."
+      }
+    },
+    "consoleCollected": false,
+    "earlierEventInjectionObservationsAreNotNormalClickEvidence": true,
+    "screenshotForEveryIntermediateState": false,
+    "allMouseFlowsCovered": false,
+    "touchDragVerified": false,
+    "screenReaderVerified": false,
+    "system200PercentFontVerified": false
+  },
+  "screenshots": [
+    { "path": "previews/polish-details-final.png", "description": "Three polished views, light theme, 360px iframes", "visuallyAccepted": false },
+    { "path": "previews/polish-food-detail-dark-large.png", "description": "Food detail, 360px dark large-text preview", "visuallyAccepted": false },
+    { "path": "previews/polish-exercise-long-dark.png", "description": "Exercise long-name dark preview", "visuallyAccepted": false },
+    { "path": "previews/polish-exercise-no-results-dark-large.png", "description": "Search 深蹲 intersected with 胸, dark large-text preview", "width": 363, "height": 808, "sha256": "01e075aea27f3d2cac65c677d1fffd7185f8deff070205bdc702b9c5b426f5d3", "visuallyAccepted": false }
+  ],
+  "boundaries": {
+    "nativeAppTested": false,
+    "realDataAccessed": false,
+    "realCsvOrBackupPerformed": false,
+    "realAiCameraOrDevicesConnected": false,
+    "committedOrPushed": false,
+    "productionChanges": false,
+    "userSelectedVariant": null
+  }
+}
