@@ -1,0 +1,1824 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>LocalFit AI · 空心管材质打磨</title>
+<style>
+  :root { --ink:#17251E; --ink2:#5A6B62; --ink3:#93A29A; --line:#E7ECE8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:44px 52px 60px; background:#FAFBF9; color:var(--ink);
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  h1 { font-size:28px; margin:0 0 6px; letter-spacing:-.4px; }
+  .sub { color:var(--ink2); font-size:14px; margin-bottom:10px; }
+  .row { display:grid; grid-template-columns:320px 1fr; gap:0 44px; align-items:center;
+         padding:30px 0; border-top:1px solid var(--line); }
+  .row:first-of-type { border-top:none; margin-top:18px; }
+  .hero { width:300px; }
+  .hero svg { width:100%; height:auto; border-radius:24%; box-shadow:0 10px 26px rgba(23,37,30,.13); display:block; }
+  h2 { font-size:22px; margin:0 0 6px; letter-spacing:-.2px; }
+  .tag { font-size:13px; color:#1FA377; margin-bottom:20px; }
+  .ladder { display:flex; align-items:flex-end; gap:24px; }
+  .ladder-cell { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .ladder-cell span { font-size:11px; color:var(--ink3); }
+  .s svg { display:block; border-radius:22%; }
+  .s128 svg { width:128px; height:128px; box-shadow:0 5px 14px rgba(23,37,30,.10); }
+  .s64 svg  { width:64px;  height:64px;  box-shadow:0 3px 9px rgba(23,37,30,.09); }
+  .s48 svg  { width:48px;  height:48px;  box-shadow:0 2px 7px rgba(23,37,30,.08); }
+  .s32 svg  { width:32px;  height:32px; }
+  .s24 svg  { width:24px;  height:24px; }
+  .note { margin:22px 0 0; font-size:14px; line-height:1.7; color:var(--ink2); max-width:880px; }
+</style></head>
+<body>
+  <h1>空心管 · 材质打磨</h1>
+  <div class="sub">管径/壁/气口不动（H2）　｜　逐层加：环境辉光 → 玻璃高光 → 光衰减 → 管内残光 → 电极节点 → 全部叠加</div>
+  
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>H2 · 粗管（对照）</h2>
+      <div class="tag">管径 60 · 壁 17 · 气口 8</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h2-chunky"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-h2-chunky" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h2-chunky)">
+    
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-h2-chunky)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">你选中的版本，放最前作对照。管色平涂、挖芯是纯底色、无高光无环境光。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K1 · 环境辉光</h2>
+      <div class="tag">霓虹照亮墙 + 暗角</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">真的霓虹灯会照亮身后的墙：在环半径处铺一圈 13% 的薄荷洗光，四角再压一层暗角出纵深。管子一根线没动，空间感立刻出来——性价比最高的一步。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K2 · 玻璃高光</h2>
+      <div class="tag">管壁白 specular</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">管壁外侧加一道白色高光：环的左上外缘一长条，脉搏尖峰外缘一小段。玻璃管的体积感全靠它——从「平涂圆环」变成「有受光面的管子」。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K3 · 光衰减</h2>
+      <div class="tag">左上亮 · 右下深</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k3-falloff"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k3-falloff" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k3-falloff" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k3-falloff" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k3-falloff)">
+    
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k3-falloff)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k3-falloff)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">管色不再是平涂：薄荷从受光的左上亮档衰减到背光的右下深档，珊瑚脉搏同理。光有了方向，管子有了圆面——和高光的区别是它动的是「色」不是「形」。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K4 · 管内残光</h2>
+      <div class="tag">挖芯掺色 · 气体未全灭</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k4-residual"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k4-residual" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k4-residual)">
+    
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k4-residual)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">挖芯不挖成纯底色：环管内掺 16% 薄荷（#19342a）、脉搏管内掺 16% 珊瑚（#35271f）。粗管的孔有 26 宽，残光比细管明显得多——两根管子像刚断电。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K5 · 电极节点</h2>
+      <div class="tag">脉搏两端白热电极</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k5-electrode"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k5-electrode" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k5-electrode)">
+    
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k5-electrode)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#tight-k5-electrode)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">真灯管两端有电极：脉搏两端各点一颗白热圆电极（带紧晕）。它同时回答了「脉搏为什么悬浮」——因为那是两根管子的接头。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K6 · 全部叠加</h2>
+      <div class="tag">定稿候选</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k6-full"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k6-full" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k6-full" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k6-full" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k6-full" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k6-full" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k6-full)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k6-full)"/>
+  <g clip-path="url(#sq-k6-full)">
+    
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k6-full)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k6-full)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    
+    <g filter="url(#tight-k6-full)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+    </g>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">K1–K5 全部叠加：环境辉光 + 暗角 + 光衰减 + 管内残光 + 玻璃高光 + 电极节点。暗底上每一层都在讲「这是一根真的、通电的玻璃管」。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K7 · 会呼吸（动画）</h2>
+      <div class="tag">K6 + 心跳节律 · 彩蛋</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k7-alive"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k7-alive" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k7-alive" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k7-alive" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+    <linearGradient id="rg-k7-alive" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k7-alive" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k7-alive)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k7-alive)"/>
+  <g clip-path="url(#sq-k7-alive)">
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k7-alive)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k7-alive)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k7-alive)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">和 K6 完全同一套几何，只是把脉搏的大晕层加了 SMIL 心跳动画（1.6s 一组：轻-重-歇，电极同步闪）。霓虹本来就会闪——启动图标用不了动画，但启动页/官网/关于页可以。浏览器打开 SVG 或内嵌 HTML 才会动。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div>
+    <div class="body">
+      <h2>K8 · 定稿（K7 − K1）</h2>
+      <div class="tag">动画版 · 无环境辉光</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k8-final"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k8-final" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <linearGradient id="rg-k8-final" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#6BEFBA"/>
+      <stop offset="0.45" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-k8-final" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF9A75"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k8-final)">
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5">
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <animate attributeName="opacity" values="0.5;0.5;1;0.5;0.8;0.5" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#19342a" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-k8-final)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-k8-final)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#35271f" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <g filter="url(#tight-k8-final)">
+      <circle cx="400" cy="297.5" r="13" fill="#FFE9DC"/>
+      <circle cx="624" cy="297.5" r="13" fill="#FFE9DC"/>
+      <animate attributeName="opacity" values="1;1;0.55;1;0.75;1" keyTimes="0;0.5;0.58;0.66;0.76;1" dur="1.6s" repeatCount="indefinite"/>
+    </g>
+  </g>
+</svg>
+</div><span>24</span></div>
+      </div>
+      <p class="note">最终选定：K7 去掉环境辉光和暗角，回到纯黑底。保留光衰减、管内残光、玻璃高光、电极节点和心跳动画。mark / iOS 两件套见 finalize.mjs。</p>
+    </div>
+  </section>
+</body></html>

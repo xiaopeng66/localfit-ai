@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T11 设置页「清空内置食物」入口 · 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5;
+      --mint-100: #d2f5e6;
+      --mint-500: #2fbe8f;
+      --mint-600: #22a877;
+      --mint-700: #1b8a62;
+      --ink: #1a201d;
+      --muted-ink: #6b7e78;
+      --line: #dde5e1;
+      --muted: #eff3f1;
+      --canvas: #f7f9f8;
+      --card: #ffffff;
+      --error: #f44336;
+      --error-dark: #b3261e;
+      --warn: #b26a00;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 24px 48px; background: #e7ecea; color: var(--ink);
+      font-family: var(--font); font-feature-settings: "tnum" 1; -webkit-font-smoothing: antialiased; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .intro { max-width: 900px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .intro code { background: #dde7e2; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+    .phone { width: 360px; min-height: 200px; padding: 16px; background: var(--canvas);
+      border: 1px solid #c6d2cc; border-radius: 18px; }
+    .group-title { margin: 0 0 6px 4px; font-size: 12px; font-weight: 650; color: var(--muted-ink);
+      letter-spacing: .04em; }
+    .group { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(15,36,28,.04), 0 1px 2px rgba(15,36,28,.03); overflow: hidden; }
+    .group + .group-title { margin-top: 20px; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+      border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .row .ic { flex: none; width: 22px; height: 22px; display: grid; place-items: center;
+      color: var(--muted-ink); font-size: 18px; }
+    .row .main { flex: 1; min-width: 0; }
+    .row .title { display: block; font-size: 14px; font-weight: 500; }
+    .row .sub { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted-ink); line-height: 1.45; }
+    .row .value { flex: none; font-size: 13px; color: var(--muted-ink); }
+    .row .chev { flex: none; width: 16px; text-align: center; color: #b3c1bb; font-size: 15px; }
+    .row.destructive .ic, .row.destructive .title { color: var(--error-dark); }
+    .row.ghosted { opacity: .38; }
+    .tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; vertical-align: 1px; }
+    .tag.new { background: var(--mint-50); color: var(--mint-700); }
+    .tag.cond { background: #fff4e0; color: var(--warn); }
+    .tag.del { background: #fdecea; color: var(--error); }
+    .anno { display: inline-block; margin-top: 3px; padding: 1px 5px;
+      border-left: 2px dashed #c3b28f; background: #faf6ec; color: #8a7440; font-size: 10.5px; }
+    .note { margin: 10px 2px 0; font-size: 11.5px; color: #5d6f68; line-height: 1.6; }
+    .note b { color: #33423c; }
+    .legend { margin: 0 0 26px; max-width: 900px; font-size: 12px; color: #4d5f58; line-height: 1.8; }
+    .legend b { color: #2c3a34; }
+    /* 方案 B 弹层壳：外层只认把手 + 内层 snap（docs/32 §4 T5）。 */
+    .scrim { position: relative; border-radius: 18px; overflow: hidden; background: rgba(20,30,26,.30); padding: 0; }
+    .sheet { margin-top: 96px; background: var(--card); border-radius: 20px 20px 0 0;
+      box-shadow: 0 -6px 24px rgba(15,36,28,.12); padding: 8px 20px 20px; }
+    .handle { width: 32px; height: 4px; border-radius: 999px; background: #cfd9d4; margin: 0 auto 10px; }
+    .sheet h3 { margin: 2px 0 10px; font-size: 16px; font-weight: 650; }
+    .sheet p { margin: 0; font-size: 13px; line-height: 1.7; color: #3c4a44; white-space: pre-line; }
+    .btns { margin-top: 16px; }
+    .btns.row2 { display: flex; flex-direction: row; align-items: center;
+      justify-content: space-between; gap: 10px; }
+    .btn.auto { width: auto; padding: 12px 14px; }
+    .btn { display: block; width: 100%; text-align: center; border-radius: 12px; padding: 12px 0;
+      font-size: 14px; font-weight: 600; }
+    .btn.text { color: var(--muted-ink); font-weight: 500; }
+    /* §3.8 B7：销毁动作 = error 字色的**文字**按钮，不是实心 error 底
+       （「清除所有数据」确认弹层就是这一形式，LfDangerButton）。 */
+    .btn.danger { color: var(--error-dark); font-weight: 650; padding-right: 0; }
+    .snack { margin-top: 12px; display: flex; align-items: center; gap: 10px;
+      background: #2b3632; color: #eef4f1; border-radius: 12px; padding: 12px 14px; font-size: 12.5px; }
+    .snack .sic { flex: none; color: #ffb4a9; font-size: 15px; }
+    .kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; background: #e6ecea;
+      border-radius: 4px; padding: 1px 5px; color: #3f514a; }
+  </style>
+</head>
+<body>
+  <h1>Round 5 · T11 设置页「清空内置食物」入口（需求 75 · D14）</h1>
+  <p class="intro">
+    T11 的验收 1/2 已交付（<code>ClearBuiltinFoods</code> + 导入器升级），但<strong>升级安装里那 4.9 万行内置食物   当时没有可点入口</strong>。本稿只补这一条：在「食材库」组<strong>组末</strong>加一条 <strong>条件渲染</strong>的销毁行
+    「清空内置食物数据」→ 确认弹层（三组真实计数，从库里现算）→ 执行后<strong>就地刷新</strong>计数行 + 如实报数的
+    snackbar。行高、图标、圆角、字号全部沿用 <code>SettingRow</code> 既有 token；弹层沿用
+    <code>AppSheet</code> + 方案 B 壳。本稿不动 D10 的三行常驻定稿——新行是<strong>第四条、且只在有内置行时出现</strong>。
+  </p>
+
+  <div class="frames">
+    <div class="frame">
+      <p class="frame-label">① 食材库 · 有内置行（新行在组末，destructive）</p>
+      <div class="phone">
+        <p class="group-title">食材库</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">49,447 条（自建 3 条）</span>
+          </div>
+          <div class="row">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row destructive">
+            <span class="ic">▦</span>
+            <span class="main">
+              <span class="title">清空内置食物数据</span>
+              <span class="anno">Key <code>settings-clear-builtin-foods</code> · 组末 · 条件行</span>
+            </span>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <p class="note"><b>三行常驻 + 一条条件行：</b>D10 的三行顺序不动，销毁行放<strong>组末</strong>（远离
+          「添加食物数据」，减少误触）。行色用 <code>SettingRow(destructive: true)</code>
+          ——与「清除所有数据」同一条既有抽屉，不新造样式。图标 <code>layers_clear_outlined</code>。
+          行上<strong>不写字数</strong>：条数就在上一行，写第二遍就有第二个会过期的数。</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">② 不渲染的三种态（自门控：不摆点了没反应的行）</p>
+      <div class="phone">
+        <p class="group-title">食材库</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">3 条（自建 3 条）</span>
+          </div>
+          <div class="row">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row ghosted">
+            <span class="ic">▦</span>
+            <span class="main"><span class="title">清空内置食物数据（此处不渲染）</span></span>
+          </div>
+        </div>
+        <p class="note"><b>三条判据全为真才渲染：</b>① <code>clearBuiltinFoods != null</code>
+          （未接线 ⇒ 不渲染，对齐设置页既有约定）；② 概览已加载且
+          <code>foodCount &gt; userCreatedFoodCount</code>（<strong>库里有内置行</strong>——全新安装
+          T13 之后本就是 0 条，没有可清的东西就不摆一个空动作）；③ 概览加载失败
+          （<code>overview == null</code>）按「无内置」处理 ⇒ 不渲染，不猜。</p>
+        <p class="note"><b>与 T8 的行序测试兼容（如实）：</b><code>round5_settings_cleanup_test</code>
+          的夹具没接 <code>clearBuiltinFoods</code>，所以那条「三行」断言在新代码下<strong>仍成立</strong>；
+          另补一条新断言钉住「接线且有内置行时，新行是组内<strong>最后一行</strong>」。</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">③ 确认弹层 · 有引用（记录 / 菜单匹配 &gt; 0）</p>
+      <div class="scrim" style="width:360px">
+        <div class="sheet">
+          <div class="handle"></div>
+          <h3>清空内置食物数据？</h3>
+          <p>将删除 49,444 条内置食物（自建食物保留）。
+有 12 条饮食记录引用了这些食物：记录本身保留，其中的食物会被清空。
+有 3 条菜单匹配会移除（菜品行保留，菜单页会重新给建议）。
+设置、AI 配置与照片不受影响；此操作不可撤销。</p>
+          <div class="btns row2">
+            <span class="btn text auto">取消</span>
+            <span class="btn danger auto">清空内置食物数据</span>
+          </div>
+        </div>
+      </div>
+      <p class="note"><b>弹层里的数是现算的：</b>点开时跑 <code>ClearBuiltinFoods.preview()</code>
+        取三组真实计数（内置食物 N / 引用它们的餐次条目 M / 菜单匹配 K），<strong>不是概览里的旧快照</strong>
+        ——概览可能是几分钟前加载的。文案按 0/非 0 拼句：M 或 K 为 0 的那句整条不提，
+        不写「0 条记录会受影响」这种噪音。</p>
+      <p class="note"><b>两枚动作都是文字按钮</b>（与「清除所有数据」同一条既有形式，
+        §3.8 B7）：取消 <code>LfTextButton</code> 在左，销毁动作 <code>LfDangerButton</code>
+        在右——error 字色，<b>不铺实心底</b>。执行中变「正在清空…」+ busy + 两枚都禁点；
+        失败则复位并在正文下给一行红色说明（同「清除所有数据」的失败处置）。</p>
+      <p class="note"><b>键：</b><code>clear-builtin-foods-body</code>（正文）·
+        <code>clear-builtin-foods-confirm</code>（销毁动作）。</p>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">④ 确认弹层 · 无引用（只有食物，无记录/无匹配）</p>
+      <div class="scrim" style="width:360px">
+        <div class="sheet">
+          <div class="handle"></div>
+          <h3>清空内置食物数据？</h3>
+          <p>将删除 6 条内置食物（自建食物保留）。
+设置、AI 配置与照片不受影响；此操作不可撤销。</p>
+          <div class="btns row2">
+            <span class="btn text auto">取消</span>
+            <span class="btn danger auto">清空内置食物数据</span>
+          </div>
+        </div>
+      </div>
+      <p class="note"><b>预览为空（builtin = 0）时不弹层：</b>直接给一条
+        「没有内置食物可清空。」的 snackbar——弹一个「删 0 条」的确认框是拿用户当确认机器。
+        这是预览与行自门控之外的第二道。</p>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">⑤ 执行后：计数行就地刷新 + 如实报数</p>
+      <div class="phone">
+        <p class="group-title">食材库</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">3 条（自建 3 条）</span>
+          </div>
+          <div class="row">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <div class="snack"><span class="sic">🗑</span>
+          <span>已清空内置食物：删除 49,444 条，12 条记录的食物引用已清空。</span></div>
+        <p class="note"><b>一次动作三个后果都在界面上落地：</b>① 计数行从「49,447 条（自建 3 条）」
+          刷成「3 条（自建 3 条）」——走既有的 <code>_refreshOverviewAfterFoodWrite()</code>
+          就地重读（弹层返回不触发 <code>TickerMode</code>，设备上已实测过「计数停旧快照」这个坑）；
+          ② 新行自己消失（库里已无内置行）；③ snackbar 报<strong>真实结果</strong>
+          （<code>deletedFoods</code> / <code>unlinkedMealItems</code>），M = 0 时那句不提。</p>
+        <p class="note"><b>幂等与竞态：</b>确认那一刻库若已被别处清空（结果 0/0/0），
+          snackbar 照实说「没有内置食物可清空。」——用例本身幂等，重跑安全。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" style="margin-top:26px">
+    <b>本稿明确不做的（逐条）：</b>① 不做「清空 + 立即导入」一步到位向导——新表头（用户提供的
+    结构文件）未到，重建那半条流程（T11 验收 3/4）落地时再谈是否合并；现在清空后重新导入走
+    既有入口（「添加食物数据 → 从 CSV 导入」）。② 不用 <code>AppSheet.showForm</code> 的
+    打字确认（「清除所有数据」那种）——那条是「不留任何用户字节」的量级；本动作只删随库数据，
+    记录与自建都留住，error 字色的销毁动作 + 三组数字 + 「不可撤销」是相称的强度。③ 不给行加条数副标题
+    （条数在上一行，第二处数字就是第二个会过期的真值）。
+    <b>文案口径：</b>不出现 "CSV"（D17），不写「恢复出厂」这类不存在的语义。
+  </div>
+</body>
+</html>

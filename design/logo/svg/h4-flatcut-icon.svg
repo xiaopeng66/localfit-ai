@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-h4-flatcut"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-h4-flatcut" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-h4-flatcut)">
+    
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+    
+    <g filter="url(#soft-h4-flatcut)" opacity="0.5"><path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/></g>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#FF8A65" stroke-width="46" stroke-linecap="butt" stroke-linejoin="round"/>
+    <path d="M390 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L634 297.5" fill="none" stroke="#0F1412" stroke-width="22.0" stroke-linecap="butt" stroke-linejoin="round"/>
+  </g>
+</svg>

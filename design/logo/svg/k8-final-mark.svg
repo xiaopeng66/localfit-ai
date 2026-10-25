@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    
+    <linearGradient id="rg-mark" gradientUnits="userSpaceOnUse" x1="240" y1="220" x2="790" y2="810">
+      <stop offset="0" stop-color="#4ED9A6"/>
+      <stop offset="1" stop-color="#1FA377"/>
+    </linearGradient>
+    <linearGradient id="pg-mark" gradientUnits="userSpaceOnUse" x1="332" y1="297.5" x2="692" y2="297.5">
+      <stop offset="0" stop-color="#FF8A65"/>
+      <stop offset="1" stop-color="#F0704A"/>
+    </linearGradient>
+    
+    <mask id="holes-mark" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#000" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#000" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  
+    <g mask="url(#holes-mark)">
+      <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="url(#rg-mark)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="url(#pg-mark)" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  
+    <circle cx="400" cy="297.5" r="13" fill="#F0704A"/>
+    <circle cx="624" cy="297.5" r="13" fill="#F0704A"/>
+</svg>

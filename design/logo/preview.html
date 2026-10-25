@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>LocalFit AI · Logo 方案对比</title>
+<style>
+  :root { --ink:#17251E; --ink2:#5A6B62; --ink3:#93A29A; --line:#E7ECE8; --cream:#FAFBF9; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:48px 56px 64px; background:var(--cream); color:var(--ink);
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  h1 { font-size:30px; margin:0 0 6px; letter-spacing:-.4px; }
+  .sub { color:var(--ink2); font-size:15px; margin-bottom:8px; }
+  .rule { height:1px; background:var(--line); margin:28px 0 34px; }
+  .strip { display:flex; gap:30px; align-items:flex-start; margin-bottom:8px; }
+  .strip-item { margin:0; width:150px; text-align:center; }
+  .strip-item svg { width:100%; height:auto; border-radius:26px; box-shadow:0 6px 18px rgba(23,37,30,.10); }
+  .strip-item figcaption { font-size:13px; color:var(--ink2); margin-top:9px; }
+  .row { display:grid; grid-template-columns:300px 1fr; gap:8px 40px; align-items:center;
+         padding:30px 0; border-top:1px solid var(--line); }
+  .hero { display:flex; gap:20px; align-items:center; }
+  .hero-icon { width:190px; flex:0 0 190px; }
+  .hero-icon svg { width:100%; height:auto; border-radius:42px; box-shadow:0 8px 22px rgba(23,37,30,.12); }
+  .idx { font-size:12px; color:var(--ink3); letter-spacing:1.5px; font-weight:700; }
+  h2 { font-size:22px; margin:2px 0 5px; letter-spacing:-.2px; }
+  .tag { font-size:13px; color:#1FA377; }
+  .ladder { display:flex; align-items:flex-end; gap:26px; }
+  .ladder-cell { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .ladder-cell span { font-size:11px; color:var(--ink3); }
+  .s svg { display:block; border-radius:22%; }
+  .s128 svg { width:128px; height:128px; box-shadow:0 5px 14px rgba(23,37,30,.10); }
+  .s64 svg  { width:64px;  height:64px;  box-shadow:0 3px 9px rgba(23,37,30,.09); }
+  .s48 svg  { width:48px;  height:48px;  box-shadow:0 2px 7px rgba(23,37,30,.08); }
+  .s32 svg  { width:32px;  height:32px; }
+  .s24 svg  { width:24px;  height:24px; }
+  .mark-cell { padding-left:26px; border-left:1px solid var(--line); }
+  .mark svg { background:#fff; border-radius:22%; box-shadow:inset 0 0 0 1px var(--line); }
+  .note { grid-column:2; margin:16px 0 0; font-size:14px; line-height:1.65; color:var(--ink2); }
+</style></head>
+<body>
+  <h1>LocalFit AI · Logo 方案</h1>
+  <div class="sub">本地优先 · AI 辅助 · 校园饮食与健身管理　｜　色彩取自 app_colors.dart（现行色板见 docs/21 §2）</div>
+  <div class="strip"><figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+<figcaption>分格餐盘</figcaption></figure>
+<figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+<figcaption>能量环</figcaption></figure>
+<figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+<figcaption>三色哑铃</figcaption></figure>
+<figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+<figcaption>本地盾叶</figcaption></figure>
+<figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+<figcaption>窗口定位</figcaption></figure>
+<figure class="strip-item"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+<figcaption>AI 营养碗</figcaption></figure></div>
+  <div class="rule"></div>
+  
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">01</div>
+        <h2>分格餐盘</h2>
+        <div class="tag">校园食堂 × 营养三色</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-01-tray-icon)"/>
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="#FFFFFF"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-01-tray-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <rect x="200" y="200" width="624" height="624" rx="132" fill="url(#mint-01-tray-mark)"/>
+    <rect x="244" y="244" width="316" height="536" rx="86" fill="#FFC94D"/>
+    <rect x="594" y="244" width="186" height="251" rx="70" fill="#FF8A65"/>
+    <rect x="594" y="529" width="186" height="251" rx="70" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">食堂分格餐盘：左侧大格=主食（碳水蜜黄），右侧两格=蛋白珊瑚、脂肪雾紫，三格即营养素编码色。</p>
+  </section>
+
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">02</div>
+        <h2>能量环</h2>
+        <div class="tag">App 签名控件 × 三宏量</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="url(#mint-02-ring-mark)" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">把今日页签名件 CalorieRing 图形化：外环保留缺口=热量进度，内三弧=三宏量构成。</p>
+  </section>
+
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">03</div>
+        <h2>三色哑铃</h2>
+        <div class="tag">饮食 × 训练双核</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-03-dumbbell-icon)"/>
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-icon"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="#FFFFFF"/>
+    <g clip-path="url(#bar-03-dumbbell-icon)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-03-dumbbell-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <clipPath id="bar-03-dumbbell-mark"><rect x="344" y="456" width="336" height="112" rx="56"/></clipPath>
+    <rect x="176" y="352" width="168" height="320" rx="68" fill="url(#mint-03-dumbbell-mark)"/>
+    <rect x="680" y="352" width="168" height="320" rx="68" fill="url(#mint-03-dumbbell-mark)"/>
+    <g clip-path="url(#bar-03-dumbbell-mark)">
+      <rect x="344" y="456" width="112" height="112" fill="#FF8A65"/>
+      <rect x="456" y="456" width="112" height="112" fill="#FFC94D"/>
+      <rect x="568" y="456" width="112" height="112" fill="#B39DDB"/>
+    </g>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">哑铃=训练，杆身三段=蛋白/碳水/脂肪。一个形同时说清「练」与「吃」，小尺寸下轮廓最稳。</p>
+  </section>
+
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">04</div>
+        <h2>本地盾叶</h2>
+        <div class="tag">本地优先 × 数据不出设备</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path fill-rule="evenodd" fill="url(#mint-04-shield-mark)" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="#FFFFFF" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">盾=数据只留在本机（无账号/无云端），叶=饮食与健康。叶片 evenodd 挖空、整体倾斜 38°，底色透出。</p>
+  </section>
+
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">05</div>
+        <h2>窗口定位</h2>
+        <div class="tag">下一餐去哪吃 × 决策确认</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="url(#mint-05-pin-mark)"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">定位钉=食堂/窗口位置，对勾=「已确认」这条产品铁律。对应今日页「下一餐去哪」决策卡。</p>
+  </section>
+
+  <section class="row">
+    <div class="hero">
+      <div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div>
+      <div class="hero-meta">
+        <div class="idx">06</div>
+        <h2>AI 营养碗</h2>
+        <div class="tag">AI 辅助 × 结构化成餐</div>
+      </div>
+    </div>
+    <div class="ladder">
+      <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+      <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+      <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+      <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+      <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-06-bowl-spark-icon)"/>
+  <g>
+    
+    <path fill="#FFFFFF" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="url(#mint-06-bowl-spark-icon)" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+      <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-06-bowl-spark-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path fill="url(#mint-06-bowl-spark-mark)" d="M236 356 C252 576 336 684 440 684 L584 684 C688 684 772 576 788 356 Z"/>
+    <path fill="#FFFFFF" d="M512 396 Q531 495 630 514 Q531 533 512 632 Q493 533 394 514 Q493 495 512 396 Z"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+    </div>
+    <p class="note">碗=一餐（宽口平底的饭碗轮廓），四角星芒=AI 创作（但只产草案）。星芒从碗体反白，整体是「AI 装进一餐里」。</p>
+  </section>
+</body></html>

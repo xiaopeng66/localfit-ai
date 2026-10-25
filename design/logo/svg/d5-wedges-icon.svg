@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d5-wedges" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="232" fill="#FFFFFF"/>
+  <path fill="#FF8A65" d="M 538.15 213.14 A 300 300 0 0 1 783.89 638.79 L 647.95 575.39 A 150 150 0 0 0 525.07 362.57 Z"/>
+    <path fill="#FFC94D" d="M 757.75 684.07 A 300 300 0 0 1 266.25 684.07 L 389.13 598.04 A 150 150 0 0 0 634.87 598.04 Z"/>
+    <path fill="#B39DDB" d="M 240.11 638.79 A 300 300 0 0 1 485.85 213.14 L 498.93 362.57 A 150 150 0 0 0 376.05 575.39 Z"/>
+</svg>

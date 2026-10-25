@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>训练计划 · AI / 手动双模式 — 整改设计稿（R7）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第三轮 设计稿（R7 · docs/30）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖需求（docs/30 §1 需求 7，用户 2026-10-08 原话）：
+    「训练计划需要设置成可ai可手动。」
+
+  现状（动线已被动线分裂，见 §① 帧）：训练页 FAB `cta-new-plan`
+  → `_openNewPlan`（`training_page.dart:569`）：
+   · **四项 AI 依赖齐全**时跳 `/workout-plan-create`（**纯 AI 流程**：
+     表单 → 披露 → 生成 → 预览 → 保存 `source:'ai'`）；
+   · **任一缺失**时退回一个**只有名称输入**的弹层（`_openCreatePlanDialog`，
+     `create(source:'manual')` 但 `days: const []` ⇒ **建出来是空计划**，
+     得再进详情逐个「添加动作」）。
+
+  仓库 `WorkoutPlanRepository.create` 本就支持 `source: 'ai'|'manual'` 两值
+  （`workout_plan_repository.dart:116-143`）—— 缺的是**入口层的模式选择**
+  和**手动路径的完整表单**。
+
+  裁决（docs/30 §2 D7）：
+   · FAB 点击 → **模式选择弹层**（`AppSheet`，两个大选项行）：
+     「AI 生成」→ 走现有 `/workout-plan-create`；四项依赖不全时该行
+     **禁用并说明原因**（不消失 —— 用户知道有这条能力、以及怎么把它配好）；
+     「手动创建」→ 进**新的手动计划页**（名称 + 逐日 + 每天逐个添加动作），
+     保存 `source: 'manual'`。
+   · 手动页**不依赖 AI 四项依赖**（只需要 `exerciseRepository` +
+     `workoutPlanRepository`）⇒ AI 未配置的用户第一次就能建出**有内容的**计划
+     （现状只能建空计划再逐个加动作）。
+   · 训练页二级入口「AI 生成训练计划」保留（它直达 AI 路径，不经过模式弹层）。
+
+  字段复用（不新造一套）：手动页的「添加动作」沿用训练页详情里既有的
+  `_openEntryDialog` 字段 —— 训练日（`training-entry-weekday`）/ 动作
+  （`training-entry-exercise`）/ 目标组数（`training-entry-sets`）/
+  目标次数（`training-entry-reps`）/ 目标重量（`training-entry-weight`）。
+  一处定义，两处读到的字段与校验完全一致。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA; color: #1A201D; font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; color: #1A201D; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; color: #1A201D; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  .legend .kw { color: #1B8A62; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+  .note + .note { margin-top: 6px; }
+  .frame.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+  .frame.theme-dark .card { background: var(--lf-card); border-color: var(--lf-border); }
+
+  /* ── 页骨架（训练页底下的内容，示意 FAB 位置）────────────────────── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .card + .card { margin-top: 8px; }
+  .c-title { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .c-sub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .fab {
+    width: 56px; height: 56px; border-radius: 18px; background: var(--lf-primary);
+    color: #FFFFFF; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 300; box-shadow: 0 4px 12px rgba(15,36,28,0.18);
+  }
+  .fabrow { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+  /* ── 模式选择弹层（AppSheet + 两个大选项行）─────────────────────── */
+  .sheet {
+    background: var(--lf-card); border-radius: 16px 16px 0 0;
+    padding: 16px; border: 1px solid var(--lf-border); border-bottom: 0;
+  }
+  .grabber { width: 32px; height: 4px; border-radius: 999px; background: var(--lf-border); margin: 0 auto 12px; }
+  .sheet .st { font-size: 16px; font-weight: 600; color: var(--lf-card-foreground); margin-bottom: 12px; }
+  .opt {
+    display: flex; align-items: flex-start; gap: 12px; padding: 14px;
+    border-radius: var(--lf-radius-md); border: 1px solid var(--lf-border);
+    background: var(--lf-card);
+  }
+  .opt + .opt { margin-top: 8px; }
+  .opt .ico {
+    width: 40px; height: 40px; border-radius: var(--lf-radius-md); flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    background: var(--lf-mint-100); color: var(--lf-mint-700);
+  }
+  .opt .ico.neutral { background: var(--lf-muted); color: var(--lf-card-foreground); }
+  .opt .ttl { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .opt .dsc { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 3px; line-height: 1.5; }
+  .opt.disabled { background: var(--lf-muted); border-color: transparent; }
+  .opt.disabled .ttl, .opt.disabled .dsc { color: var(--lf-muted-foreground); }
+  .opt.disabled .ico { background: var(--lf-border); color: var(--lf-muted-foreground); }
+  .opt .tag {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+    background: var(--lf-mint-100); color: var(--lf-mint-700); flex: none;
+  }
+  .opt.disabled .tag { background: var(--lf-border); color: var(--lf-muted-foreground); }
+  .chev { color: var(--lf-muted-foreground); font-size: 14px; flex: none; align-self: center; }
+
+  /* ── 手动计划页（表单）─────────────────────────────────────────── */
+  .field { margin-top: 12px; }
+  .flabel { font-size: 12px; color: var(--lf-muted-foreground); margin-bottom: 6px; }
+  .input {
+    height: 44px; border-radius: var(--lf-radius-md); border: 1px solid var(--lf-border);
+    display: flex; align-items: center; padding: 0 12px; font-size: 14px;
+    background: var(--lf-card); color: var(--lf-card-foreground);
+  }
+  .input.placeholder { color: var(--lf-muted-foreground); }
+  .daychips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dchip {
+    height: 34px; min-width: 40px; padding: 0 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; background: var(--lf-muted);
+    color: var(--lf-muted-foreground);
+  }
+  .dchip.on { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  .entry {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-radius: var(--lf-radius-md); background: var(--lf-muted);
+  }
+  .entry + .entry { margin-top: 6px; }
+  .entry .tt { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; color: var(--lf-card-foreground); }
+  .entry .vv { font-size: 12px; color: var(--lf-muted-foreground); }
+  .entry .del { color: #F44336; font-size: 13px; }
+  .dashed {
+    border: 1px dashed var(--lf-border); border-radius: var(--lf-radius-md);
+    height: 40px; display: flex; align-items: center; justify-content: center;
+    gap: 4px; font-size: 13px; font-weight: 500; color: var(--lf-mint-700);
+    background: transparent; margin-top: 6px;
+  }
+  .daytitle { font-size: 12px; font-weight: 600; color: var(--lf-card-foreground); margin-top: 14px; }
+  .emptyline { font-size: 11px; color: var(--lf-muted-foreground); margin-top: 6px; }
+  .btnrow { display: flex; gap: 8px; margin-top: 16px; }
+  .btn {
+    flex: 1; height: 44px; border-radius: var(--lf-radius-md); display: flex;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+  }
+  .btn.solid { background: var(--lf-primary); color: #FFFFFF; }
+  .btn.muted { background: var(--lf-muted); color: var(--lf-card-foreground); }
+  /* 添加动作弹层字段（与既有 _openEntryDialog 同字段） */
+  .two { display: flex; gap: 8px; }
+  .two > * { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+  }
+  .srcplan { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>训练计划 · AI / 手动双模式 — R7 设计稿（docs/30 需求 7）</h1>
+  <p class="intro">
+    六帧：①现状（AI 依赖缺失时的空计划）②FAB → 模式选择弹层 ③AI 依赖缺失时的弹层
+    ④手动计划页（表单）⑤手动页的添加动作弹层（复用既有字段）⑥保存后的计划详情
+    （source 可见）。令牌与 <code>ui设计/pages/训练.html</code> 同源。
+  </p>
+  <div class="legend">
+    <b>本稿两条硬主张</b>：<br>
+    ① <b>入口先选模式</b>：FAB → 弹层两行（AI 生成 / 手动创建）。AI 四项依赖不全时
+    AI 那行 <span class="kw">禁用但可见</span>（写明缺什么），不消失 —— 用户知道有这条能力、
+    以及怎么把它配好。<br>
+    ② <b>手动路径第一次就能建出有内容的计划</b>：名称 + 逐日 + 每次「添加动作」
+    （复用 <code>training-entry-*</code> 同一批字段），保存 <code>source: 'manual'</code>；
+    它 <b>不依赖 AI 四项依赖</b>（只要 <code>exerciseRepository</code> +
+    <code>workoutPlanRepository</code>）。
+  </div>
+
+  <!-- ================= ① 现状 ================= -->
+  <h2>① 现状（对照）：AI 依赖缺失时，FAB 只给一个「名称」输入 ⇒ 建成空计划</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>现状 · AI 依赖缺失</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="card">
+          <div class="c-title">训练计划</div>
+          <div class="c-sub">还没有本地训练计划</div>
+        </div>
+        <div class="fabrow"><span class="fab">＋</span></div>
+        <div class="note" style="margin-top:10px">
+          <b>点击 FAB</b>（`cta-new-plan`）→ 现状分支：
+        </div>
+        <div class="sheet" style="margin-top:8px;border-bottom:1px solid var(--lf-border);border-radius:16px">
+          <div style="font-size:16px;font-weight:600;color:var(--lf-card-foreground)">新建训练计划</div>
+          <div class="field">
+            <div class="flabel">计划名称</div>
+            <div class="input placeholder">例：早晨力量</div>
+          </div>
+          <div class="btnrow">
+            <span class="btn muted">取消</span>
+            <span class="btn solid">保存</span>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>问题</b>：保存时 `WorkoutPlanDraft(name: name, days: const [])`
+        ⇒ <b>计划里零个训练日、零个动作</b>。用户得再进详情页逐个「添加动作」，
+        而且中途没有任何提示说「你刚建的是空计划」。<br>
+        另一头：<b>AI 依赖齐全</b>时 FAB 直跳纯 AI 流程 —— <b>没有手动的入口</b>。
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>两条路的现状（都不断）</b><br>
+        · AI 四项依赖齐（`exerciseRepository` / `workoutPlanRepository` /
+        `workoutPlanProvider` / `loadWorkoutPlanDisclosure`）→ 直跳
+        `/workout-plan-create`（纯 AI）；<br>
+        · 任一缺失 → 上面那个名称弹层（建空计划）。<br>
+        仓库层 `create(draft, {source: 'manual'})` 早就支持两个值 ——
+        <b>缺的只是入口层的选择</b>。
+      </div>
+      <div class="note">
+        <b>为什么用户会觉得「不能手动」</b>：AI 配置好的用户走 FAB 永远只看到
+        AI 流程；而「AI 生成训练计划」这个二级入口又藏在下面。整页没有一个
+        明确说「手动建一个」的入口。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ② 模式选择弹层 ================= -->
+  <h2>② 改造后：FAB → 模式选择弹层（两个大选项行）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · AI 依赖齐全</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="st">新建训练计划</div>
+          <div class="opt">
+            <span class="ico">✨</span>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">AI 生成</div>
+              <div class="dsc">说清目标与每周练几天，AI 排好每天的动作与组次</div>
+            </div>
+            <span class="tag">推荐</span>
+            <span class="chev">›</span>
+          </div>
+          <div class="opt">
+            <span class="ico neutral">✎</span>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">手动创建</div>
+              <div class="dsc">自己挑动作、填组次，按周一到周日安排</div>
+            </div>
+            <span class="chev">›</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        两行是<b>同级的两个动作</b>（不是「主 + 次」）：左图标 + 标题 + 一句说明 +
+        右箭头。<code>AppSheet</code> 的既有形态（标题 + 内容 + 无底部按钮 ——
+        点行即走）。<br>
+        <b>「推荐」标签只在 AI 依赖齐全时出现</b>（§③ 的对照帧里它换成禁用说明）。
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造后 · AI 依赖缺失（禁用但可见）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="st">新建训练计划</div>
+          <div class="opt disabled">
+            <span class="ico">✨</span>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">AI 生成</div>
+              <div class="dsc">未配置 AI（我的 → AI 模型）。配好后这里就能用。</div>
+            </div>
+            <span class="tag">未配置</span>
+          </div>
+          <div class="opt">
+            <span class="ico neutral">✎</span>
+            <div style="flex:1;min-width:0">
+              <div class="ttl">手动创建</div>
+              <div class="dsc">自己挑动作、填组次，按周一到周日安排</div>
+            </div>
+            <span class="chev">›</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>禁用 ≠ 消失</b>：这一行留着并写明「未配置 AI（我的 → AI 模型）」——
+        ① 用户知道产品有这条能力；② 知道去哪把它打开；③ 不会以为 AI 行消失是 bug。
+        这与全仓「可选能力缺失时如实说明、不静默隐藏」的既有口径一致
+        （对比：设置页的 AI 组在未配置时显示「未配置」，而不是整组消失）。
+      </div>
+      <div class="note" style="margin:0 16px 14px">
+        <b>手动行在两态下都可用</b>：它只需要 `exerciseRepository` +
+        `workoutPlanRepository`（训练页本身就在用这两个仓），AI 配没配都不影响。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③④ 手动计划页 ================= -->
+  <h2>③④ 手动计划页：名称 + 逐日选择 + 每天逐个添加动作</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 手动计划页（已填两个动作）</span><span>360dp</span></div>
+      <div class="pad">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">‹</span>
+          <span class="c-title">手动创建计划</span>
+        </div>
+
+        <div class="field">
+          <div class="flabel">计划名称</div>
+          <div class="input">早晨力量</div>
+        </div>
+
+        <div class="field">
+          <div class="flabel">训练日（周一..周日任选）</div>
+          <div class="daychips">
+            <span class="dchip on">一</span><span class="dchip">二</span>
+            <span class="dchip on">三</span><span class="dchip">四</span>
+            <span class="dchip on">五</span><span class="dchip">六</span>
+            <span class="dchip">日</span>
+          </div>
+        </div>
+
+        <div class="daytitle">周一</div>
+        <div style="margin-top:6px">
+          <div class="entry">
+            <span class="tt">杠铃深蹲</span>
+            <span class="vv">4 组 × 8 次 · 60kg</span>
+            <span class="del">✕</span>
+          </div>
+          <div class="entry">
+            <span class="tt">平板卧推</span>
+            <span class="vv">3 组 × 10 次</span>
+            <span class="del">✕</span>
+          </div>
+          <span class="dashed" style="display:flex">＋ 添加动作</span>
+        </div>
+
+        <div class="daytitle">周三</div>
+        <div class="emptyline">还没有动作 —— 点「添加动作」开始</div>
+        <span class="dashed">＋ 添加动作</span>
+
+        <div class="btnrow">
+          <span class="btn muted">取消</span>
+          <span class="btn solid">保存计划</span>
+        </div>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>与 AI 流程的关系</b>：手动页是**新的独立页**（`/workout-plan-manual`），
+        不是 AI 页的一个 mode —— 两者的表单、阶段机（表单/披露/生成/预览）
+        与依赖完全不同，塞进一页会让「AI 页」变成两种页面的拼盘。
+        共用的是**数据契约**：`WorkoutPlanDraft` + `PlannedExerciseDraft`
+        + `create(source: 'manual')`。
+      </div>
+      <div class="note">
+        <b>训练日 chips 是「任选」</b>：空选 = 还没有安排（保存时按 §① 的老问题
+        提示，不再静默建空计划）。保存前的校验：<b>名称非空 + 至少一个动作</b>；
+        只选了训练日但一个动作都没有 → 保存按钮禁用并提示（§④ 帧的弹层
+        负责把动作加上）。
+      </div>
+      <div class="note">
+        <b>为什么不像现状那样「先建空计划再补」</b>：那会让用户在两个页面之间
+        来回跳（新建 → 详情 → 添加动作 → 返回），且中途退出就留下一个空计划。
+        本轮把这条动线收进一页：<b>没内容就存不下来</b>。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑤ 添加动作弹层 ================= -->
+  <h2>⑤ 添加动作弹层：字段与校验直接复用训练页详情里那一个</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 添加动作（同既有字段）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="st">添加动作</div>
+          <div class="field" style="margin-top:0">
+            <div class="flabel">训练日</div>
+            <div class="input">周一 <span style="margin-left:auto;color:var(--lf-muted-foreground)">▾</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">动作</div>
+            <div class="input">杠铃深蹲 <span style="margin-left:auto;color:var(--lf-muted-foreground)">▾</span></div>
+          </div>
+          <div class="field two">
+            <div>
+              <div class="flabel">目标组数</div>
+              <div class="input">4 <span style="margin-left:auto;color:var(--lf-muted-foreground)">组</span></div>
+            </div>
+            <div>
+              <div class="flabel">目标次数</div>
+              <div class="input">8 <span style="margin-left:auto;color:var(--lf-muted-foreground)">次</span></div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="flabel">目标重量（可选）</div>
+            <div class="input">60 <span style="margin-left:auto;color:var(--lf-muted-foreground)">kg</span></div>
+          </div>
+          <div class="btnrow">
+            <span class="btn muted">取消</span>
+            <span class="btn solid">保存</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        字段 Key 与训练页详情里的<b>逐一对齐</b>：<code>training-entry-weekday</code> /
+        <code>-exercise</code> / <code>-sets</code> / <code>-reps</code> /
+        <code>-weight</code>（保存 <code>training-entry-save</code>）。
+        <b>不新造一套字段名</b> —— 同一份数据在两处输入，校验与提示必须同源。
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>实现落点</b>：把既有 `_openEntryDialog`（`training_page.dart:1605`）
+        的动作行表单抽成共享件（`PlannedEntryFormFields` / 或在两处共用一个
+        `showPlannedEntrySheet`），训练页详情与手动计划页都调它。
+        <b>不做「抄一份」</b>：两份表单的校验逻辑迟早漂。
+      </div>
+      <div class="note">
+        <b>目标重量是可选</b>：自重动作（俯卧撑、引体）没有重量 —— 留空写
+        <code>null</code>，列表行里就不显示「· 60kg」那一段（§④ 帧第二条动作）。
+      </div>
+      <div class="note">
+        <b>训练日默认值</b>：从手动页点某一天的「添加动作」进去时，
+        该天就是默认值（不强迫用户再选一次）；从顶部统一入口进去时默认周一。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 保存后 ================= -->
+  <h2>⑥ 保存后的计划：来源（AI / 手动）在详情里可见</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 计划详情（手动创建的）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div>
+              <div class="c-title">早晨力量</div>
+              <div class="c-sub">3 个训练日 · 5 个动作</div>
+            </div>
+            <span class="pill">手动创建</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="c-title" style="font-size:14px">周一</div>
+          <div class="entry" style="margin-top:8px">
+            <span class="tt">杠铃深蹲</span><span class="vv">4 组 × 8 次 · 60kg</span>
+          </div>
+          <div class="entry">
+            <span class="tt">平板卧推</span><span class="vv">3 组 × 10 次</span>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>来源标签</b>：<code>source</code> 列本就落库（`ai` / `manual`），
+        本轮把它在计划卡上显示出来（muted 药丸），让用户知道这个计划是怎么来的
+        ——AI 生成的计划改起来与手动计划没有区别，但<b>知道来源</b>有助于判断
+        「哪些动作是 AI 排的」。
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>不在本轮</b>：把 AI 计划「转成手动编辑」的显式动作、计划的复制/模板 ——
+        用户没要求，且会让本包的范围失控。手动计划本来就可在详情里逐条增删
+        （既有能力），这已经覆盖了「AI 生成的计划我想改」的诉求。
+      </div>
+      <div class="note">
+        <b>Key 保留</b>：<code>training-ai-plan</code>（二级入口）保持不动 ——
+        它直达 AI 路径，不经过模式弹层（已配置用户的一步入口）。
+      </div>
+      <div class="note">
+        <b>空态文案不动</b>：「还没有本地训练计划 → 新建一个计划」保持原样。
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

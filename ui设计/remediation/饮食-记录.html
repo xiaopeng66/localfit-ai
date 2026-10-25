@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>饮食 · 记录页间距 / 记录一餐 FAB / 今日推荐卡图形化 — 整改设计稿（P6）</title>
+<!--
+  ============================================================================
+  LocalFit AI 2.0 「界面与体验治理」设计稿（P6：记录页间距 + FAB + 今日推荐卡）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖的需求（docs/29 §P6，用户原话见 §1 需求 12/13/14/15）：
+
+  【需求 12 · 间距】
+   hero 与「下一餐推荐」入口卡之间**外部间距 = 0**（`record_tab.dart:305-306`，
+   leading 槽直接贴在 hero 后面；hero 自己那 20dp 内边距在渐变**内部**，不算间隔）。
+   本稿把 16dp（`LfDimens.pagePadding`）显式画出来，与下方趋势卡/周条/餐卡同一口径
+   （它们都是「自己带 16dp 上边距」，所以补齐后全页节奏一致）。
+
+  【需求 13 · FAB 浮空】
+   现状 `RecordFab.bottomOffset = 80`（沿用设计稿 `bottom-[80px]`）、
+   `LfShadows.recordFab` = `0 4px 12px rgba(primary,.30)`。用户要「更浮空、与下边分层」。
+   改：底距 80 → **96**；阴影 → **`0 6px 20px` primary 40%**。
+   ★ 阴影 alpha 的取值说明：docs/29 原文写 `.38`，而 `docs/21 §2.4` 的彩色阴影白名单
+   是 **N ∈ {25,30,35,40}**（「不新增阴影 token」）。两者不能同时成立，本稿按
+   §0.1「docs/29 是本阶段执行细则、冲突以 docs/29 + 实测为准」取最接近白名单档位的
+   **40%**，并把冲突点写进证据文件 + `docs/21 §2.4` 的表格行。
+   底栏上缘分隔：`LfBottomNav` **已有** `border-t`（`lf_bottom_nav.dart:80`，设计稿
+   `饮食 · 记录.html:552` 同款），本稿只把它在示意图里标出来，不新增装饰。
+
+  【需求 14 · 删通勤行】
+   删 `next_meal_decision_card.dart:193-199` 的**通勤编辑钮**，以及同一行里的
+   `data.routeHint`（「约 8 分钟」／「时间未知」——它就是通勤时间本身）。
+   **地点保留**（`📍东区食堂 · 一楼窗口`）：那是「去哪里」，不是通勤。
+
+  【需求 15 · 散文换图形块（D11）】
+   `:338`（`目标影响  ≈ 520 kcal · 蛋白质 24.0 g（本地估算）`）与
+   `:340`（`证据  证据等级 A · 本地菜单快照（当天） · 通行 约 8 分钟（手动填写） ·
+   营养不完整 · 候选 1/3`）两句散文 → 一排**图形事实 chip**：
+   证据等级徽标（既有 `AppEvidenceBadge`，从菜品行**移下来合并**，避免同一事实出现两处）
+   + 营养完整度 + 候选序号 `n/m` + 快照日期。四项都是**已有字段**，不新造数据。
+   ★ 诚实边界：`目标影响` 里的 `蛋白质 24.0 g` 不在 D11 列举的四项内，本稿随散文一起
+   撤出这张卡（该餐 kcal 仍以进度条呈现）；蛋白质在菜品详情/食物库仍可查。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/饮食 · 记录.html 的
+  <style id="theme-vars">（该文件是 UI 唯一依据）。本目录的文件不被任何测试解析，
+  仅作评审与实现参照；与 pages/ 的差异只有「去 CDN 依赖」（无头渲染用）。
+
+  尺寸按 360dp 逻辑宽画：页面 padding 16dp（`LfDimens.pagePadding`）、
+  卡内 padding 16dp（`cardPadding`）、FAB 48dp 圆、右距 16dp、底栏 64dp +
+  中央凸起圆 56dp 净上凸 9.5dp（`navBumpProtrusion`）。
+  凸起圆顶 = 距屏底 64 + 9.5 = 73.5dp ⇒ 改造前 FAB 底边（80）距它 **6.5dp**，
+  改造后（96）距它 **22.5dp**。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* P6 FAB 两态（改造前 / 改造后） */
+  --fab-before: 0 4px 12px color-mix(in srgb, var(--lf-primary) 30%, transparent);
+  --fab-after:  0 6px 20px color-mix(in srgb, var(--lf-primary) 40%, transparent);
+  --hero: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --hero: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--lf-background); color: var(--lf-foreground);
+    font-family: var(--lf-font-sans); -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+  .page { width: 360px; margin: 0 auto; padding: 14px 0 30px; }
+  .sec {
+    font-size: 12px; font-weight: 600; color: var(--lf-muted-foreground);
+    padding: 16px 20px 8px; letter-spacing: 0.2px;
+  }
+  .note {
+    margin: 0 16px 10px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+    font-size: 11px; line-height: 1.55;
+  }
+  .note b { color: var(--lf-foreground); font-weight: 600; }
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+  }
+  .stage { margin: 0 16px; }
+  .caption {
+    font-size: 11px; font-weight: 600; color: var(--lf-muted-foreground);
+    margin: 0 0 6px; letter-spacing: 0.2px;
+  }
+  .caption.del { color: var(--lf-state-error); }
+  .caption.new { color: var(--lf-mint-700); }
+
+  /* ── 记录页 hero（简化：只画渐变块与三行读数） ─────────────────────── */
+  .hero {
+    border-radius: var(--lf-radius-lg); background: var(--hero);
+    padding: 20px; color: #FFFFFF;
+  }
+  .hero .cap { font-size: 12px; opacity: .85; }
+  .hero .big { font-size: 30px; font-weight: 700; line-height: 34px; }
+  .hero .big small { font-size: 13px; font-weight: 500; opacity: .85; margin-left: 4px; }
+  .hero .row { display: flex; gap: 18px; margin-top: 10px; font-size: 12px; opacity: .92; }
+
+  /* ── 「下一餐推荐」入口卡（一行紧凑入口） ─────────────────────────── */
+  .entry {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; border-radius: var(--lf-radius-lg);
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    box-shadow: var(--lf-shadow-1);
+  }
+  .entry .ic {
+    width: 20px; height: 20px; border-radius: var(--lf-radius-full);
+    background: var(--lf-mint-100); color: var(--lf-mint-700);
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .entry .tx { flex: 1; min-width: 0; }
+  .entry .t1 { font-size: 12px; font-weight: 600; }
+  .entry .t2 { font-size: 11px; color: var(--lf-muted-foreground); }
+  /* 间距标尺 */
+  .gap {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600;
+  }
+  .gap.zero {
+    height: 20px; color: var(--lf-state-error);
+    background: repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--lf-state-error) 14%, transparent) 0 6px,
+      transparent 6px 12px);
+    border-top: 1px dashed var(--lf-state-error);
+    border-bottom: 1px dashed var(--lf-state-error);
+  }
+  .gap.p16 {
+    height: 16px; color: var(--lf-mint-700);
+    background: color-mix(in srgb, var(--lf-mint-500) 12%, transparent);
+  }
+  .gap.p16 .bar { position: relative; }
+  .gap.p16::before, .gap.p16::after {
+    content: ""; width: 1px; height: 100%;
+    background: var(--lf-mint-500);
+  }
+  .gap.p16 span { padding: 0 6px; }
+
+  /* ── 底栏 + FAB ───────────────────────────────────────────────────── */
+  .navwrap {
+    position: relative; margin-top: 12px;
+  }
+  .nav {
+    position: relative; height: 64px; border-top: 1px solid var(--lf-border);
+    background: color-mix(in srgb, var(--lf-card) 95%, transparent);
+    display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;
+    padding: 0 8px;
+  }
+  .nav .slot {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 10px; color: var(--lf-muted-foreground);
+  }
+  .nav .slot .nic {
+    width: 20px; height: 20px; border-radius: 6px;
+    background: var(--lf-neutral-100); color: var(--lf-neutral-500);
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .nav .slot.on { color: var(--lf-primary); font-weight: 500; }
+  .nav .slot.on .nic { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  .bump {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 64px; margin-bottom: -9.5px;
+    width: 56px; height: 56px; border-radius: var(--lf-radius-full);
+    background: linear-gradient(135deg, var(--lf-mint-500), var(--lf-mint-600));
+    color: #FFFFFF; display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 0 2px var(--lf-background),
+                0 4px 12px color-mix(in srgb, var(--lf-primary) 30%, transparent);
+  }
+  .fab {
+    position: absolute; right: 16px; width: 48px; height: 48px;
+    border-radius: var(--lf-radius-full); background: var(--lf-primary);
+    color: var(--lf-primary-foreground);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .fab.before { bottom: 80px; box-shadow: var(--fab-before); }
+  .fab.after  { bottom: 96px; box-shadow: var(--fab-after); }
+  /* 高度标尺：从屏底往上量的虚线 */
+  .ruler {
+    position: absolute; right: 6px; width: 1px;
+    border-left: 1px dashed var(--lf-neutral-400);
+  }
+  .ruler .lab {
+    position: absolute; right: 4px; transform: translateY(-50%);
+    font-size: 9px; color: var(--lf-muted-foreground); white-space: nowrap;
+  }
+  .measure {
+    position: absolute; right: 70px; width: 1px;
+    background: var(--lf-state-error);
+  }
+  .measure.ok { background: var(--lf-mint-500); }
+  .measure .lab {
+    position: absolute; right: 5px; white-space: nowrap;
+    font-size: 9px; font-weight: 600;
+  }
+  .measure .lab.e { color: var(--lf-state-error); }
+  .measure .lab.o { color: var(--lf-mint-700); }
+  .navlabel {
+    position: absolute; left: 8px; font-size: 9px; color: var(--lf-muted-foreground);
+  }
+  .swatch {
+    margin: 0 16px 10px; display: flex; gap: 10px;
+  }
+  .swatch .sw {
+    flex: 1; border-radius: var(--lf-radius-md); background: var(--lf-card);
+    border: 1px solid var(--lf-border); padding: 10px; text-align: center;
+  }
+  .swatch .dot {
+    width: 48px; height: 48px; border-radius: var(--lf-radius-full);
+    background: var(--lf-primary); margin: 0 auto 8px;
+  }
+  .swatch .dot.b { box-shadow: var(--fab-before); }
+  .swatch .dot.a { box-shadow: var(--fab-after); }
+  .swatch .t { font-size: 10px; color: var(--lf-muted-foreground); line-height: 1.5; }
+  .swatch .t b { color: var(--lf-foreground); }
+
+  /* ── 今日推荐卡（改造前 / 改造后） ───────────────────────────────── */
+  .dcard { background: var(--lf-card); border: 1px solid var(--lf-border);
+           border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+           padding: 16px; }
+  .dhead { display: flex; align-items: flex-start; }
+  .dhead .lt { flex: 1; }
+  .dhead .lab { font-size: 11px; font-weight: 500; color: var(--lf-muted-foreground); }
+  .dhead .slot { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .dhead .time { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .dstate {
+    font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 8px;
+    background: var(--lf-mint-100); color: var(--lf-mint-700); white-space: nowrap;
+  }
+  .dish { display: flex; gap: 10px; margin-top: 10px; }
+  .cover {
+    width: 64px; height: 64px; border-radius: var(--lf-radius-md); flex: none;
+    background: linear-gradient(135deg, #FFF0E6, #FFE5DC);
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+  .dish .col { flex: 1; min-width: 0; }
+  .dish .who { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .dish .nm { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  .kcalrow { display: flex; align-items: center; margin-top: 10px; }
+  .kcalrow .k1 { font-size: 11px; color: var(--lf-muted-foreground); }
+  .kcalrow .k2 { margin-left: auto; font-size: 12px; font-weight: 600; }
+  .pbar { height: 6px; border-radius: 999px; background: var(--lf-neutral-100); margin-top: 4px; overflow: hidden; }
+  .pbar i { display: block; height: 100%; width: 65%; border-radius: 999px; background: var(--lf-primary); }
+  .placerow {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px;
+    font-size: 12px; color: var(--lf-muted-foreground); flex-wrap: wrap;
+  }
+  .pillbtn {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--lf-border); border-radius: var(--lf-radius-full);
+    padding: 4px 10px; font-size: 11px; color: var(--lf-foreground);
+    background: var(--lf-muted);
+  }
+  .prose { font-size: 11px; color: var(--lf-foreground); margin-top: 8px; line-height: 1.5; }
+  .prose + .prose { margin-top: 4px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .fact {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 500; line-height: 16px;
+    padding: 1px 6px; border-radius: 8px;
+  }
+  .fact.grade { background: var(--lf-evidence-a); color: var(--lf-mint-700); font-weight: 600; }
+  .fact.ok    { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .fact.warn  { background: var(--lf-carbs-100); color: var(--lf-card-foreground); }
+  .fact.info  { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn {
+    border-radius: var(--lf-radius-full); font-size: 12px; padding: 7px 14px;
+    border: 1px solid var(--lf-border); background: var(--lf-muted); color: var(--lf-foreground);
+  }
+  .btn.pri {
+    border: 0; background: var(--lf-primary); color: var(--lf-primary-foreground);
+    font-weight: 600; box-shadow: 0 4px 16px -4px color-mix(in srgb, var(--lf-primary) 35%, transparent);
+  }
+  /* 删除标记 */
+  .kill {
+    position: relative; border: 1px dashed var(--lf-state-error); border-radius: 8px;
+    padding: 4px 6px; margin-top: 6px;
+    background: color-mix(in srgb, var(--lf-state-error) 5%, transparent);
+  }
+  .kill .x {
+    position: absolute; top: -7px; right: 6px; font-size: 9px; font-weight: 700;
+    color: var(--lf-state-error); background: var(--lf-card); padding: 0 3px;
+  }
+  .keep {
+    position: relative; border: 1px dashed var(--lf-mint-500); border-radius: 8px;
+    padding: 4px 6px; margin-top: 8px;
+    background: color-mix(in srgb, var(--lf-mint-500) 6%, transparent);
+  }
+  .keep .x {
+    position: absolute; top: -7px; right: 6px; font-size: 9px; font-weight: 700;
+    color: var(--lf-mint-700); background: var(--lf-card); padding: 0 3px;
+  }
+  .legend {
+    margin: 0 16px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    font-size: 10px; color: var(--lf-muted-foreground); line-height: 1.7;
+  }
+  .legend b { color: var(--lf-foreground); }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="sec">P6 记录页间距 / FAB / 今日推荐卡 · 360dp 评审稿</div>
+  <div class="note">
+    覆盖 <b>docs/29 需求 12/13/14/15</b>。每段左/上为<b>改造前</b>（现状），右/下为<b>改造后</b>。
+    <span style="color:var(--lf-state-error)">红框</span> = 删除，<span style="color:var(--lf-mint-700)">绿框</span> = 新增/保留形态。
+    令牌与 <code>ui设计/pages/饮食 · 记录.html</code> 同源；本稿只作评审与实现参照，不被任何测试解析。
+  </div>
+
+  <!-- ═══════════ ① 间距 ═══════════ -->
+  <div class="sec">① 需求 12 · hero 与「下一餐推荐」之间加 16dp</div>
+  <div class="caption del stage">改造前：external gap = 0（hero 的 20dp 内边距在渐变内部，不算间隔）</div>
+  <div class="stage">
+    <div class="hero">
+      <div class="cap">今日摄入</div>
+      <div class="big">1,240<small>kcal</small></div>
+      <div class="row"><span>目标 1,600–1,800</span><span>剩余 460</span></div>
+    </div>
+    <div class="gap zero">0dp</div>
+    <div class="entry">
+      <div class="ic">🍽</div>
+      <div class="tx"><div class="t1">下一餐推荐</div><div class="t2">午餐 · 鸡胸肉杂粮饭</div></div>
+      <div style="color:var(--lf-muted-foreground)">›</div>
+    </div>
+  </div>
+
+  <div class="caption new stage" style="margin-top:14px">改造后：显式 16dp（与下方趋势卡/周条/餐卡同一口径）</div>
+  <div class="stage">
+    <div class="hero">
+      <div class="cap">今日摄入</div>
+      <div class="big">1,240<small>kcal</small></div>
+      <div class="row"><span>目标 1,600–1,800</span><span>剩余 460</span></div>
+    </div>
+    <div class="gap p16"><span>16dp</span></div>
+    <div class="entry">
+      <div class="ic">🍽</div>
+      <div class="tx"><div class="t1">下一餐推荐</div><div class="t2">午餐 · 鸡胸肉杂粮饭</div></div>
+      <div style="color:var(--lf-muted-foreground)">›</div>
+    </div>
+  </div>
+  <div class="legend" style="margin-top:10px">
+    实现锚点：<code>record_tab.dart</code> 的 leading 槽 —— 现状 <code>SliverToBoxAdapter(child: widget.leading)</code>
+    直接贴 hero；改为在 leading 不为空时给 <b>top: LfDimens.pagePadding（16）</b>。
+    下方趋势卡本来就是 <code>fromLTRB(16, 16, 16, 0)</code>，改完全页节奏一致。
+  </div>
+
+  <!-- ═══════════ ② FAB ═══════════ -->
+  <div class="sec">② 需求 13 · 记录一餐 FAB 更浮空、与下边分层</div>
+  <div class="swatch">
+    <div class="sw">
+      <div class="dot b"></div>
+      <div class="t"><b>改造前</b><br>底距 80dp<br><code>0 4px 12px</code> · 30%</div>
+    </div>
+    <div class="sw">
+      <div class="dot a"></div>
+      <div class="t"><b>改造后</b><br>底距 <b>96dp</b><br><code>0 6px 20px</code> · <b>40%</b></div>
+    </div>
+  </div>
+
+  <div class="caption del stage">改造前：底距 80 ⇒ 距凸起圆顶仅 6.5dp（几乎贴住）</div>
+  <div class="stage">
+    <div class="card" style="height:74px"></div>
+    <div class="navwrap">
+      <div class="measure" style="bottom:73.5px; height:6.5px">
+        <div class="lab e" style="bottom:0">6.5dp</div>
+      </div>
+      <div class="ruler" style="bottom:0; height:80px">
+        <div class="lab" style="bottom:80px">80</div>
+      </div>
+      <div class="navlabel" style="bottom:66px">凸起圆顶 73.5</div>
+      <div class="fab before">+</div>
+      <div class="nav">
+        <div class="slot"><div class="nic">⌂</div>今日</div>
+        <div class="slot on"><div class="nic">🍴</div>饮食</div>
+        <div class="slot" style="opacity:.0">AI</div>
+        <div class="slot"><div class="nic">🏋</div>训练</div>
+        <div class="slot"><div class="nic">☺</div>我的</div>
+        <div class="bump">✦</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption new stage" style="margin-top:14px">改造后：底距 96 ⇒ 距凸起圆顶 22.5dp；阴影更散更淡的对比更强</div>
+  <div class="stage">
+    <div class="card" style="height:58px"></div>
+    <div class="navwrap">
+      <div class="measure ok" style="bottom:73.5px; height:22.5px">
+        <div class="lab o" style="bottom:20px">22.5dp</div>
+      </div>
+      <div class="ruler" style="bottom:0; height:96px">
+        <div class="lab" style="bottom:96px">96</div>
+      </div>
+      <div class="navlabel" style="bottom:66px">凸起圆顶 73.5</div>
+      <div class="fab after">+</div>
+      <div class="nav">
+        <div class="slot"><div class="nic">⌂</div>今日</div>
+        <div class="slot on"><div class="nic">🍴</div>饮食</div>
+        <div class="slot" style="opacity:.0">AI</div>
+        <div class="slot"><div class="nic">🏋</div>训练</div>
+        <div class="slot"><div class="nic">☺</div>我的</div>
+        <div class="bump">✦</div>
+      </div>
+    </div>
+  </div>
+  <div class="legend" style="margin-top:10px">
+    <b>底栏上缘分隔已在位：</b><code>LfBottomNav</code> 的 <code>Border(top: BorderSide(color: c.border))</code>
+    就是设计稿 <code>nav ... border-t border-[var(--lf-border)]</code>，本稿不新增装饰，
+    只在设备走查时把这条 1px 线连同 FAB 的像素间距一起实测归档。<br>
+    <b>阴影取值：</b>docs/29 写 <code>α .38</code>，docs/21 §2.4 白名单是 <b>N ∈ {25,30,35,40}</b>
+    ⇒ 取白名单里最接近的 <b>40%</b>（blur 12→20、offset y 4→6 照 docs/29）。
+  </div>
+
+  <!-- ═══════════ ③ 今日推荐卡 ═══════════ -->
+  <div class="sec">③ 需求 14/15 · 今日推荐卡：删通勤 + 散文换图形块</div>
+  <div class="caption del stage">改造前：地点行里挂着通勤编辑钮，下面两句散文把 5 个事实拼成两串字</div>
+  <div class="stage">
+    <div class="dcard">
+      <div class="dhead">
+        <div class="lt">
+          <div class="lab">下一餐</div>
+          <div class="slot">午餐</div>
+          <div class="time">12:10–13:20</div>
+        </div>
+        <div class="dstate">已匹配</div>
+      </div>
+      <div class="dish">
+        <div class="cover">🍱</div>
+        <div class="col">
+          <div class="who">吃什么 <span class="fact grade">A级</span></div>
+          <div class="nm">鸡胸肉杂粮饭</div>
+        </div>
+      </div>
+      <div class="kcalrow"><span class="k1">本餐热量</span><span class="k2">520 / 800 kcal</span></div>
+      <div class="pbar"><i></i></div>
+
+      <div class="kill">
+        <span class="x">删 · 需求 14</span>
+        <div class="placerow">
+          <span>📍 东区食堂 · 一楼窗口</span><span>·</span><span>约 8 分钟</span>
+          <span class="pillbtn">🚶 通勤时间：约 8 分钟（手动填写）</span>
+        </div>
+      </div>
+      <div class="prose kill" style="margin-top:8px">
+        <span class="x">删 · 需求 15</span>
+        目标影响&nbsp;&nbsp;≈ 520 kcal · 蛋白质 24.0 g（本地估算）
+      </div>
+      <div class="prose kill">
+        <span class="x">删 · 需求 15</span>
+        证据&nbsp;&nbsp;证据等级 A · 本地菜单快照（当天） · 通行 约 8 分钟（手动填写） · 候选 1/3
+      </div>
+
+      <div class="btns">
+        <span class="btn">查看菜单</span><span class="btn">换一个</span>
+        <span class="btn pri">确认加入计划</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption new stage" style="margin-top:14px">改造后：地点保留（「去哪里」不是通勤）；四个可核验事实排成一行 chip</div>
+  <div class="stage">
+    <div class="dcard">
+      <div class="dhead">
+        <div class="lt">
+          <div class="lab">下一餐</div>
+          <div class="slot">午餐</div>
+          <div class="time">12:10–13:20</div>
+        </div>
+        <div class="dstate">已匹配</div>
+      </div>
+      <div class="dish">
+        <div class="cover">🍱</div>
+        <div class="col">
+          <div class="who">吃什么</div>
+          <div class="nm">鸡胸肉杂粮饭</div>
+        </div>
+      </div>
+      <div class="kcalrow"><span class="k1">本餐热量</span><span class="k2">520 / 800 kcal</span></div>
+      <div class="pbar"><i></i></div>
+
+      <div class="placerow" style="margin-top:10px"><span>📍 东区食堂 · 一楼窗口</span></div>
+
+      <div class="keep">
+        <span class="x">新 · 需求 15（D11）</span>
+        <div class="facts">
+          <span class="fact grade">A级</span>
+          <span class="fact ok">✓ 营养完整</span>
+          <span class="fact info">候选 1/3</span>
+          <span class="fact info">🕘 10月6日菜单</span>
+        </div>
+      </div>
+
+      <div class="btns">
+        <span class="btn">查看菜单</span><span class="btn">换一个</span>
+        <span class="btn pri">确认加入计划</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" style="margin-top:10px">
+    <b>四个事实的取值来源（全部已有字段，不新造数据）：</b><br>
+    · <b>证据等级徽标</b> = <code>data.evidenceGrade</code>（未知则不渲染，不伪造等级）——从菜品行
+      <b>移下来合并</b>，同一事实不再出现两处。<br>
+    · <b>营养完整度</b> = <code>candidate.hasCompleteNutrition</code>：完整写「✓ 营养完整」，
+      不完整写「营养不完整」（honey 底，与 <code>nutrition_incomplete</code> 原因码同源）。<br>
+    · <b>候选序号</b> = <code>候选 (index+1)/(count)</code>，与「换一个」的 <code>n/m</code> 同一口径。<br>
+    · <b>快照日期</b> = 当日 active 菜单快照的 <code>businessDate</code>（如 <code>10月6日菜单</code>）；
+      只有自建常驻目录时写「常驻菜单目录」（**不把 <code>1970-01-01</code> 哨兵日期当真实日期显示**）。<br>
+    <b>降级态</b>（过期/无快照/窗口已关）只报一句成因，事实行整块不渲染（沿用 docs/28 §4.4 D7）。
+  </div>
+
+  <div class="legend" style="margin-top:10px">
+    <b>诚实边界（本稿主动声明）：</b><br>
+    ① <code>目标影响</code> 里的 <b>蛋白质 24.0 g</b> 不在 D11 列举的四项内，随散文一起撤出这张卡
+       （该餐 kcal 仍以进度条呈现；蛋白质在菜品详情/食物库仍可查）。<br>
+    ② 通勤分钟数**不删数据、不删对话框**：它仍是 solver 的 <code>travelFit</code> 输入，也仍在
+       AI 对话的本地快照里。但 docs/29 原文写「<code>ManualCommuteDialog</code> 仍可从别处进入」
+       —— 实测<b>该前提不成立</b>（全仓唯一调用点就在被删的那一行里）。因此本包给对话框一个
+       稳定新家：<b>设置页 · 食材库组 · 「通勤时间」行</b>（<code>settings-commute-row</code>），
+       与「维护地点 / 窗口 / 菜品」同组 —— 两者都是食堂相关事实。
+  </div>
+
+</div>
+</body>
+</html>

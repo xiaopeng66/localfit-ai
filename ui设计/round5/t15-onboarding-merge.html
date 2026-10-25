@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T15 引导页合并（需求 74 · D18）· 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5;
+      --mint-100: #d2f5e6;
+      --mint-500: #2fbe8f;
+      --mint-600: #22a877;
+      --mint-700: #1b8a62;
+      --ink: #1a201d;
+      --muted-ink: #6b7e78;
+      --line: #dde5e1;
+      --muted: #eff3f1;
+      --neutral-300: #b8c6c0;
+      --canvas: #f7f9f8;
+      --card: #ffffff;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 24px 48px; background: #e7ecea; color: var(--ink);
+      font-family: var(--font); font-feature-settings: "tnum" 1; -webkit-font-smoothing: antialiased; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .intro { max-width: 900px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .intro code { background: #dde7e2; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+    .phone { width: 360px; min-height: 200px; padding: 16px; background: var(--canvas);
+      border: 1px solid #c6d2cc; border-radius: 18px; display: flex; flex-direction: column; }
+    .phone.tall { min-height: 620px; }
+
+    /* 顶栏：原生是 Scaffold.appBar（标题不变；设计稿的「跳过」不采纳） */
+    .appbar { display: flex; align-items: center; margin: 0 0 14px; padding: 4px 0 10px;
+      border-bottom: 1px solid var(--line); }
+    .appbar .bar-title { font-size: 16px; font-weight: 650; }
+
+    /* 阶段条（新）：4 段 24×4 胶囊；仅视觉进度（§8.3 定案） */
+    .step-bar { display: flex; gap: 6px; margin: 6px 0 10px; }
+    .step-pill { width: 24px; height: 4px; border-radius: 2px; background: var(--line); }
+    .step-pill.on { background: var(--mint-500); }
+    /* 微标签（新）：11px 主色、字距放宽、大写 STEP n / 4 */
+    .step-label { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      color: var(--mint-600); text-transform: uppercase; }
+    .screen-title { margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+    .screen-lead { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
+    .screen-note { margin: 8px 0 0; font-size: 12px; color: var(--muted-ink); line-height: 1.6; }
+
+    .card { margin-top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 16px; box-shadow: 0 1px 3px rgba(15,36,28,.04), 0 1px 2px rgba(15,36,28,.03); }
+    .card-title { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+    /* 分组卡说明副文案（新，来自设计稿） */
+    .card-sub { margin: 0 0 16px; font-size: 12px; color: var(--muted-ink); line-height: 1.6; }
+
+    /* AppNumberField 原生形态：标签在框外、单位并进标签（框内不再放单位） */
+    .field + .field, .field + .seg-field, .seg-field + .field { margin-top: 12px; }
+    .field-label { display: block; margin: 0 0 6px; font-size: 12.5px; color: #4f6059; font-weight: 550; }
+    .input { display: flex; align-items: center; height: 48px; padding: 0 14px;
+      background: var(--muted); border: 1px solid transparent; border-radius: 12px; }
+    .input .text { flex: 1; font-size: 15px; }
+    .input .text.empty { color: #9fb0a9; }
+
+    /* 自绘分段控件（性别）：48dp 轨道 + 3dp 内衬；选中 = card 底 + 主色字 + 阴影 */
+    .segment-control { display: flex; gap: 3px; height: 48px; padding: 3px;
+      background: var(--muted); border-radius: 12px; }
+    .segment-btn { flex: 1; display: grid; place-items: center; border-radius: 8px;
+      font-size: 14px; font-weight: 500; color: var(--muted-ink); }
+    .segment-btn.on { background: var(--card); color: var(--mint-600); font-weight: 600;
+      box-shadow: 0 1px 3px rgba(15,36,28,.10); }
+
+    /* LfSelectField 形态（活动档）：48dp 输入框形 + 右侧箭头 */
+    .select { position: relative; display: flex; align-items: center; height: 48px; padding: 0 40px 0 14px;
+      background: var(--muted); border: 1px solid transparent; border-radius: 12px; font-size: 15px; }
+    .select .chev { position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted-ink); font-size: 12px; }
+
+    /* 目标三卡：emoji + 标签（emoji 与吞没变形按现有来） */
+    .goals { display: flex; gap: 8px; }
+    .goal { flex: 1; padding: 16px 6px; text-align: center; border-radius: 12px;
+      background: var(--muted); border: 1.6px solid transparent; }
+    .goal.on { background: var(--mint-50); border-color: var(--mint-500); }
+    .goal .emoji { font-size: 32px; line-height: 1.1; }
+    .goal .name { margin-top: 4px; font-size: 11px; font-weight: 500; color: var(--muted-ink); }
+    .goal.on .name { color: var(--mint-700); font-weight: 700; }
+
+    /* 行式安全筛查（新形态）：左文本 + 右 iOS 开关 46×28 + 1px 分隔线 */
+    .safety-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+    .safety-row + .safety-row { border-top: 1px solid var(--line); }
+    .safety-row .q { flex: 1; font-size: 14px; font-weight: 500; line-height: 1.45; }
+    .switch { position: relative; flex: none; width: 46px; height: 28px; margin-top: 2px;
+      border-radius: 999px; background: var(--neutral-300); }
+    .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px;
+      border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+    .switch.on { background: var(--mint-500); }
+    .switch.on::after { transform: translateX(18px); }
+
+    /* 下拉弹层（AppSheet 单选列表）：4 档描述式标签 */
+    .sheet { margin-top: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); overflow: hidden; }
+    .sheet-head { padding: 14px 16px 10px; font-size: 15px; font-weight: 650; }
+    .opt { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-top: 1px solid var(--line); font-size: 14.5px; }
+    .opt .check { flex: none; width: 16px; color: var(--mint-600); font-weight: 800; }
+    .opt.on { color: var(--mint-700); font-weight: 600; }
+
+    /* 底部固定行动区（FixedBottomPrimaryAction）：不随滚动、含安全区/键盘内边距 */
+    /* 「已滚出视口」占位：帧③用它交代滚动状态，避免空白像布局缺陷 */
+    .rolled { padding: 18px 0 4px; text-align: center; font-size: 11px; color: #93a49d;
+      border-top: 1px dashed #c6d2cc; }
+    .spacer { flex: 1; }
+    .bottombar { margin: 16px -16px -16px; padding: 12px 16px 14px; background: var(--card);
+      border-top: 1px solid var(--line); border-radius: 0 0 17px 17px; }
+    .cta { height: 48px; display: grid; place-items: center; border-radius: 999px;
+      background: var(--mint-600); color: #fff; font-size: 15px; font-weight: 650;
+      box-shadow: 0 6px 16px rgba(34,168,119,.28); }
+
+    .tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; vertical-align: 1px; }
+    .tag.new { background: var(--mint-50); color: var(--mint-700); }
+    .tag.keep { background: #eef1f0; color: #55635e; }
+    .note { margin: 10px 2px 0; font-size: 11.5px; color: #5d6f68; line-height: 1.6; }
+    .note b { color: #33423c; }
+    .table { width: 100%; max-width: 900px; margin: 26px 0 0; border-collapse: collapse; font-size: 12px; }
+    .table th, .table td { border: 1px solid #c9d5cf; padding: 6px 8px; text-align: left; vertical-align: top; line-height: 1.55; }
+    .table th { background: #dfe8e4; }
+    .legend { margin: 22px 0 0; max-width: 900px; font-size: 12px; color: #4d5f58; line-height: 1.8; }
+    .legend b { color: #2c3a34; }
+  </style>
+</head>
+<body>
+  <h1>Round 5 · T15 引导页合并（需求 74 · D18）· 360dp 评审稿</h1>
+  <p class="intro">
+    合并口径（用户原话「合并目前主题样式和设计稿的优势之处，图标什么的按现有的来，更新一下布局」）：
+    <strong>只借设计稿 <code>ui设计/pages/初始引导.html</code> 的布局与交互</strong>，
+    主题 token / emoji 图标 / 吞没变形动效 / <code>DesignCard</code> 形态一律按现有实现来。
+    原页面是单页长表单（<code>ListView</code>），<strong>不拆分步、不引入分页路由</strong>：阶段条只做
+    <strong>滚动进度的视觉指示</strong>（§8.3 定案），底部 CTA 由「在滚动流末尾」改为
+    <strong>固定行动区</strong>（<code>FixedBottomPrimaryAction</code>，位置照稿、高度取现有 h48）。
+    四帧分别对应：① 顶部（第 1 段）与基本信息卡；② 目标卡与行式安全筛查（第 2 段）；
+    ③ 滚到底（第 4 段 + 固定 CTA）；④ 两个控件细节（性别分段控件 / 活动档下拉 4 档）。
+  </p>
+
+  <div class="frames">
+
+    <!-- ============ 帧 ① 顶部 + 基本信息 ============ -->
+    <div class="frame">
+      <p class="frame-label">① 顶部：阶段条第 1 段 + 基本信息卡</p>
+      <div class="phone tall">
+        <div class="appbar"><span class="bar-title">建立本地档案</span></div>
+
+        <div class="step-bar">
+          <span class="step-pill on"></span><span class="step-pill"></span>
+          <span class="step-pill"></span><span class="step-pill"></span>
+        </div>
+        <p class="step-label">STEP 1 / 4 · 建立档案</p>
+        <h2 class="screen-title">设定你的起点</h2>
+        <p class="screen-lead">资料只保存在本机，用于估算初始营养目标。</p>
+        <p class="screen-note">结果仅供日常健康管理参考，不能替代医生、营养师或专业教练。</p>
+
+        <div class="card">
+          <h3 class="card-title">基本信息</h3>
+          <p class="card-sub">用于计算基础代谢率与营养分配</p>
+
+          <div class="field">
+            <span class="field-label">年龄（岁）</span>
+            <div class="input"><span class="text empty">如 25</span></div>
+          </div>
+
+          <div class="seg-field field">
+            <span class="field-label">性别</span>
+            <div class="segment-control">
+              <div class="segment-btn on">女性</div>
+              <div class="segment-btn">男性</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">身高（cm）</span>
+            <div class="input"><span class="text empty">如 170</span></div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">当前体重（kg）</span>
+            <div class="input"><span class="text empty">如 65.0</span></div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">日常活动程度</span>
+            <div class="select"><span>轻度 — 每周 1-2 次低强度</span><span class="chev">▾</span></div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="bottombar">
+          <div class="cta">计算并确认目标</div>
+        </div>
+      </div>
+      <p class="note">
+        <b>新</b>：阶段条（4×24dp 胶囊，当前段主色）+ 微标签（11px 主色大写）。
+        标签序号 = 当前段 +1；<b>只随滚动位置推进</b>，不代表「已填完」。
+        分组卡标题下新增 12px 说明副文案。<b>保留</b>：AppBar 标题、两段隐私/免责说明、
+        <code>DesignCard</code> 形态、<code>AppNumberField</code>（标签在框外、单位并进标签）。
+      </p>
+    </div>
+
+    <!-- ============ 帧 ② 目标 + 安全筛查 ============ -->
+    <div class="frame">
+      <p class="frame-label">② 目标卡（第 2 段）+ 行式安全筛查</p>
+      <div class="phone tall">
+        <div class="appbar"><span class="bar-title">建立本地档案</span></div>
+        <div class="step-bar">
+          <span class="step-pill on"></span><span class="step-pill on"></span>
+          <span class="step-pill"></span><span class="step-pill"></span>
+        </div>
+        <p class="step-label">STEP 2 / 4 · 建立档案</p>
+
+        <div class="card" style="margin-top:4px">
+          <h3 class="card-title">你的目标</h3>
+          <p class="card-sub">选择主要方向，系统将据此调整营养与训练计划</p>
+          <div class="goals">
+            <div class="goal on"><div class="emoji">🔥</div><div class="name">减脂</div></div>
+            <div class="goal"><div class="emoji">💪</div><div class="name">增肌</div></div>
+            <div class="goal"><div class="emoji">🌿</div><div class="name">保持</div></div>
+          </div>
+          <div class="field" style="margin-top:12px">
+            <span class="field-label">目标体重（kg，可选）</span>
+            <div class="input"><span class="text empty">如 60.0</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">安全筛查</h3>
+          <p class="card-sub" style="margin-bottom:6px">以下信息仅用于判断是否适合自动计算目标，不会保存。</p>
+          <div class="safety-row">
+            <div class="q">正在孕期或哺乳期</div>
+            <div class="switch"></div>
+          </div>
+          <div class="safety-row">
+            <div class="q">存在需饮食或运动管理的慢性疾病</div>
+            <div class="switch on"></div>
+          </div>
+          <div class="safety-row">
+            <div class="q">当前或既往存在进食障碍风险</div>
+            <div class="switch"></div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="bottombar">
+          <div class="cta">计算并确认目标</div>
+        </div>
+      </div>
+      <p class="note">
+        <b>保留</b>：emoji 三卡（🔥/💪/🌿）、选中薄荷底 + 主绿描边、吞没变形
+        （<code>AnimatedScale</code> 0.97↔1.0 easeOutBack 380ms）——优于稿的静态 <code>scale(.97)</code>，
+        不采纳稿的 40dp 单色圆底。<b>新</b>：安全筛查改行式（左问句 + 右 46×28 开关 + 行间 1px 分隔线），
+        三个 Key（<code>onboarding-pregnancy-risk</code> / <code>-chronic-risk</code> / <code>-eating-risk</code>）
+        与语义不变；开关本体按稿尺寸自绘，<b>命中区仍是整行</b>（≥44dp）。
+      </p>
+    </div>
+
+    <!-- ============ 帧 ③ 滚到底 + 固定 CTA ============ -->
+    <div class="frame">
+      <p class="frame-label">③ 滚到底：第 4 段 + 底部固定 CTA</p>
+      <div class="phone tall">
+        <div class="appbar"><span class="bar-title">建立本地档案</span></div>
+        <div class="step-bar">
+          <span class="step-pill on"></span><span class="step-pill on"></span>
+          <span class="step-pill on"></span><span class="step-pill on"></span>
+        </div>
+        <p class="step-label">STEP 4 / 4 · 建立档案</p>
+
+        <div class="rolled">⋯⋯ 上方内容已滚出视口（区块 1–3）⋯⋯</div>
+
+        <div class="card" style="margin-top:4px">
+          <h3 class="card-title">安全筛查</h3>
+          <p class="card-sub" style="margin-bottom:6px">以下信息仅用于判断是否适合自动计算目标，不会保存。</p>
+          <div class="safety-row">
+            <div class="q">当前或既往存在进食障碍风险</div>
+            <div class="switch"></div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="bottombar">
+          <div class="cta">计算并确认目标</div>
+        </div>
+      </div>
+      <p class="note">
+        <b>新</b>：CTA 移入底部固定行动区（<code>Scaffold.bottomNavigationBar</code> +
+        <code>FixedBottomPrimaryAction</code>：card 底、顶 1px 分隔线、<code>SafeArea</code>、
+        键盘弹起随 <code>viewInsets</code> 上移）——<b>不随内容滚动</b>，长表单在任意位置都能提交。
+        <b>高度仍是 h48</b>（<code>LfConfirmButton</code> 现有 token，§8.3 定案；稿的 52dp 不落地）。
+        按钮 Key <code>onboarding-submit</code> 与文案「计算并确认目标」不变。
+      </p>
+    </div>
+
+    <!-- ============ 帧 ④ 控件细节 ============ -->
+    <div class="frame">
+      <p class="frame-label">④ 细节：性别分段控件 / 活动档下拉（4 档描述式）</p>
+      <div class="phone tall">
+        <div class="card" style="margin-top:0">
+          <h3 class="card-title">性别 — 自绘分段控件</h3>
+          <p class="card-sub">48dp 轨道 + 3dp 内衬；选中白底 + 主色字 + 阴影</p>
+          <div class="segment-control">
+            <div class="segment-btn on">女性</div>
+            <div class="segment-btn">男性</div>
+          </div>
+          <div class="segment-control" style="margin-top:12px">
+            <div class="segment-btn">女性</div>
+            <div class="segment-btn on">男性</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">日常活动程度 — 下拉（AppSheet 单选）</h3>
+          <p class="card-sub">档位数仍是 4（现有 <code>ActivityLevel</code> 枚举），只把标签改成描述式</p>
+          <div class="field" style="margin-top:0">
+            <span class="field-label">日常活动程度</span>
+            <div class="select"><span>轻度 — 每周 1-2 次低强度</span><span class="chev">▾</span></div>
+          </div>
+          <div class="sheet">
+            <div class="sheet-head">日常活动程度</div>
+            <div class="opt"><span class="check"></span><span>久坐 — 几乎不运动</span></div>
+            <div class="opt on"><span class="check">✓</span><span>轻度 — 每周 1-2 次低强度</span></div>
+            <div class="opt"><span class="check"></span><span>中度 — 每周 3-4 次中等强度</span></div>
+            <div class="opt"><span class="check"></span><span>高强度 — 每周 5-6 次较高强度</span></div>
+          </div>
+        </div>
+
+        <div class="spacer"></div>
+        <div class="bottombar">
+          <div class="cta">计算并确认目标</div>
+        </div>
+      </div>
+      <p class="note">
+        <b>不采纳</b>：稿的 5 档（多一个「极高 — 体力劳动或每日训练」）——档数要动
+        <code>ActivityLevel</code> 枚举 + 计算器 + 测试，收益不抵风险，只改标签。
+        分段控件是<b>新共享件</b>（与 T4 <code>LfSelectField</code> 同族的自绘控件），
+        替换 M3 <code>SegmentedButton</code>；返回值仍是 <code>BiologicalSex</code>，保存流程不变。
+      </p>
+    </div>
+
+  </div>
+
+  <table class="table">
+    <tr><th>#</th><th>稿元素（§8.1）</th><th>本稿落地</th><th>状态</th></tr>
+    <tr><td>1</td><td>阶段条 4×24×4dp</td><td><code>onboarding-progress</code>：4 段胶囊，滚动位置四等分映射（&lt;25% / &lt;50% / &lt;75% / 其余）</td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>2</td><td>微标签 <code>STEP n / 4 · 建立档案</code></td><td><code>onboarding-progress-label</code>：11px 主色 w700、字距 +0.08em；n 随段推进</td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>3</td><td>分组卡说明副文案</td><td>基本信息「用于计算基础代谢率与营养分配」、你的目标「选择主要方向，系统将据此调整营养与训练计划」（12px muted）</td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>4</td><td>描述式活动档</td><td>4 档：久坐 / 轻度 / 中度 / 高强度（各带解释）；文本进 <code>LfSelectField.optionLabel</code></td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>5</td><td>自绘性别分段控件</td><td>新共享件 <code>LfSegmentControl</code>（48dp 轨道 / 3dp 内衬 / 选中白底+主色字+阴影）替换 <code>SegmentedButton</code></td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>6</td><td>行式安全筛查 46×28 + 1px 分隔线</td><td>三行：左问句 + 右自绘开关（46×28，24dp 旋钮）；整行可点（≥44dp）；Key/语义不变</td><td><span class="tag new">采纳</span></td></tr>
+    <tr><td>7</td><td>底部固定 CTA（稿 52dp）</td><td><code>FixedBottomPrimaryAction</code> 固定行动区 + <code>LfConfirmButton</code>（<b>h48</b>，§8.3 定案）</td><td><span class="tag new">采纳（位置）</span></td></tr>
+    <tr><td>8</td><td>输入框形态 48dp + focus 主色描边</td><td><code>AppNumberField</code> 已是同形态（muted 底 / 48dp / 主色 focus 描边）；本包只核对不重做</td><td><span class="tag keep">已满足</span></td></tr>
+    <tr><td>9</td><td>emoji 目标图标 / 吞没变形 / 主题 token / DesignCard</td><td>全部保留现有实现（用户「图标按现有的来」）</td><td><span class="tag keep">保留</span></td></tr>
+    <tr><td>10</td><td>「跳过」按钮 / 40dp 单色圆底 / Tailwind 任意值</td><td>不采纳（语义冲突 / 换图标体系 / 非 App 样式体系）</td><td><span class="tag keep">不采纳</span></td></tr>
+  </table>
+
+  <p class="legend">
+    <b>如实记</b>：阶段条是<b>近似进度</b>（单页长表单里四段区块在同一滚动流上），
+    只由滚动位置驱动，<b>不与校验状态或「已填完」绑定</b>，也不显示百分比。
+    映射细则：<code>p = pixels / maxScrollExtent</code>，<code>p &lt; .25 → 第 1 段</code>、
+    <code>&lt; .5 → 第 2 段</code>、<code>&lt; .75 → 第 3 段</code>、其余第 4 段；
+    内容不足一屏（<code>maxScrollExtent == 0</code>）时恒为第 1 段。
+    <br>
+    <b>测试口径</b>：4 段渲染 + 当前段随滚动推进（顶部 → 中部 → 底部三档）、
+    固定 CTA 不随滚动且高度 48、活动档 4 值描述式、三个筛查 Key 保留、保存流程回归。
+  </p>
+</body>
+</html>

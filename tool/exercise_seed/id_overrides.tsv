@@ -1,0 +1,67 @@
+# 上游 id → 本地 id（docs/28 §7.3 的「v1/v2 既有行原地升级」纪律）
+#
+# 为什么要这张表：`ExerciseSeedImporter` 用 `insertOnConflictUpdate` 按 id 覆盖，
+# 所以**只要 id 一样，旧行就会被新种子刷新而不是变成第二条同名动作**。
+# v2 的 60 条里已经有 58 条在上游有对应动作（另 2 条是重名重复行，见
+# `manual_rows.tsv` 上方的说明），它们的本地 id 必须延续，否则用户库里会
+# 出现「杠铃卧推」两条。没有列在这里的 v2 id 说明上游没有对应条目，
+# 走 `manual_rows.tsv` 手写保留（动作不能因为换源就消失）。
+#
+# 左侧 = 上游 free-exercise-db 的 id（= `raw/free_exercise_db.json` 里的 id），
+# 右侧 = v3 里要沿用的本地 id（v2 的旧 id）。
+#
+# 注意：v2 里有几处「同一动作两个 id」（`ex-cable-triceps-pushdown` 与
+# `ex-triceps-pushdown-rope` 都叫「绳索下压」；`ex-dumbbell-overhead-triceps-extension`
+# 与 `ex-overhead-triceps-ext` 都叫「哑铃颈后臂屈伸」）。这里只延续其中一个，
+# 另一个由 `ExerciseSeedImporter` 的 legacy 清理删掉（只删没被训练会话引用的行）。
+Barbell_Bench_Press_-_Medium_Grip	ex-barbell-bench-press
+Dumbbell_Bench_Press	ex-dumbbell-bench-press
+Pushups	ex-push-up
+Butterfly	ex-machine-chest-fly
+Barbell_Incline_Bench_Press_-_Medium_Grip	ex-bb-incline-press
+Incline_Dumbbell_Press	ex-db-incline-press
+Decline_Barbell_Bench_Press	ex-decline-bb-press
+Decline_Dumbbell_Bench_Press	ex-decline-db-press
+Cable_Crossover	ex-cable-crossover
+Leverage_Chest_Press	ex-chest-press-machine
+Push-Up_Wide	ex-wide-push-up
+Bent_Over_Barbell_Row	ex-barbell-row
+Wide-Grip_Lat_Pulldown	ex-lat-pulldown
+Pullups	ex-pull-up
+Seated_Cable_Rows	ex-seated-cable-row
+Underhand_Cable_Pulldowns	ex-underhand-pulldown
+T-Bar_Row_with_Handle	ex-t-bar-row
+Seated_Good_Mornings	ex-seated-good-morning
+Barbell_Shrug	ex-shrugs
+Barbell_Squat	ex-barbell-squat
+Leg_Press	ex-leg-press
+Romanian_Deadlift	ex-romanian-deadlift
+Dumbbell_Lunges	ex-dumbbell-lunge
+Leg_Extensions	ex-leg-extension
+Lying_Leg_Curls	ex-leg-curl
+Seated_Leg_Curl	ex-seated-leg-curl
+Smith_Machine_Squat	ex-smith-squat
+Bodyweight_Walking_Lunge	ex-walking-lunge
+Barbell_Shoulder_Press	ex-barbell-overhead-press
+Side_Lateral_Raise	ex-lateral-raise
+Face_Pull	ex-face-pull
+Dumbbell_Shoulder_Press	ex-db-shoulder-press
+Standing_Military_Press	ex-bb-shoulder-press
+Seated_Side_Lateral_Raise	ex-dumbbell-lateral-raise
+Cable_Rear_Delt_Fly	ex-rear-delt-fly
+Arnold_Dumbbell_Press	ex-arnold-press
+Barbell_Curl	ex-barbell-curl
+Dumbbell_Bicep_Curl	ex-dumbbell-curl
+Triceps_Pushdown	ex-cable-triceps-pushdown
+Hammer_Curls	ex-hammer-curl
+Preacher_Curl	ex-preacher-curl
+Concentration_Curls	ex-concentration-curl
+Tricep_Dumbbell_Kickback	ex-triceps-kickback
+Close-Grip_Barbell_Bench_Press	ex-close-grip-bench
+Push-Ups_-_Close_Triceps_Position	ex-close-grip-pushup
+Dumbbell_One-Arm_Triceps_Extension	ex-dumbbell-overhead-triceps-extension
+Plank	ex-plank
+Crunches	ex-crunch
+Hanging_Leg_Raise	ex-hanging-leg-raise
+Russian_Twist	ex-russian-twist
+Barbell_Deadlift	ex-deadlift

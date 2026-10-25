@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食堂 · 地点 chip / 菜品行 / 菜品照片 — 整改设计稿（P7）</title>
+<!--
+  ============================================================================
+  LocalFit AI 2.0 「界面与体验治理」设计稿（P7 食堂目录）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖的需求（docs/29 §P7）：
+
+   【需求 19 · 地点 chip 选中态】
+    旧（docs/21 §3.12 现行）：mint-50 淡底 + 1px mint-200 描边 + mintText 字
+    + 左侧 6dp 圆点 —— 三个信号里两个是「极淡」，缩略图/远看几乎不可辨，
+    用户原话「选中态丑」。
+    新（本稿裁决）：**去掉圆点与淡底**，选中 = 同一胶囊里
+      ① 描边 1px `border` → **2px `mint-600`**（宽度变化本身就是形状信息，
+         色觉障碍下可辨 —— 替代被删掉的圆点承担这个职责）；
+      ② 字色 `foreground` → **`mintText`**（亮=mint-700）；
+      ③ **轻微抬升**：`0 1px 3px rgba(47,190,143,0.30)`（「抬升/内阴影二选一」
+         取抬升 —— Flutter BoxDecoration 无内阴影，内档要叠一层内圈 Container
+         伪造，复杂度不值）。
+      底色恒为 `card`，不再换底（换底 = 第二个「极淡」信号的来源）。
+      高 44（触达线）与横/纵内距**不变**；动画沿用 AnimatedContainer 现有
+      springQuick / 减弱动画直出终态。
+    候选（评审可改）：抬升改成「无阴影纯描边加粗」—— 若嫌光晕脏，删 ③ 即可，
+    ①② 已足够。默认实现带 ③。
+
+   【需求 17 · 菜品行】
+    旧：裸行，只有 6dp 垂直内边距，行与行之间无分隔、无序号，挤成一坨。
+    新（本稿裁决）：
+      · **行间 8dp + 细分隔线（1px `border`）+ 8dp**：分隔线嵌在间距正中。
+      · **行头**：无图 = **24dp 序号圆**（`muted` 底 + `mutedForeground` 字，
+        1..n 按窗口内顺序）；有图 = **44dp 圆角(8)缩略图**（`Image.file`，
+        cover；文件丢失时 errorBuilder 回落序号圆 —— 诚实空态，不伪造图）。
+      · **中列**：菜名（bodyMedium）+ 副行（窗口卡里是「证据角标 / 未分析」
+        徽标 + 三彩点宏量，维持 docs/28 §4.6 形态不动）；`stationName`
+        存在时在菜名下方加一行 caption 副行（**数据已存在，不引入新数据**）。
+      · **右列**：kcal（w600）+ 价格（caption muted），两行右对齐。
+    候选（评审可改）：每行包 1px 描边小卡（无分隔线）。否决理由：窗口卡本身
+    已是卡片，行内再嵌卡片是双层卡，10+ 行时视觉过重；分隔线最轻。
+
+   【需求 16 · 菜品照片（D5）】
+    · 表单「添加/编辑菜品」加**「菜品照片」字段（可选，可删）**：
+      72dp 缩略图（无图时是虚线框 + 相机图标 + 「添加照片」），
+      点按弹两动作（拍照 / 从相册选），已有图追加「移除照片」。
+      走 image_picker（已在依赖），选完**复制进应用文档目录**
+      `localfit_ai/dish_images/` 再存路径（FileChatImageStore 的既有模式：
+      partial 写入 + 唯一文件名 + 删除守卫）。
+    · 列表：有图显示缩略图（见上），无图保持序号圆 —— 不伪造占位照片。
+    · schema：MenuItems.imagePath TEXT NULL（迁移 20→21，v20 已被 P4 的
+      reasoning 列占用，docs/29 原文写 19→20 是前提过时）；同版预置
+      StepsDaily 表（P9 步数用，本包不接功能）。
+
+  令牌来源：下面的 :root / .theme-dark 块**逐字复制**自 ui设计/pages/训练.html
+  的 <style id="theme-vars">（该目录是 UI 唯一依据；本目录不被任何测试解析）。
+  尺寸按 360dp 逻辑宽画。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-primary: #2FBE8F;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+.theme-dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-600: #2FBE8F;
+  --lf-mint-700: #4ED9A6;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-muted: #232B27;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--lf-font-sans);
+  background: #E7ECEA;
+  color: var(--lf-foreground);
+  padding: 24px 16px 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+}
+h1 { font-size: 18px; color: #1A201D; }
+h2 { font-size: 14px; color: #1A201D; margin-bottom: 8px; }
+.note { font-size: 12px; color: #556760; max-width: 760px; line-height: 1.7; }
+.row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+.frame {
+  width: 360px; background: var(--lf-background);
+  border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+}
+.frame .label {
+  font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+  display: flex; justify-content: space-between;
+}
+.theme-dark .frame .label { background: #232B27; color: #9FB3AC; }
+.theme-dark.frame, .theme-dark .frame { background: var(--lf-background); }
+.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+.pad { padding: 12px 16px 20px; }
+.frame { min-width: 0; }
+.frame .note { max-width: 100%; }
+
+/* ── 地点 chip ─────────────────────────────────────────────── */
+.chips { display: flex; gap: 8px; height: 44px; align-items: center; }
+.chip {
+  height: 44px; display: inline-flex; align-items: center;
+  padding: 0 16px; border-radius: var(--lf-radius-full);
+  background: var(--lf-card); border: 1px solid var(--lf-border);
+  font-size: 12px; color: var(--lf-foreground); white-space: nowrap;
+}
+.chip.old-selected {
+  background: var(--lf-mint-50); border: 1px solid var(--lf-mint-200);
+  color: var(--lf-mint-700); position: relative; padding-left: 28px;
+}
+.chip.old-selected::before {
+  content: ""; position: absolute; left: 16px; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--lf-mint-600);
+}
+.chip.new-selected {
+  border: 2px solid var(--lf-mint-600); color: var(--lf-mint-700);
+  box-shadow: 0 1px 3px rgba(47, 190, 143, 0.30);
+}
+/* ── 窗口卡与菜品行 ────────────────────────────────────────── */
+.window-card {
+  background: var(--lf-card); border-radius: var(--lf-radius-lg);
+  padding: 14px; border: 1px solid transparent;
+  box-shadow: 0 1px 3px rgba(15,36,28,0.04);
+}
+.window-head { display: flex; align-items: center; gap: 8px; }
+.window-name { font-size: 14px; font-weight: 600; }
+.window-badge {
+  font-size: 10px; background: var(--lf-muted); color: var(--lf-muted-foreground);
+  border-radius: var(--lf-radius-full); padding: 2px 8px;
+}
+.window-sub { font-size: 11px; color: var(--lf-muted-foreground); margin-top: 2px; }
+.dish { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.dish + .dish { border-top: 1px solid var(--lf-border); }
+.dish-sep-gap { height: 8px; }
+.dish-index {
+  width: 24px; height: 24px; border-radius: 50%; flex: none;
+  background: var(--lf-muted); color: var(--lf-muted-foreground);
+  font-size: 11px; display: flex; align-items: center; justify-content: center;
+}
+.dish-thumb {
+  width: 44px; height: 44px; border-radius: 8px; flex: none;
+  background: linear-gradient(135deg, #FFE5DC 0%, #FFF4D6 100%);
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.dish-mid { flex: 1; min-width: 0; }
+.dish-name { font-size: 13px; }
+.dish-station { font-size: 11px; color: var(--lf-muted-foreground); margin-top: 1px; }
+.dish-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.dots { display: flex; gap: 3px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+.d-macro-label { font-size: 10px; color: var(--lf-muted-foreground); }
+.grade {
+  font-size: 10px; border-radius: 4px; padding: 1px 5px;
+  background: var(--lf-evidence-c); color: var(--lf-neutral-700);
+}
+.unanalyzed {
+  font-size: 10px; border-radius: var(--lf-radius-full); padding: 1px 7px;
+  background: var(--lf-muted); color: var(--lf-muted-foreground);
+}
+.dish-right { text-align: right; flex: none; }
+.dish-kcal { font-size: 12px; font-weight: 600; }
+.dish-price { font-size: 11px; color: var(--lf-muted-foreground); margin-top: 1px; }
+/* 旧版菜品行（对照） */
+.old-dish { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.old-dish .dish-name { font-size: 13px; }
+.old-dish .nul { flex: 1; }
+/* ── 表单照片字段 ──────────────────────────────────────────── */
+.form-sheet { background: var(--lf-card); border-radius: var(--lf-radius-lg); padding: 14px; }
+.form-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.f-label { font-size: 11px; color: var(--lf-muted-foreground); margin-bottom: 4px; }
+.f-input {
+  height: 44px; border: 1px solid var(--lf-border); border-radius: 10px;
+  display: flex; align-items: center; padding: 0 12px; font-size: 13px;
+  color: var(--lf-muted-foreground); background: var(--lf-card);
+}
+.photo-row { display: flex; align-items: center; gap: 12px; }
+.photo-empty {
+  width: 72px; height: 72px; border-radius: 10px; flex: none;
+  border: 1.5px dashed var(--lf-neutral-300);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; color: var(--lf-muted-foreground); font-size: 10px;
+  background: var(--lf-card);
+}
+.photo-fill {
+  width: 72px; height: 72px; border-radius: 10px; flex: none;
+  background: linear-gradient(135deg, #FFE5DC 0%, #FFF4D6 100%);
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.photo-actions { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.photo-actions .a { color: var(--lf-mint-700); }
+.photo-actions .a.dim { color: var(--lf-muted-foreground); }
+.form-error-gap { height: 12px; }
+.btn-row { display: flex; justify-content: space-between; margin-top: 14px; }
+.btn { font-size: 13px; padding: 8px 16px; border-radius: 10px; }
+.btn.ghost { color: var(--lf-muted-foreground); }
+.btn.main { background: var(--lf-primary); color: #fff; }
+</style>
+</head>
+<body>
+<h1>食堂 · 地点 chip 选中态 / 菜品行 / 菜品照片 — P7 设计稿</h1>
+<p class="note">三帧对照：①chip 选中态重做（去圆点淡底 → 2px 主色描边 + 主色字 + 轻抬升）；
+②菜品行（序号圆/缩略图行头 + 8dp+细分隔线节奏 + stationName 副行 + 右列两行）；
+③菜品照片表单字段（可选可删）。暗色为同一布局的换色抽查。</p>
+
+<!-- ═══════════════ §1 chip ═══════════════ -->
+<h2>§1 地点 chip：旧（圆点+淡底）vs 新（2px 主色描边 + 主色字 + 轻抬升）</h2>
+<div class="row">
+  <div class="frame"><div class="label"><span>旧 · 选中态（弱表达）</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="chips">
+        <span class="chip old-selected">东区食堂</span>
+        <span class="chip">西区食堂</span>
+        <span class="chip">教工餐厅</span>
+      </div>
+      <p class="note" style="margin-top:10px">mint-50 底 + mint-200 边都接近纸面色；
+      6dp 圆点是唯一强信号，还要占 14dp 横向空间。</p>
+    </div>
+  </div>
+  <div class="frame"><div class="label"><span>新 · 选中态（本稿）</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="chips">
+        <span class="chip new-selected">东区食堂</span>
+        <span class="chip">西区食堂</span>
+        <span class="chip">教工餐厅</span>
+      </div>
+      <p class="note" style="margin-top:10px">2px mint-600 描边（1px→2px 的宽度变化
+      替代圆点承担形状信息）+ mintText 字 + 0 1px 3px mint 30% 抬升。
+      底色恒为 card，44 触达不变。</p>
+    </div>
+  </div>
+  <div class="frame theme-dark" style="background:var(--lf-background)"><div class="label"><span>新 · 暗色抽查</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="chips">
+        <span class="chip new-selected">东区食堂</span>
+        <span class="chip">西区食堂</span>
+      </div>
+      <p class="note" style="margin-top:10px">暗色 mint-600 提到 #2FBE8F、mintText 到
+      mint-400 档，描边/字/光晕同源换色，无新增常量。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ §2 菜品行 ═══════════════ -->
+<h2>§2 菜品行：旧（裸行 6dp）vs 新（序号/缩略图行头 + 8dp+细分隔线 + 右列两行）</h2>
+<div class="row">
+  <div class="frame"><div class="label"><span>旧 · 裸行无序号无分隔</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="window-card">
+        <div class="window-head"><span class="window-name">一楼快餐</span><span class="window-badge">08:00–13:30</span></div>
+        <div class="window-sub">4 道菜 · 每 100g · 已分析 2</div>
+        <div style="margin-top:6px">
+          <div class="old-dish"><span class="dish-name">番茄炒蛋</span><span class="nul"></span><span class="dish-kcal">92 kcal</span></div>
+          <div class="old-dish"><span class="dish-name">红烧排骨</span><span class="nul"></span><span class="dish-kcal">288 kcal</span></div>
+          <div class="old-dish"><span class="dish-name">清炒时蔬</span><span class="nul"></span></div>
+          <div class="old-dish"><span class="dish-name">米饭</span><span class="nul"></span><span class="dish-kcal">116 kcal</span></div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:10px">行与行只隔 6dp 内边距，无序号无分隔；
+      价格混在右侧一行里，扫读困难。</p>
+    </div>
+  </div>
+  <div class="frame"><div class="label"><span>新 · 序号圆 + 分隔线（本稿）</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="window-card">
+        <div class="window-head"><span class="window-name">一楼快餐</span><span class="window-badge">08:00–13:30</span></div>
+        <div class="window-sub">4 道菜 · 每 100g · 已分析 2</div>
+        <div style="margin-top:4px">
+          <div class="dish">
+            <div class="dish-index">1</div>
+            <div class="dish-mid">
+              <div class="dish-name">番茄炒蛋</div>
+              <div class="dish-meta"><span class="grade">C级</span>
+                <span class="dots"><span class="dot" style="background:var(--lf-protein)"></span><span class="dot" style="background:var(--lf-carbs)"></span><span class="dot" style="background:var(--lf-fat)"></span></span>
+                <span class="d-macro-label">蛋白 5.4 · 碳水 6.1 · 脂肪 5.2</span></div>
+            </div>
+            <div class="dish-right"><div class="dish-kcal">92 kcal</div><div class="dish-price">8.00 元</div></div>
+          </div>
+          <div class="dish">
+            <div class="dish-thumb">🍅</div>
+            <div class="dish-mid">
+              <div class="dish-name">红烧排骨</div>
+              <div class="dish-station">川湘窗口</div>
+              <div class="dish-meta"><span class="grade">B级</span>
+                <span class="dots"><span class="dot" style="background:var(--lf-protein)"></span><span class="dot" style="background:var(--lf-carbs)"></span><span class="dot" style="background:var(--lf-fat)"></span></span>
+                <span class="d-macro-label">蛋白 16 · 碳水 4 · 脂肪 22</span></div>
+            </div>
+            <div class="dish-right"><div class="dish-kcal">288 kcal</div><div class="dish-price">15.00 元</div></div>
+          </div>
+          <div class="dish">
+            <div class="dish-index">3</div>
+            <div class="dish-mid">
+              <div class="dish-name">清炒时蔬</div>
+              <div class="dish-meta"><span class="unanalyzed">未分析营养</span></div>
+            </div>
+            <div class="dish-right"><div class="dish-price">6.00 元</div></div>
+          </div>
+          <div class="dish">
+            <div class="dish-index">4</div>
+            <div class="dish-mid">
+              <div class="dish-name">米饭</div>
+              <div class="dish-meta"><span class="grade">C级</span>
+                <span class="dots"><span class="dot" style="background:var(--lf-protein)"></span><span class="dot" style="background:var(--lf-carbs)"></span><span class="dot" style="background:var(--lf-fat)"></span></span>
+                <span class="d-macro-label">蛋白 2.6 · 碳水 25.9 · 脂肪 0.3</span></div>
+            </div>
+            <div class="dish-right"><div class="dish-kcal">116 kcal</div><div class="dish-price">2.00 元</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:10px">行头：无图=24dp 序号圆（muted 底），有图
+      （第 2 行）=44dp 圆角缩略图，文件丢失回落序号圆。stationName 存在时做副行
+      （「川湘窗口」）。分隔线 1px border 嵌在上下各 8dp 的间距正中。
+      未分析的行只有序号 + 名称 + 徽标 + 价格 —— 没有的事不画。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ §3 照片字段 ═══════════════ -->
+<h2>§3 菜品表单：新增「菜品照片」字段（可选，可删）</h2>
+<div class="row">
+  <div class="frame"><div class="label"><span>添加菜品 · 无图初态</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="form-sheet">
+        <div class="form-title">添加菜品</div>
+        <div class="f-label">菜品名称</div>
+        <div class="f-input">例：番茄炒蛋</div>
+        <div class="form-error-gap"></div>
+        <div class="f-label">价格</div>
+        <div class="f-input">12.00（元，可留空）</div>
+        <div class="form-error-gap"></div>
+        <div class="f-label">菜品照片（可选）</div>
+        <div class="photo-row">
+          <div class="photo-empty">📷<span>添加照片</span></div>
+          <div class="photo-actions">
+            <span class="a">拍照</span>
+            <span class="a">从相册选</span>
+          </div>
+        </div>
+        <div class="btn-row"><span class="btn ghost">取消</span><span class="btn main">保存</span></div>
+      </div>
+      <p class="note" style="margin-top:10px">虚线空态不伪造缩略图；两动作 =
+      image_picker camera / gallery，选完复制进
+      <code>localfit_ai/dish_images/</code> 再存路径。</p>
+    </div>
+  </div>
+  <div class="frame"><div class="label"><span>编辑菜品 · 已有图（可删）</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="form-sheet">
+        <div class="form-title">编辑菜品</div>
+        <div class="f-label">菜品名称</div>
+        <div class="f-input">红烧排骨</div>
+        <div class="form-error-gap"></div>
+        <div class="f-label">价格</div>
+        <div class="f-input">15.00</div>
+        <div class="form-error-gap"></div>
+        <div class="f-label">菜品照片（可选）</div>
+        <div class="photo-row">
+          <div class="photo-fill">🍖</div>
+          <div class="photo-actions">
+            <span class="a">重新拍照</span>
+            <span class="a">从相册选</span>
+            <span class="a dim">移除照片</span>
+          </div>
+        </div>
+        <div class="btn-row"><span class="btn ghost">取消</span><span class="btn main">保存</span></div>
+      </div>
+      <p class="note" style="margin-top:10px">移除照片 = 清 imagePath 列并删除
+      私有目录里的旧文件（替换/移除都不留孤儿文件）；保存后窗口卡里该行
+      变回序号圆。</p>
+    </div>
+  </div>
+  <div class="frame theme-dark" style="background:var(--lf-background)"><div class="label"><span>菜品行 · 暗色抽查</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="window-card">
+        <div class="dish">
+          <div class="dish-index">1</div>
+          <div class="dish-mid">
+            <div class="dish-name">番茄炒蛋</div>
+            <div class="dish-meta"><span class="grade">C级</span>
+              <span class="dots"><span class="dot" style="background:var(--lf-protein)"></span><span class="dot" style="background:var(--lf-carbs)"></span><span class="dot" style="background:var(--lf-fat)"></span></span>
+            </div>
+          </div>
+          <div class="dish-right"><div class="dish-kcal">92 kcal</div><div class="dish-price">8.00 元</div></div>
+        </div>
+        <div class="dish">
+          <div class="dish-thumb">🍅</div>
+          <div class="dish-mid">
+            <div class="dish-name">红烧排骨</div>
+            <div class="dish-station">川湘窗口</div>
+          </div>
+          <div class="dish-right"><div class="dish-kcal">288 kcal</div><div class="dish-price">15.00 元</div></div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:10px">分隔线/序号圆/副行全部走语义 token
+      （border / muted / mutedForeground），暗色无新增常量。</p>
+    </div>
+  </div>
+</div>
+
+<p class="note" style="max-width:760px">
+<b>实现注记（Flutter 侧精确值）</b>：
+chip 新选中 = <code>Border.all(color: mint-600, width: 2)</code> + 字 mintText +
+<code>BoxShadow(0,1,3, primary .30)</code>，未选中维持 1px border 无阴影；
+菜品行 = 行内 <code>padding: 8dp 纵</code>，行间 <code>SizedBox(8) + Divider(1, border)</code> +
+<code>SizedBox(8)</code>；序号圆 24dp（muted 底 / mutedForeground labelMedium）；
+缩略图 44dp 圆角 8（<code>Image.file</code> cover，errorBuilder 回落序号圆）；
+照片字段 = 72dp 虚线框（radius 10）或缩略图 + 动作列；schema 迁移 20→21
+（MenuItems.imagePath TEXT NULL + StepsDaily 表，v20 已被 P4 占用）。
+</p>
+</body>
+</html>

@@ -1,0 +1,74 @@
+{
+  "catalog_version": "smoke",
+  "generated_at": "2026-09-16T00:36:12Z",
+  "manifest_version": 1,
+  "quality": {
+    "alias_rows": 33621,
+    "anomaly_count": 393,
+    "candidate_rows": 17970,
+    "canonical_rows": 17040,
+    "chinese_name_coverage": 0.0,
+    "dropped_incomplete_macros": 537,
+    "dropped_over_cap": 0,
+    "duplicate_ids": 0,
+    "evidence_rows": 17040,
+    "fts_index_rows": 33621,
+    "fts_sha256": "75a430278f3469c4ddefb06d32b3f0abc1ff9df481c0f8795266e5fabac00a33",
+    "macro_complete_ratio": 1.0,
+    "missing_license_count": 0,
+    "portion_rows": 2294,
+    "revision_rows": 17040
+  },
+  "shards": [
+    {
+      "evidence_rows": 5000,
+      "file": "foods-core-000.sqlite",
+      "fts_rows": 9753,
+      "kind": "core",
+      "portion_rows": 856,
+      "revision_rows": 5000,
+      "rows": 5000,
+      "sha256": "dffb49bd7a0a4a68963bdd7fe15a3b079f79e32ff91acbc697833985d565b10f"
+    },
+    {
+      "evidence_rows": 5000,
+      "file": "foods-core-001.sqlite",
+      "fts_rows": 9909,
+      "kind": "core",
+      "portion_rows": 496,
+      "revision_rows": 5000,
+      "rows": 5000,
+      "sha256": "9a5d0949af0ec426729f36291485429a47f8b910a857db422e22a82a6ba43dfa"
+    },
+    {
+      "evidence_rows": 5000,
+      "file": "foods-core-002.sqlite",
+      "fts_rows": 9895,
+      "kind": "core",
+      "portion_rows": 700,
+      "revision_rows": 5000,
+      "rows": 5000,
+      "sha256": "ecac8af0e77af22d42b7bda0ddd511934200a2a2b5fb368de5d3563b083470cd"
+    },
+    {
+      "evidence_rows": 2040,
+      "file": "foods-core-003.sqlite",
+      "fts_rows": 4064,
+      "kind": "core",
+      "portion_rows": 242,
+      "revision_rows": 2040,
+      "rows": 2040,
+      "sha256": "5532155a6bad8c8ebd40c892c8ae12a508b4de77b599824b5481e417e5a54d09"
+    }
+  ],
+  "sources": [
+    {
+      "attribution": "(c) Open Food Facts contributors (ODbL)",
+      "id": "openfoodfacts",
+      "license": "odbl-1.0",
+      "name": "Open Food Facts",
+      "retrieved_at": "2026-09-16T00:00:00Z"
+    }
+  ],
+  "transform_version": "etl-2"
+}

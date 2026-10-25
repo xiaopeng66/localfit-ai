@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-04-shield-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-04-shield-icon)"/>
+  <g>
+    
+    <path fill-rule="evenodd" fill="#FFFFFF" d="M512 212 L802 316 L802 512 C802 668 692 764 512 814 C332 764 222 668 222 512 L222 316 Z"/>
+    <path fill="url(#mint-04-shield-icon)" transform="rotate(38 512 512)" d="M512 330 C648 386 676 538 512 694 C348 538 376 386 512 330 Z"/>
+  </g>
+</svg>

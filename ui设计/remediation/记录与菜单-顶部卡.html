@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>记录页与菜单页 · 顶部数据卡重设计 — 整改设计稿（R4）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第三轮 设计稿（R4 · docs/30）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖需求（docs/30 §1 需求 4，用户 2026-10-08 原话）：
+    「记录和菜单页面的最上边的绿色数据卡太丑了，重新设计。」
+
+  现状：两页最上方都是 `HeroSection`——mint 渐变（135deg `#2FBE8F → #A8EBCF →
+  #ECFBF5`）全宽铺顶 + 只圆下角 16：
+   · 记录页 hero（`nutrition_record_hero.dart`）= 标题「饮食记录」+ 日期 +
+     三段统计（已摄入 / 目标 / 剩余，值走 `displayLarge` 22px）；
+   · 菜单页 hero（`menu_dish_list.dart:577` `_MenuHero`）= 标题「今日菜单」+
+     副标题 + 右上管理圆钮 + 两段统计（已安排 N 餐 / 预计 kcal）。
+
+  裁决（docs/30 §2 D4）：**mint 渐变整块退场**，两页顶部改为标准 `DesignCard`
+  （白底 + 1px 描边 + 16 圆角 + shadow-1），强调用**局部色彩**（数值/图标 mint-700）。
+  理由：用户连续点名三张「大色块数据卡」丑（绿×3 + 黑×1），方向一致 = 大色块退场、
+  信息用排版与局部色表达；白卡是设计系统里唯一的卡形态（docs/21 §3.1）。
+
+  · 记录页卡：标题「饮食记录」+ 日期（右侧 muted 小字）→ 三段统计（1px 分隔线）→
+    **有目标时补一根达成度进度条**（`LfProgressBar`，consumed/target；超出按 1 画满、
+    剩余为负时条换 warning 色）；无目标不画条（没有分母就不画进度，既有诚实口径）。
+  · 菜单页卡：标题「今日菜单」+ 副标题 + 右上管理圆钮（保留）→ 两段统计。
+
+  **Key 全部保留**（换皮不改结构树 → 既有断言不因换皮而红）：
+  `nutrition-record-hero` / `-consumed` / `-target` / `-remaining`；
+  `nutrition-menu-hero` / `-planned` / `-kcal`；`cta-manage-canteen`。
+
+  **`HeroSection` 组件保留**：今日页 AI 入口卡仍在用（那是页内卡、不是页顶大色块）。
+  docs/21 §2.5「hero 渐变 5 处引用」在本轮 R4/R5 后减为 2 处（今日 AI 卡 + 拍照页占位）
+  —— 改的是**引用处数**，渐变定义本身仍在 `lf_tokens.dart`。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA; color: #1A201D; font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; color: #1A201D; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; color: #1A201D; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  .legend .kw { color: #1B8A62; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+  .note + .note { margin-top: 6px; }
+/* 暗色帧：CSS 变量需要在帧上**重新声明**一遍（html.dark 是根选择器，
+   帧在 body 里够不着）——沿用 ui设计/remediation/食堂-地点与菜品.html 的写法。 */
+.frame.theme-dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-900: #DDE5E1;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+  .frame.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+
+  /* ── 页级胶囊行（两页顶部真实的上一屏元素，用来对比「卡在页里的位置」）── */
+  .tabs { display: flex; gap: 6px; padding: 0 0 10px; }
+  .tab {
+    height: 28px; padding: 0 12px; display: inline-flex; align-items: center;
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+  }
+  .tab.on { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  html.dark .tab.on, .frame.theme-dark .tab.on { color: var(--lf-mint-400); }
+
+  /* ── 改造前：HeroSection（mint 渐变铺顶 + 只圆下角 16）──────────────── */
+  .hero {
+    background: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 62%, #ECFBF5 100%);
+    border-radius: 0 0 var(--lf-radius-lg) var(--lf-radius-lg);
+    padding: 16px; color: #1A201D;
+  }
+  .h-title { font-size: 18px; font-weight: 700; }
+  .h-sub { font-size: 12px; margin-top: 2px; color: rgba(26,32,29,0.72); }
+  .h-stats { display: flex; margin-top: 12px; }
+  .h-stat { flex: 1; }
+  .h-stat .v { font-size: 22px; font-weight: 700; }
+  .h-stat .l { font-size: 12px; margin-top: 2px; color: rgba(26,32,29,0.65); }
+  .h-div { width: 1px; margin: 0 16px; background: rgba(26,32,29,0.20); }
+  .h-circle {
+    width: 36px; height: 36px; border-radius: 50%; flex: none;
+    background: rgba(255,255,255,0.35); display: flex; align-items: center;
+    justify-content: center; font-size: 16px; color: #1A201D;
+  }
+  .h-row { display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; }
+
+  /* ── 改造后：DesignCard（白卡）────────────────────────────────────── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .c-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .c-title { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .c-date { font-size: 12px; color: var(--lf-muted-foreground); }
+  .c-sub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 3px; }
+  .c-stats { display: flex; margin-top: 14px; }
+  .c-stat { flex: 1; min-width: 0; }
+  .c-stat .v { font-size: 22px; font-weight: 700; color: var(--lf-card-foreground); }
+  .c-stat .v.accent { color: var(--lf-mint-700); }
+  html.dark .c-stat .v.accent, .frame.theme-dark .c-stat .v.accent { color: var(--lf-mint-400); }
+  .c-stat .v.over { color: #B3261E; }
+  .c-stat .l { font-size: 12px; margin-top: 3px; color: var(--lf-muted-foreground); }
+  .c-div { width: 1px; margin: 2px 16px; background: var(--lf-border); }
+
+  /* 达成度进度条（LfProgressBar 6dp 圆角全通） */
+  .bar { height: 6px; border-radius: 999px; background: var(--lf-muted); overflow: hidden; margin-top: 14px; }
+  .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--lf-primary); }
+  .bar > i.warn { background: var(--lf-state-warning); }
+  .bar-lbl { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--lf-muted-foreground); }
+
+  /* 圆形图标钮（B4，视觉 36 / 触达 44） */
+  .cirbtn {
+    width: 36px; height: 36px; border-radius: 50%; flex: none;
+    background: var(--lf-muted); color: var(--lf-card-foreground);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .pinb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%; vertical-align: middle;
+    background: #1A201D; color: #FFFFFF; font-size: 9px; font-weight: 700;
+    margin-right: 4px; flex: none;
+  }
+  /* 下方内容占位（表明卡下面是列表，不是屏幕底） */
+  .ph { margin-top: 8px; }
+  .phcard {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); padding: 12px; box-shadow: var(--lf-shadow-1);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .phdot { width: 32px; height: 32px; border-radius: var(--lf-radius-md); background: var(--lf-muted); flex: none; }
+  .phline { height: 10px; border-radius: 4px; background: var(--lf-muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>记录页与菜单页 · 顶部数据卡重设计 — R4 设计稿（docs/30 需求 4）</h1>
+  <p class="intro">
+    六帧：①记录页改造前（mint 渐变）②记录页改造后（白卡 + 达成度条）③记录页无目标态
+    ④菜单页改造前 ⑤菜单页改造后 ⑥暗色抽查。<br>
+    令牌与 <code>ui设计/pages/训练.html</code> 同源；两页顶部的页级胶囊行照画，用来对比卡的位置。
+  </p>
+  <div class="legend">
+    <b>主张一句话</b>：<span class="kw">mint 渐变整块退场</span>，改标准 <code>DesignCard</code>；
+    强调从「整块底色」改为<b>局部色彩</b>（数值 mint-700 / 进度条 mint-500）。
+    <b>Key 全保留</b>（<code>nutrition-record-hero</code> / <code>-consumed</code> /
+    <code>-target</code> / <code>-remaining</code>；<code>nutrition-menu-hero</code> /
+    <code>-planned</code> / <code>-kcal</code>；<code>cta-manage-canteen</code>）——
+    换皮不改结构树，既有断言不因换皮而红。
+  </div>
+
+  <!-- ================= ① 记录页改造前 ================= -->
+  <h2>① 记录页 · 改造前（对照）：mint 渐变铺顶、只圆下角</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 记录页顶（nutrition_record_hero.dart）</span><span>360dp</span></div>
+      <div class="pad" style="padding:0">
+        <div class="hero">
+          <div class="h-title">饮食记录</div>
+          <div class="h-sub">9月23日 周二</div>
+          <div class="h-stats">
+            <div class="h-stat"><div class="v">1248</div><div class="l">已摄入 kcal</div></div>
+            <div class="h-div"></div>
+            <div class="h-stat"><div class="v">1800</div><div class="l">目标 kcal</div></div>
+            <div class="h-div"></div>
+            <div class="h-stat"><div class="v">552</div><div class="l">剩余 kcal</div></div>
+          </div>
+        </div>
+        <div class="pad">
+          <div class="tabs"><span class="tab on">记录</span><span class="tab">食材库</span><span class="tab">菜单</span></div>
+          <div class="ph">
+            <div class="phcard"><span class="phdot"></span><span class="phline" style="width:120px"></span></div>
+          </div>
+          <div class="ph">
+            <div class="phcard"><span class="phdot"></span><span class="phline" style="width:88px"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>为什么丑</b>（用户原话「最上边的绿色数据卡太丑了」）：<br>
+        ① 渐变从 <code>#2FBE8F</code> 到 <code>#ECFBF5</code> 跨了 3 个 stop，
+        横跨整屏宽 —— 它**比页面内容更亮、更抢眼**，但承载的只是三个数字；
+        视觉重心压在了信息的容器上，而不是信息本身。<br>
+        ② 只圆下角的设计让这条色带看起来像「系统状态栏的延伸」，与下面所有
+        圆角白卡不在同一套语言里。<br>
+        ③ 渐变最淡的那一端（#ECFBF5）与白卡几乎同色：在淡端附近的文字
+        （日期、标签）对比度很低，为保可读又得压深文字色 —— 一张卡里出现
+        第三套文字色（深灰 + 更浅的灰 + 白）。
+      </div>
+      <div class="note">
+        <b>这三条同样适用于我的页身份卡与训练页黑卡</b>（R5 同批处理）：
+        四张「大色块数据卡」是同一个问题 —— 用整块底色承担层级，
+        而不是用排版与留白。全 App 其余部分早就统一在 <code>DesignCard</code>
+        （白底 + 1px 描边 + 16 圆角 + shadow-1）上了。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ② 记录页改造后 ================= -->
+  <h2>② 记录页 · 改造后：标准白卡 + 达成度进度条</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 记录页顶（有目标）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="tabs"><span class="tab on">记录</span><span class="tab">食材库</span><span class="tab">菜单</span></div>
+        <section class="card">
+          <div class="c-head">
+            <span class="c-title">饮食记录</span>
+            <span class="c-date">9月23日 周二</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat">
+              <div class="v">1248</div><div class="l">已摄入 kcal</div>
+            </div>
+            <div class="c-div"></div>
+            <div class="c-stat">
+              <div class="v">1800</div><div class="l">目标 kcal</div>
+            </div>
+            <div class="c-div"></div>
+            <div class="c-stat">
+              <div class="v accent">552</div><div class="l">剩余 kcal</div>
+            </div>
+          </div>
+          <div class="bar"><i style="width:69.3%"></i></div>
+          <div class="bar-lbl"><span>已完成 69%</span><span>目标 1800 kcal</span></div>
+        </section>
+        <div class="ph">
+          <div class="phcard"><span class="phdot"></span><span class="phline" style="width:120px"></span></div>
+        </div>
+        <div class="ph">
+          <div class="phcard"><span class="phdot"></span><span class="phline" style="width:88px"></span></div>
+        </div>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>改了什么</b><br>
+        · 渐变整块 → <code>DesignCard</code>（与全 App 同一卡形态）；<br>
+        · 日期从左侧第二行挪到标题**右侧基线对齐**（标题与日期是一对，
+          纵向堆叠白占一行）；<br>
+        · 三段的「剩余」用 <span class="kw">mint-700</span> 强调（它是行动依据：
+          还能吃多少），另两段用墨色；<br>
+        · 新增<b>达成度进度条</b>（<code>LfProgressBar</code> 6dp）：这张卡第一次
+          把「已摄入 / 目标」的关系画出来，而不只是并排三个数字。
+      </div>
+      <div class="note">
+        <b>进度条的口径（诚实边界）</b><br>
+        · ratio = consumed / target，<b>clamp 到 1</b>（超出画满，不画越界的条）；<br>
+        · 超出时条换 <code>warning</code> 色，且「剩余」那一格写「已超出 N」——
+          红条与红字同时出现，不靠颜色单独表意；<br>
+        · <b>无目标不画条</b>（没有分母就没有进度，既有诚实口径）；
+          此时三段只渲染两段，第三格写 <code>—</code> / 未设定（§3）。
+      </div>
+      <div class="note">
+        <b>Key 全保留</b>：<code>nutrition-record-hero</code> 挂在卡上（原挂在
+        <code>HeroSection</code> 上），三段仍是
+        <code>-consumed</code> / <code>-target</code> / <code>-remaining</code>。
+        既有 <code>p6_record_page_geometry_test.dart</code> 钉的是位置与文案，
+        白卡化不动这些，预期不红。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③ 记录页无目标 + 超出 ================= -->
+  <h2>③ 记录页 · 两个边界态：无目标（不画条）/ 已超出（条换色 + 文案改口）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>无目标：不画进度条</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="c-head">
+            <span class="c-title">饮食记录</span>
+            <span class="c-date">9月23日 周二</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat"><div class="v">860</div><div class="l">已摄入 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v" style="color:var(--lf-muted-foreground);font-size:18px">未设定</div><div class="l">目标 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v" style="color:var(--lf-muted-foreground)">—</div><div class="l">剩余 kcal</div></div>
+          </div>
+        </section>
+        <div class="note" style="margin-top:10px">
+          没有分母就没有进度：<b>不画条</b>、不给百分比。剩余写 <code>—</code>
+          （与现状「剩余是派生量」的诚实口径一致）。
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>已超出：条换 warning 色</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="c-head">
+            <span class="c-title">饮食记录</span>
+            <span class="c-date">9月23日 周二</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat"><div class="v">2050</div><div class="l">已摄入 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v">1800</div><div class="l">目标 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v over">250</div><div class="l">已超出 kcal</div></div>
+          </div>
+          <div class="bar"><i class="warn" style="width:100%"></i></div>
+          <div class="bar-lbl"><span>已完成 114%（画满）</span><span>目标 1800 kcal</span></div>
+        </section>
+        <div class="note" style="margin-top:10px">
+          条 <b>clamp 到 100%</b> 不越界；颜色 + 文案（「已超出」）双通道表达，
+          不靠颜色单独表意（色盲可读）。
+        </div>
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>为何「已完成 114%」写数字而不是把条画到 114%</b>：条是<b>容器内的比例尺</b>，
+        画到 114% 只能靠溢出/截断两种丑法；百分比写数字则没有上限，两个通道
+        各司其职：条给「一眼的量」，数字给「准确的量」。
+      </div>
+      <div class="note">
+        <b>字体档位</b>：三段数值 22px（<code>displayLarge</code>，docs/21 §2.6.2
+        规定 24 档复用 22）不变 —— 本轮只换容器，不动字阶。标题 15（<code>title</code>）、
+        日期/标签 12（<code>caption</code>）、进度条标签 10（<code>micro</code>）。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ④⑤ 菜单页 ================= -->
+  <h2>④⑤ 菜单页：改造前（mint 渐变 + 半透明圆钮）→ 改造后（白卡 + muted 圆钮）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 菜单页顶</span><span>360dp</span></div>
+      <div class="pad" style="padding:0">
+        <div class="hero">
+          <div class="h-row">
+            <div>
+              <div class="h-title">今日菜单</div>
+              <div class="h-sub">按你的食堂窗口推荐今天吃什么</div>
+            </div>
+            <span class="h-circle">✎</span>
+          </div>
+          <div class="h-stats">
+            <div class="h-stat"><div class="v">3 餐</div><div class="l">已安排</div></div>
+            <div class="h-div"></div>
+            <div class="h-stat"><div class="v">1470</div><div class="l">预计 kcal</div></div>
+          </div>
+        </div>
+        <div class="pad">
+          <div class="ph">
+            <div class="phcard"><span class="phdot"></span><span class="phline" style="width:140px"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造后 · 菜单页顶（白卡）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="h-row">
+            <div>
+              <div class="c-title">今日菜单</div>
+              <div class="c-sub">按你的食堂窗口推荐今天吃什么</div>
+            </div>
+            <span class="cirbtn">✎</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat"><div class="v">3 餐</div><div class="l">已安排</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v">1470</div><div class="l">预计 kcal</div></div>
+          </div>
+        </section>
+        <div class="ph">
+          <div class="phcard"><span class="phdot"></span><span class="phline" style="width:140px"></span></div>
+        </div>
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>菜单页的两点</b>：<br>
+        ① 管理圆钮从「半透明白底」换成 <code>LfCircleIconButton</code> 的
+        <code>muted</code> 底（视觉 36 / 触达 44）—— 半透明底只在有底色时才成立，
+        白卡上它没有任何可透的东西；<br>
+        ② 副标题保留原句「按你的食堂窗口推荐今天吃什么」（它说明推荐依赖的
+        本地事实），只是颜色从 hero 专用色换成 <code>mutedForeground</code>。
+      </div>
+      <div class="note">
+        <b>不动的部分</b>：<code>IntrinsicHeight</code> + <code>Flexible</code> 的
+        两列伸缩布局（防 2.0× 右溢出，窄屏暴力测试的历史修复）原样保留；
+        两段统计的 Key 与文案不变。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 暗色 ================= -->
+  <h2>⑥ 暗色抽查（两页）</h2>
+  <div class="row">
+    <div class="frame theme-dark">
+      <div class="label"><span>记录页（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="tabs"><span class="tab on">记录</span><span class="tab">食材库</span><span class="tab">菜单</span></div>
+        <section class="card">
+          <div class="c-head">
+            <span class="c-title">饮食记录</span>
+            <span class="c-date">9月23日 周二</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat"><div class="v">1248</div><div class="l">已摄入 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v">1800</div><div class="l">目标 kcal</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v accent">552</div><div class="l">剩余 kcal</div></div>
+          </div>
+          <div class="bar"><i style="width:69.3%"></i></div>
+          <div class="bar-lbl"><span>已完成 69%</span><span>目标 1800 kcal</span></div>
+        </section>
+      </div>
+    </div>
+    <div class="frame theme-dark">
+      <div class="label"><span>菜单页（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="h-row">
+            <div>
+              <div class="c-title">今日菜单</div>
+              <div class="c-sub">按你的食堂窗口推荐今天吃什么</div>
+            </div>
+            <span class="cirbtn">✎</span>
+          </div>
+          <div class="c-stats">
+            <div class="c-stat"><div class="v">3 餐</div><div class="l">已安排</div></div>
+            <div class="c-div"></div>
+            <div class="c-stat"><div class="v">1470</div><div class="l">预计 kcal</div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>暗色下更容易看出白卡化的收益</b>：渐变在暗色里要么提亮（刺眼）
+        要么压深（糊成一块），两难；<code>DesignCard</code> 的暗色卡底
+        （#1A211D）+ 描边（#2A3A32）是既有的、已逐页验证过的组合。
+        「剩余」的 mint-300（#2A3A32→ 文字用 mint-300）在暗底可辨。
+      </div>
+      <div class="note">
+        <b>本轮之后 hero 渐变的引用处数</b>：5 → <b>2</b>（今日页 AI 卡、
+        拍照识餐占位）。docs/21 §2.5 的「5 处」文字在 R8 收尾时同步改写；
+        渐变定义本身保留在 <code>lf_tokens.dart</code>，
+        <code>design_source_parity_test</code> 继续对账 token 值。
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食物库 · 单行卡与详情弹层 — 整改设计稿（R3）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第三轮 设计稿（R3 · docs/30）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖需求（docs/30 §1 需求 1，用户 2026-10-08 原话）：
+    「我希望食物库的数据，主界面只显示图标，名称和再小一点的热量圆环，都在一行，
+      水平居中，卡片缩短上下宽度，点击后的卡片才显示详细的三营养数据，
+      三行数据的所在行需要与圆环的圆心上下对齐。」
+
+  逐句 → 本稿的改动点：
+   ① 「主界面只显示图标，名称和再小一点的热量圆环」→ 卡从**五段**收到**一行**：
+      删环下口径行、宏量三格行、品牌 chip + 自建/内置徽标行、「营养不完整」文字行。
+      环 44 → **36dp**（新 `LfDimens.foodKcalRingSmallSize`）。
+   ② 「都在一行，水平居中」→ 三件 `CrossAxisAlignment.center` 共**同一条水平中线**
+      （图标 40 / 名称 / 环 36，行高由图标决定 = 40）。**不是**「整行内容在卡内
+      水平居中」：名称长度天然不一，整行居中会让扫一列卡片时名称起点逐行跳动。
+   ③ 「卡片缩短上下宽度」→ 内边距 `12/12/12/8` → `12/8`（上下同 8），
+      卡总高 ≈ 136dp → **56dp**（40 + 8×2）。
+   ④ 「点击后的卡片才显示详细的三营养数据」→ 详情弹层；卡片不再显示宏量。
+   ⑤ 「三行数据的所在行需要与圆环的圆心上下对齐」→ 详情弹层宏量改**竖排三行**，
+      环那一列**只放环**（56dp，环下口径标签移出该列），行块 `center` 与环列
+      `center` 对齐 ⇒ 行块中心 = 环心。改造前 `MacroDotLine` 是**一行三格**，
+      且环列含「环 56 + 2 + 标签 14 = 72dp」⇒ 居中的是整列 ⇒ 三格文字块中心
+      落在环心下方 8dp（不是环心）。
+
+  **保留项（功能事实，不能只活在详情里）**：`canJoinPlan == false` 时在名称行内
+  名称之后内联一枚 **12dp 警告图标**（`Icons.error_outline`，warning 色，
+  Semantics「营养不完整，不可加入计划」）。它不占独立行、不加卡高。
+  理由：docs/07 §9.3 要求「能搜到不等于能进计划」写在明面上；整行文字退场后，
+  图标 + 语义是最低成本的保留（§4 帧 4 专门画这一态）。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+
+  尺寸按 360dp 逻辑宽画：页面左右 16dp（`LfDimens.pagePadding`）、卡间距 8dp
+  （`spaceSmall`）、卡内边距 12/8、卡圆角 16。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA; color: #1A201D; font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; color: #1A201D; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; color: #1A201D; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  .legend .kw { color: #1B8A62; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+  .note + .note { margin-top: 6px; }
+/* 暗色帧：CSS 变量需要在帧上**重新声明**一遍（html.dark 是根选择器，
+   帧在 body 里够不着）——沿用 ui设计/remediation/食堂-地点与菜品.html 的写法。 */
+.frame.theme-dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-900: #DDE5E1;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+  .frame.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+
+  /* ── 卡（DesignCard）────────────────────────────────────────────────── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+  }
+  .card + .card { margin-top: 8px; }
+  /* 改造前内边距 12/12/12/8 */
+  .card.before { padding: 12px 12px 8px; }
+  /* 改造后内边距 12/8 */
+  .card.after { padding: 12px 12px 8px; }
+  .row1 { display: flex; align-items: center; gap: 12px; }
+  .name { font-size: 14px; font-weight: 600; color: var(--lf-card-foreground); flex: 1; min-width: 0;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name .warn { display: inline-block; vertical-align: -2px; margin-left: 4px; }
+  /* 分类图标 40dp */
+  .ficon {
+    width: 40px; height: 40px; flex: none; border-radius: var(--lf-radius-md);
+    background: var(--lf-mint-100); display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  html.dark .ficon, .frame.theme-dark .ficon { background: var(--lf-mint-100); }
+
+  /* 环（LfFoodKcalRing）：改造前 44/4，改造后 36/4 —— conic 直画在环上，
+     中心孔的底色盖住内圈（stroke 4dp = inset 4px）。
+     conic-gradient 默认从 12 点起顺时针，与 LfRingPainter 同向同起点。 */
+  .ring {
+    position: relative; flex: none; border-radius: 50%;
+    background: conic-gradient(var(--lf-primary) calc(var(--p) * 1%), var(--lf-muted) 0);
+  }
+  .ring.r44 { width: 44px; height: 44px; }
+  .ring.r36 { width: 36px; height: 36px; }
+  .ring .hole {
+    position: absolute; border-radius: 50%; background: var(--lf-card);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: var(--lf-card-foreground);
+  }
+  .ring.r44 .hole { inset: 4px; font-size: 12px; }
+  .ring.r36 .hole { inset: 4px; font-size: 11px; }
+  /* 环的几何标注（仅稿里示意） */
+  .geoline { position: relative; }
+  .geoline::before {
+    content: ""; position: absolute; left: -2px; right: -2px; top: 50%;
+    border-top: 1px dashed rgba(47,190,143,0.65);
+  }
+
+  /* 改造前卡内的其余四段 */
+  .ringlabel { text-align: right; font-size: 10px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .macros { display: flex; gap: 8px; margin-top: 8px; }
+  .macros > div { flex: 1; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .dot.protein { background: var(--lf-protein); }
+  .dot.carbs { background: var(--lf-carbs); }
+  .dot.fat { background: var(--lf-fat); }
+  .mlbl { font-size: 10px; color: var(--lf-muted-foreground); }
+  .mval { font-size: 12px; font-weight: 600; color: var(--lf-card-foreground); }
+  .brandrow { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 7px;
+    font-size: 11px; font-weight: 500; border-radius: 8px;
+    border: 1px solid var(--lf-border); color: var(--lf-muted-foreground);
+  }
+  .badge {
+    display: inline-flex; align-items: center; height: 22px; padding: 0 8px;
+    font-size: 11px; font-weight: 600; border-radius: 8px;
+  }
+  .badge.neutral { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .badge.mint { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  html.dark .badge.mint, .frame.theme-dark .badge.mint { color: var(--lf-mint-400); }
+  .warnline {
+    display: flex; align-items: center; gap: 4px; margin-top: 4px;
+    font-size: 10px; color: var(--lf-muted-foreground);
+  }
+
+  /* 列表头脚注 */
+  .search {
+    height: 44px; border-radius: var(--lf-radius-lg); background: var(--lf-muted);
+    display: flex; align-items: center; gap: 8px; padding: 0 16px;
+    font-size: 14px; color: var(--lf-muted-foreground); margin-bottom: 8px;
+  }
+  .footnote { font-size: 10px; color: var(--lf-muted-foreground); display: flex; align-items: center; gap: 4px; padding-bottom: 6px; }
+  .footnote i {
+    font-style: normal; width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid var(--lf-muted-foreground); color: var(--lf-muted-foreground);
+    font-size: 8px; line-height: 11px; text-align: center; flex: none;
+  }
+
+  /* ── 详情弹层（AppSheet）────────────────────────────────────────────── */
+  .sheet {
+    background: var(--lf-card); border-radius: 16px 16px 0 0;
+    padding: 16px; border: 1px solid var(--lf-border); border-bottom: 0;
+  }
+  .grabber { width: 32px; height: 4px; border-radius: 999px; background: var(--lf-border); margin: 0 auto 12px; }
+  .h-name { font-size: 18px; font-weight: 700; color: var(--lf-card-foreground); }
+  .sub { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--lf-muted-foreground); }
+  /* 详情：环 + 三行营养 整块 */
+  .detailblock { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+  /* 三行营养：每行 = 圆点 + 名称 + 克数。行高钉 17px —— 与 Flutter 侧
+     caption 档实测行高一致（MacroDotLine 骨架注释里的同一个数），
+     于是「3×17 + 2×8 = 67dp」这条算式在稿里也能直接量出来。 */
+  .mrow { display: flex; align-items: center; gap: 6px; height: 17px; line-height: 17px; }
+  .mrow + .mrow { margin-top: 8px; }
+  .mrow .mlbl { flex: 1; font-size: 11px; }
+  .mrow .mval { font-size: 13px; }
+  .three { flex: 1; min-width: 0; }
+  .scalenote { font-size: 10px; color: var(--lf-muted-foreground); margin-top: 12px; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .action {
+    flex: 1; height: 44px; border-radius: var(--lf-radius-md); display: flex;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+  }
+  .action.edit { background: var(--lf-muted); color: var(--lf-card-foreground); }
+  .action.del { color: #F44336; }
+
+  /* 三行 vs 环心 的几何对照。
+     注意：`.detailblock` 是 `align-items: center` 的 flex —— 行高由更高的那一侧
+     决定（三行块 67 > 环 56），所以环会被下推 5.5dp。红线画在 `.three` 的
+     50%（= 三行块中心 = 环心），**不再用绝对值** —— 绝对值在稿里量不准。 */
+  .geo { position: relative; }
+  .geo .cen {
+    position: absolute; left: 0; right: 0; top: 50%;
+    border-top: 1px dashed #F44336;
+  }
+  /* 标签贴线的**右端**（左端是彩点与名称，压上去会糊成一团） */
+  .geo .cen-lbl {
+    position: absolute; right: 0; top: 50%; transform: translateY(-165%);
+    font-size: 8px; color: #F44336; font-weight: 700; white-space: nowrap;
+  }
+  .badge-tag {
+    display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+  }
+  .badge-tag.bad { background: #FFE3E0; color: #B3261E; }
+  .badge-tag.good { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  html.dark .badge-tag.good, .frame.theme-dark .badge-tag.good { color: var(--lf-mint-400); }
+  .strike { position: relative; border: 1px dashed #F44336; border-radius: var(--lf-radius-lg); }
+  .strike::before {
+    content: "整行删除"; position: absolute; right: 6px; top: -9px; z-index: 3;
+    background: #F44336; color: #FFFFFF; font-size: 8px; padding: 1px 5px;
+    border-radius: 999px; font-weight: 700;
+  }
+  .pinb {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 50%; vertical-align: middle;
+    background: #1A201D; color: #FFFFFF; font-size: 9px; font-weight: 700;
+    margin-right: 4px; flex: none;
+  }
+  .h40 { height: 40px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>食物库 · 单行卡与详情弹层 — R3 设计稿（docs/30 需求 1）</h1>
+  <p class="intro">
+    五帧：①改造前卡片（对照）· ②改造后单行卡 + 列表头 · ③详情弹层三行对齐（几何对照）·
+    ④不可加入计划的单行卡（警告图标）· ⑤暗色抽查。令牌与 <code>ui设计/pages/训练.html</code> 同源。
+  </p>
+  <div class="legend">
+    <b>本稿两条硬主张</b>：<br>
+    ① <b>卡片单行</b>：`[图标 40][名称][环 36]` 共一条水平中线（绿虚线），内边距 12/8 ⇒
+    卡高 <span class="kw">≈56dp</span>（改造前 ≈136dp）。环 44 → 36（<code>LfDimens.foodKcalRingSmallSize</code>）。<br>
+    ② <b>详情弹层三行营养与环心对齐</b>：环那一列<b>只放环</b>（56dp）——环下口径标签移出该列，
+    否则 `center` 居中的是「整列 72dp」而不是环心（改造前偏 8dp）。三行宏量整块中心 = 环心。<br>
+    另：<code>canJoinPlan == false</code> 保留为名称后的<b>内联 12dp 警告图标</b>（不加卡高，§4）。
+  </div>
+
+  <!-- ================= ① 改造前 ================= -->
+  <h2>① 改造前（对照）：五段卡 ≈136dp —— 环下口径 / 宏量三格 / 品牌+徽标 / 不完整行</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 现状（food_card.dart）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card before">
+          <div class="row1">
+            <span class="ficon">🍞</span>
+            <span class="name">帝亚 全麦小吐司面包片</span>
+            <span class="ring r44" style="--p:47"><span class="hole">424</span></span>
+          </div>
+          <div class="ringlabel">kcal/100g</div>
+          <div class="macros">
+            <div><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">12g</span></div>
+            <div><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">63g</span></div>
+            <div><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">12g</span></div>
+          </div>
+          <div class="brandrow">
+            <span class="chip">Diatosta</span>
+            <span class="badge neutral">内置</span>
+          </div>
+        </section>
+        <section class="card before" style="margin-top:8px">
+          <div class="row1">
+            <span class="ficon">🍚</span>
+            <span class="name">白米饭（有机）</span>
+            <span class="ring r44" style="--p:16"><span class="hole">143</span></span>
+          </div>
+          <div class="ringlabel">kcal/100g</div>
+          <div class="macros">
+            <div><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">2.9g</span></div>
+            <div><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">30.5g</span></div>
+            <div><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">0g</span></div>
+          </div>
+          <div class="brandrow">
+            <span class="chip">Minsley</span>
+            <span class="badge neutral">内置</span>
+          </div>
+        </section>
+        <section class="card before" style="margin-top:8px">
+          <div class="row1">
+            <span class="ficon">🥤</span>
+            <span class="name">某目录饮品</span>
+            <span class="ring r44" style="--p:0"><span class="hole" style="font-size:14px">—</span></span>
+          </div>
+          <div class="ringlabel">无热量数据</div>
+          <div class="macros">
+            <div><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">0g</span></div>
+            <div><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">0g</span></div>
+            <div><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">0g</span></div>
+          </div>
+          <div class="brandrow">
+            <span class="chip">某品牌</span>
+            <span class="badge neutral">内置</span>
+          </div>
+          <div class="warnline">
+            <span style="color:var(--lf-state-warning)">⚠</span>
+            <span>营养不完整 · 不可加入计划</span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>改造前五段</b>：①图标 40 + 名称 + 环 44 ②环下口径 <code>kcal/100g</code>
+        ③宏量三格 ④品牌 chip 左下 + 自建/内置徽标右下 ⑤「营养不完整」行（条件）。<br>
+        实测卡高 <b>≈136dp</b>（三张中最高那张）；行高由 <code>SliverPrototypeExtentList</code>
+        的<b>最高变体原型卡</b>决定（<code>food_library_view.dart:373</code>），骨架
+        <code>FoodCardSkeleton</code> 逐行同构且被测试钉死等高
+        （<code>food_library_ui_test.dart:395</code>）。<br>
+        三张卡是同一个列表的不同变体：普通 / 缺热量（环写 <code>—</code>）/
+        不可加入计划（第⑤段出现）。
+      </div>
+      <div class="note">
+        <b>为什么这一屏「不好看」（用户原话「只显示图标，名称和圆环」）</b>：
+        首屏一列卡片里，用户要做的判断是「这条是不是我要的食物」+「值不值得点进去」。
+        五段里只有第一段在做这件事，后四段是<b>详情级信息</b>——它们让每屏可见卡数
+        从 ~5 张掉到 ~2.5 张，扫视成本翻倍。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ② 改造后 · 单行卡 ================= -->
+  <h2>② 改造后 · 单行卡（≈56dp）+ 列表头脚注</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 食物库列表</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="search">
+          <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="6" cy="6" r="4.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9.2 9.2L12.6 12.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          搜索食物名或品牌
+        </div>
+        <div class="footnote"><i>i</i>环 = 每 100g 能量密度 · 满刻度 900 kcal/100g</div>
+        <section class="card after">
+          <div class="row1 geoline">
+            <span class="ficon">🍞</span>
+            <span class="name">帝亚 全麦小吐司面包片</span>
+            <span class="ring r36" style="--p:47"><span class="hole">424</span></span>
+          </div>
+        </section>
+        <section class="card after">
+          <div class="row1 geoline">
+            <span class="ficon">🍚</span>
+            <span class="name">白米饭（有机）</span>
+            <span class="ring r36" style="--p:16"><span class="hole">143</span></span>
+          </div>
+        </section>
+        <section class="card after">
+          <div class="row1 geoline">
+            <span class="ficon">🥤</span>
+            <span class="name">某目录饮品</span>
+            <span class="ring r36" style="--p:0"><span class="hole" style="font-size:12px">—</span></span>
+          </div>
+        </section>
+        <section class="card after">
+          <div class="row1 geoline">
+            <span class="ficon">🍗</span>
+            <span class="name">鸡胸肉（生）</span>
+            <span class="ring r36" style="--p:15"><span class="hole">133</span></span>
+          </div>
+        </section>
+        <section class="card after">
+          <div class="row1 geoline">
+            <span class="ficon">🥬</span>
+            <span class="name">西兰花</span>
+            <span class="ring r36" style="--p:4"><span class="hole">34</span></span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>三件共心中线</b>：绿虚线是首行中线 —— 图标 40 的中心、名称基线块中心、
+        环 36 的环心都落在它上面（行高由最高的图标 40 决定）。<br>
+        改造前的名字列是 <code>crossAxisAlignment: center</code> 已居中，但环那一列
+        <b>含环下标签</b>（44+2+14=60dp），居中的是整列 ⇒ 图标/名称被压到 30dp 中线、
+        环心仍在 22dp，差 8dp。本轮单行化后标签整行删掉，这个偏差自然消失。
+      </div>
+      <div class="note">
+        <b>环 44 → 36</b>：内孔 28dp；三位数在 2.0× 字号下由既有
+        <code>FittedBox.scaleDown</code> 兜底（1.0× 不缩放，几何与稿一致）。
+        新常量 <code>LfDimens.foodKcalRingSmallSize = 36</code>；
+        56dp 大档仍是详情弹层用，44 档若无其他调用点一并删。<br>
+        <b>满刻度 900 仍在</b>：<code>FoodDensityScaleNote</code> 列表头脚注原地保留
+        （本帧头部第三行）——环的含义不能只靠记忆。
+      </div>
+      <div class="note">
+        <b>卡高与列表密度</b>：136 → 56dp ⇒ 同样一屏从 ~2.5 张卡变 <b>~6 张</b>。
+        骨架 <code>FoodCardSkeleton</code> 同步改单行（等高断言是硬要求）；
+        原型卡保持「最高变体」语义（现在所有变体等高，原型= 真卡形态即可）。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③ 详情弹层三行对齐 ================= -->
+  <h2>③ 详情弹层：三行营养与环心对齐（环列只放环）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 详情弹层（自建条目）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="h-name">帝亚 全麦小吐司面包片</div>
+          <div class="sub"><span>Diatosta</span><span class="badge mint">自建</span></div>
+
+          <div class="detailblock">
+            <span class="ring" style="width:56px;height:56px;--p:47">
+              <span class="hole" style="inset:6px;font-size:14px">424</span>
+            </span>
+            <div class="three geo">
+              <span class="cen"></span><span class="cen-lbl">环心</span>
+              <div class="mrow"><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">12g</span></div>
+              <div class="mrow"><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">63g</span></div>
+              <div class="mrow"><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">12g</span></div>
+            </div>
+          </div>
+          <div class="scalenote">每 100g · 满刻度 900 kcal/100g</div>
+
+          <div class="actions">
+            <span class="action edit">编辑</span>
+            <span class="action del">删除</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>改造后对齐成立</b>：红虚线是三行块中心（块高 3×17 + 2×8 = 67dp ⇒ 中线在 33.5dp），
+        也是环心 —— 环列只有 56dp，行高由 67 决定，环被居中下推 (67−56)/2 = 5.5dp，
+        环心落在 28 + 5.5 = <b>33.5 = 三行块中心</b>。红虚线正穿过环心的 424。
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造前 · 详情弹层（三格一行，环列含标签）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="h-name">帝亚 全麦小吐司面包片</div>
+          <div class="sub"><span>Diatosta</span><span class="badge mint">自建</span></div>
+
+          <div class="detailblock geo">
+            <div class="geo" style="display:flex;flex-direction:column;align-items:center">
+              <span class="cen"></span><span class="cen-lbl">环心</span>
+              <span class="ring" style="width:56px;height:56px;--p:47">
+                <span class="hole" style="inset:6px;font-size:14px">424</span>
+              </span>
+              <span style="font-size:10px;color:var(--lf-muted-foreground);margin-top:2px">kcal/100g</span>
+            </div>
+            <div class="three">
+              <div class="macros" style="margin-top:0">
+                <div><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">12g</span></div>
+                <div><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">63g</span></div>
+                <div><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">12g</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="scalenote">&nbsp;</div>
+          <div class="actions">
+            <span class="action edit">编辑</span>
+            <span class="action del">删除</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>改造前的偏差</b>：环列 = 环 56 + <code>spaceMicro</code> 2 + 标签 14 = <b>72dp</b>，
+        比三格那一行（17dp）高 ⇒ 行高由 72 决定，三格被居中到整列中心
+        （= 环心下方 (72/2 − 28) = <b>8dp</b>）。红虚线（环心）从这里穿过，
+        <b>三格文字不落在它上面</b> —— 正是用户说的「对不齐」。
+      </div>
+    </div>
+  </div>
+  <div class="legend" style="margin-top:10px">
+    <b>改造后几何（可写进测试的算式）</b><br>
+    · 环列只有环：<code>Column(children: [ring56])</code> ⇒ 列高 56，中心 28。<br>
+    · 三行块：行高 17（caption 档）× 3 + 行距 <code>spaceSmall</code> 8 × 2 = <b>67dp</b>；
+      块中心 = 67 / 2 = 33.5。<br>
+    · <code>Row(crossAxisAlignment: center)</code> 且行高由 67 决定（56 &lt; 67）⇒
+      环被下推 (67 − 56) / 2 = <b>5.5dp</b>，此时环心 = 33.5 = 三行块中心 ⇒ <b>对齐成立</b>。<br>
+    · 断言（实现时写）：三行块中心 y == 环心 y（±0.5dp）。改造前同一断言为 33.5 vs 25.5 ⇒ <b>差 8dp</b>。
+  </div>
+
+  <!-- ================= ④ 不可加入计划 ================= -->
+  <h2>④ 不可加入计划：内联 12dp 警告图标（不加卡高）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 营养不完整条目</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card after">
+          <div class="row1">
+            <span class="ficon">🥤</span>
+            <span class="name">某目录饮品<span class="warn" style="color:var(--lf-state-warning)">⚠</span></span>
+            <span class="ring r36" style="--p:0"><span class="hole" style="font-size:12px">—</span></span>
+          </div>
+        </section>
+        <section class="card after" style="margin-top:8px">
+          <div class="row1">
+            <span class="ficon">🍞</span>
+            <span class="name">帝亚 全麦小吐司面包片</span>
+            <span class="ring r36" style="--p:47"><span class="hole">424</span></span>
+          </div>
+        </section>
+        <div class="note" style="margin-top:10px">
+          <b>为什么保留</b>：<code>canJoinPlan == false</code> 是功能事实
+          （<code>docs/07 §9.3</code>：能搜到不等于能进计划），进计划时会被拒。
+          全删会变成「点进去才知道不能加」。图标 <b>12dp</b>
+          （<code>Icons.error_outline</code>，<code>c.warning</code> 色）内联在名称之后，
+          带 <code>Semantics(label: '营养不完整，不可加入计划')</code>。<br>
+          <b>不加卡高</b>：它住在名称那一行的行内（行高仍由图标 40 决定），
+          原型卡仍是单行 ⇒ 行高口径不变。名称很长时它随省略号一起被裁掉
+          （可接受：详情弹层里仍有「营养不完整，暂不可加入确认计划」整句）。
+        </div>
+      </div>
+    </div>
+    <div style="width:340px;flex:none">
+      <div class="note">
+        <b>对比：改造前</b>是独立第五行（<code>⚠ 营养不完整 · 不可加入计划</code>），
+        带 <code>spaceTiny</code> 4dp 间距 + 14dp 行高 ⇒ 让那张卡比同列表的其他卡高 18dp。
+        单行化后所有变体等高，<code>SliverPrototypeExtentList</code> 的行高口径
+        反而更简单（原型 = 真卡形态）。
+      </div>
+      <div class="note">
+        <b>详情里仍说整句</b>：弹层底部「营养不完整，暂不可加入确认计划」
+        （<code>LfText.label</code> muted）保留不动 —— 图标负责列表层的可扫视，
+        整句负责详情层的可理解，两者并存、互不替代。
+      </div>
+      <div class="note">
+        <b>详情弹层其余不动</b>：品牌 + 自建/内置徽标（头部第二行）保留；
+        编辑/删除行动行保留（仅自建条目）。用户说「点击后才显示详细的三营养数据」——
+        品牌与来源本来就是详情级信息，正好留在这一层。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑤ 暗色抽查 ================= -->
+  <h2>⑤ 暗色抽查</h2>
+  <div class="row">
+    <div class="frame theme-dark">
+      <div class="label"><span>改造后 · 列表（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="search">搜索食物名或品牌</div>
+        <div class="footnote"><i>i</i>环 = 每 100g 能量密度 · 满刻度 900 kcal/100g</div>
+        <section class="card after">
+          <div class="row1">
+            <span class="ficon">🍞</span>
+            <span class="name">帝亚 全麦小吐司面包片</span>
+            <span class="ring r36" style="--p:47"><span class="hole">424</span></span>
+          </div>
+        </section>
+        <section class="card after">
+          <div class="row1">
+            <span class="ficon">🥤</span>
+            <span class="name">某目录饮品<span class="warn" style="color:var(--lf-state-warning)">⚠</span></span>
+            <span class="ring r36" style="--p:0"><span class="hole" style="font-size:12px">—</span></span>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="frame theme-dark">
+      <div class="label"><span>改造后 · 详情弹层（暗色）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="h-name">帝亚 全麦小吐司面包片</div>
+          <div class="sub"><span>Diatosta</span><span class="badge mint">自建</span></div>
+          <div class="detailblock">
+            <span class="ring" style="width:56px;height:56px;--p:47">
+              <span class="hole" style="inset:6px;font-size:14px">424</span>
+            </span>
+            <div class="three">
+              <div class="mrow"><span class="dot protein"></span><span class="mlbl">蛋白质</span><span class="mval">12g</span></div>
+              <div class="mrow"><span class="dot carbs"></span><span class="mlbl">碳水</span><span class="mval">63g</span></div>
+              <div class="mrow"><span class="dot fat"></span><span class="mlbl">脂肪</span><span class="mval">12g</span></div>
+            </div>
+          </div>
+          <div class="scalenote">每 100g · 满刻度 900 kcal/100g</div>
+          <div class="actions">
+            <span class="action edit">编辑</span>
+            <span class="action del">删除</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>暗色注意</b>：卡底 <code>--lf-muted</code> 在暗色里被压深（#242E28），
+        环的底轨仍可辨；分类图标底 <code>mint-100</code> 暗色 = #1F2823（近黑绿），
+        emoji 字形不受影响。警告图标用 <code>--lf-state-warning</code>
+        （暗色 #FFB74D），在深底上对比足够。
+      </div>
+      <div class="note">
+        <b>删除物清单</b>：卡片内的 <code>_MacroDotItem</code> 行内调用、
+        环下标签行、品牌/徽标行、第五行全部退场。但
+        <code>MacroDotLine</code> <b>保留</b>——记录页餐卡、菜单菜品卡、
+        「记录一餐」弹层仍在用它（<code>canteen_window_card.dart</code> /
+        <code>meal_editor_dialog.dart</code>）；详情弹层改为竖排三行后
+        不再用 <code>MacroDotLine</code>，改用新的 <code>MacroRowList</code>（三行版）。
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

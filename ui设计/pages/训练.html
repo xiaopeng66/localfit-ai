@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练</title>
+    <style id="theme-vars">
+/* ==========================================================================
+   LocalFit AI — Brand CSS
+   Primary hue: mint (#2FBE8F) — single brand color system
+   Category data-viz tokens: protein / carbs / fat / water / weight
+   ========================================================================== */
+
+/* ---- Light Mode (default) ---- */
+:root {
+  /* Brand ramp — mint tonal scale */
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;   /* anchor */
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp */
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-800: #2A342F;
+  --lf-neutral-900: #1A201D;
+
+  /* Category data-viz tokens (domain-specific, not brand identity) */
+  --lf-protein: #FF8A65;   /* peach — protein */
+  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;     /* honey — carbs */
+  --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;       /* taro — fat */
+  --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;    /* salt — water */
+  --lf-weight: #C9A27E;   /* cocoa — weight */
+
+  /* State tokens */
+  --lf-state-success: #2FBE8F;
+  --lf-state-success-foreground: #FFFFFF;
+  --lf-state-warning: #FF9800;
+  --lf-state-warning-foreground: #FFFFFF;
+  --lf-state-error: #F44336;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #42A5F5;
+  --lf-state-info-foreground: #FFFFFF;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #D2F5E6;   /* mint100 — confirmed */
+  --lf-evidence-b: #FFF4D6;   /* honey100 — estimated */
+  --lf-evidence-c: #EDE6F7;   /* taro100 — incomplete */
+
+  /* Semantic surface tokens */
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-popover: #FFFFFF;
+  --lf-popover-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-input: #DDE5E1;
+  --lf-ring: #2FBE8F;
+
+  /* Primary */
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+
+  /* Radius scale (user-specified large shapes per design doc) */
+  --lf-radius-xs: 8px;
+  --lf-radius-sm: 12px;
+  --lf-radius-md: 16px;
+  --lf-radius-lg: 20px;
+  --lf-radius-xl: 24px;
+  --lf-radius-2xl: 32px;
+  --lf-radius-full: 9999px;
+
+  /* Shadows — static surfaces <= 0.05 alpha */
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-shadow-float: 0 8px 24px -8px rgba(15, 36, 28, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(15, 36, 28, 0.05);
+
+  /* Hero gradient (mint500 → mint200 → mint50, 135deg) */
+  --lf-hero-gradient: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+
+  /* Typography */
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --lf-font-display: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --lf-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* ---- Dark Mode ---- */
+html.dark {
+  /* Brand ramp — mint提亮至400 in dark */
+  --lf-mint-50:  #0F1412;
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-mint-400: #4ED9A6;   /* dark anchor (提亮) */
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp — 分层深色 */
+  --lf-neutral-50:  #0F1412;
+  --lf-neutral-100: #171E1A;
+  --lf-neutral-200: #1F2823;
+  --lf-neutral-300: #2A342F;
+  --lf-neutral-400: #3D4A45;
+  --lf-neutral-500: #556760;
+  --lf-neutral-600: #6B7E78;
+  --lf-neutral-700: #8FA09A;
+  --lf-neutral-800: #B8C6C0;
+  --lf-neutral-900: #DDE5E1;
+
+  /* Category colors — 提亮并降饱和5% */
+  --lf-protein: #FF9D7E;
+  --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;
+  --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;
+  --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+
+  /* State tokens */
+  --lf-state-success: #4ED9A6;
+  --lf-state-success-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-state-warning-foreground: #0F1412;
+  --lf-state-error: #EF5350;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #64B5F6;
+  --lf-state-info-foreground: #0F1412;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+
+  /* Semantic surface tokens */
+  --lf-background: #0F1412;
+  --lf-foreground: #DDE5E1;
+  --lf-card: #171E1A;
+  --lf-card-foreground: #DDE5E1;
+  --lf-popover: #1F2823;
+  --lf-popover-foreground: #DDE5E1;
+  --lf-muted: #1F2823;
+  --lf-muted-foreground: #8FA09A;
+  --lf-border: #2A342F;
+  --lf-input: #2A342F;
+  --lf-ring: #4ED9A6;
+
+  /* Primary */
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+
+  /* Hero gradient — dark */
+  --lf-hero-gradient: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+
+  /* Shadows — 暗色用outline替代 */
+  --lf-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-float: 0 8px 24px -8px rgba(0, 0, 0, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- Base Typography ---- */
+body {
+  font-family: var(--lf-font-sans);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display number family — w800 tabular figures */
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+}
+
+/* Tabular numbers for all data values */
+.lf-num {
+  font-variant-numeric: tabular-nums;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--lf-background);
+    --color-foreground: var(--lf-foreground);
+    --color-card: var(--lf-card);
+    --color-card-foreground: var(--lf-card-foreground);
+    --color-popover: var(--lf-popover);
+    --color-popover-foreground: var(--lf-popover-foreground);
+    --color-primary: var(--lf-primary);
+    --color-primary-foreground: var(--lf-primary-foreground);
+    --color-muted: var(--lf-muted);
+    --color-muted-foreground: var(--lf-muted-foreground);
+    --color-border: var(--lf-border);
+    --color-input: var(--lf-input);
+    --color-ring: var(--lf-ring);
+    --radius-sm: var(--lf-radius-sm);
+    --radius-md: var(--lf-radius-md);
+    --radius-lg: var(--lf-radius-lg);
+    --radius-xl: var(--lf-radius-xl);
+  }
+  @layer base {
+    body { background: var(--lf-background); color: var(--lf-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--lf-background); }
+      .text-background { color: var(--lf-background); }
+      .border-background { border-color: var(--lf-background); }
+      .ring-background { --tw-ring-color: var(--lf-background); }
+      .bg-foreground { background-color: var(--lf-foreground); }
+      .text-foreground { color: var(--lf-foreground); }
+      .border-foreground { border-color: var(--lf-foreground); }
+      .ring-foreground { --tw-ring-color: var(--lf-foreground); }
+      .bg-card { background-color: var(--lf-card); }
+      .text-card { color: var(--lf-card); }
+      .border-card { border-color: var(--lf-card); }
+      .ring-card { --tw-ring-color: var(--lf-card); }
+      .bg-card-foreground { background-color: var(--lf-card-foreground); }
+      .text-card-foreground { color: var(--lf-card-foreground); }
+      .border-card-foreground { border-color: var(--lf-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--lf-card-foreground); }
+      .bg-popover { background-color: var(--lf-popover); }
+      .text-popover { color: var(--lf-popover); }
+      .border-popover { border-color: var(--lf-popover); }
+      .ring-popover { --tw-ring-color: var(--lf-popover); }
+      .bg-popover-foreground { background-color: var(--lf-popover-foreground); }
+      .text-popover-foreground { color: var(--lf-popover-foreground); }
+      .border-popover-foreground { border-color: var(--lf-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--lf-popover-foreground); }
+      .bg-primary { background-color: var(--lf-primary); }
+      .text-primary { color: var(--lf-primary); }
+      .border-primary { border-color: var(--lf-primary); }
+      .ring-primary { --tw-ring-color: var(--lf-primary); }
+      .bg-primary-foreground { background-color: var(--lf-primary-foreground); }
+      .text-primary-foreground { color: var(--lf-primary-foreground); }
+      .border-primary-foreground { border-color: var(--lf-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--lf-primary-foreground); }
+      .bg-muted { background-color: var(--lf-muted); }
+      .text-muted { color: var(--lf-muted); }
+      .border-muted { border-color: var(--lf-muted); }
+      .ring-muted { --tw-ring-color: var(--lf-muted); }
+      .bg-muted-foreground { background-color: var(--lf-muted-foreground); }
+      .text-muted-foreground { color: var(--lf-muted-foreground); }
+      .border-muted-foreground { border-color: var(--lf-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--lf-muted-foreground); }
+      .bg-border { background-color: var(--lf-border); }
+      .text-border { color: var(--lf-border); }
+      .border-border { border-color: var(--lf-border); }
+      .ring-border { --tw-ring-color: var(--lf-border); }
+      .bg-input { background-color: var(--lf-input); }
+      .text-input { color: var(--lf-input); }
+      .border-input { border-color: var(--lf-input); }
+      .ring-input { --tw-ring-color: var(--lf-input); }
+      .bg-ring { background-color: var(--lf-ring); }
+      .text-ring { color: var(--lf-ring); }
+      .border-ring { border-color: var(--lf-ring); }
+      .ring-ring { --tw-ring-color: var(--lf-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="max-w-md mx-auto min-h-screen bg-[var(--lf-background)] font-sans antialiased">
+
+  <main class="min-h-screen">
+
+    <!-- ===== 1. DARK HERO SECTION ===== -->
+    <section style="background:var(--lf-neutral-900); color:var(--lf-primary-foreground)" class="rounded-b-[16px] p-5 pb-8">
+      <!-- Top row -->
+      <div class="flex items-center justify-between">
+        <h1 class="text-xl font-bold">训练</h1>
+        <span class="opacity-60 text-sm lf-num">第38周</span>
+      </div>
+
+      <!-- Activity summary -->
+      <div class="mt-4 flex gap-4">
+        <div>
+          <div class="lf-display text-3xl lf-num">4</div>
+          <div class="opacity-60 text-xs mt-1.5">已完成训练</div>
+        </div>
+        <div>
+          <div class="lf-display text-3xl lf-num">2.8h</div>
+          <div class="opacity-60 text-xs mt-1.5">总时长</div>
+        </div>
+        <div>
+          <div class="lf-display text-3xl lf-num">1,840</div>
+          <div class="opacity-60 text-xs mt-1.5">消耗 kcal</div>
+        </div>
+      </div>
+
+      <!-- Weekly capacity chart -->
+      <div class="mt-5 relative h-[100px]">
+        <canvas id="capacityChart"></canvas>
+      </div>
+
+      <!-- Rest-day legend -->
+      <div class="mt-3 flex items-center gap-4 text-[10px]">
+        <span class="flex items-center gap-1 opacity-60"><i data-lucide="moon" class="w-3 h-3"></i>休息日 · 二 / 四 / 日</span>
+        <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full" style="background:var(--lf-mint-400)"></span>训练日</span>
+      </div>
+    </section>
+
+    <!-- ===== 2. ACTIVE SESSION BANNER ===== -->
+    <div class="mx-4 -mt-4 relative z-10">
+      <div class="rounded-[16px] p-4" style="background:linear-gradient(135deg,var(--lf-primary),var(--lf-mint-600));box-shadow:0 8px 24px -8px color-mix(in srgb, var(--lf-primary) 25%, transparent)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+            <span class="text-white text-xs font-medium">进行中</span>
+          </div>
+          <span class="text-white/80 text-xs lf-num">剩余 18分钟</span>
+        </div>
+        <h2 class="mt-2 text-white text-base font-semibold">力量训练 · 上肢日</h2>
+        <div class="mt-3 bg-white/20 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-white h-full rounded-full" style="width:65%"></div>
+        </div>
+        <div class="mt-3 flex gap-2">
+          <button id="cta-continue-session" class="flex items-center gap-1 bg-white rounded-full px-4 py-2 text-xs font-semibold" style="color:var(--lf-mint-700)">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+            继续训练
+          </button>
+          <button class="flex items-center gap-1 bg-white/15 text-white rounded-full px-4 py-2 text-xs">
+            查看详情
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3. SEGMENTED BUTTON ===== -->
+    <div class="px-4 mt-4">
+      <div class="bg-[var(--lf-muted)] rounded-full p-1 flex w-max">
+        <button class="bg-white rounded-full px-4 py-1.5 text-xs font-medium text-[var(--lf-foreground)] shadow-sm">计划</button>
+        <button class="text-[var(--lf-muted-foreground)] text-xs px-4 py-1.5">历史</button>
+      </div>
+    </div>
+
+    <!-- ===== 4. MUSCLE GROUP CHIPS ===== -->
+    <div class="px-4 mt-3 flex gap-2 overflow-x-auto no-scrollbar">
+      <span class="bg-[var(--lf-primary)] text-white rounded-full px-3 py-1 text-xs whitespace-nowrap">全部</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">胸</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">背</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">肩</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">手臂</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">核心</span>
+      <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-3 py-1 text-xs whitespace-nowrap">腿</span>
+    </div>
+
+    <!-- ===== 5. WEEKLY STATS + PLAN LIST ===== -->
+    <div class="px-4 mt-4 space-y-3 pb-24">
+
+      <!-- Weekly stats summary -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">本周训练统计</h3>
+          <span class="text-[10px] text-[var(--lf-muted-foreground)] lf-num">第38周</span>
+        </div>
+        <div class="mt-3 flex items-end gap-5">
+          <div>
+            <div class="lf-display text-2xl text-[var(--lf-foreground)] lf-num">4</div>
+            <div class="text-[10px] text-[var(--lf-muted-foreground)] mt-0.5">次训练</div>
+          </div>
+          <div>
+            <div class="lf-display text-2xl text-[var(--lf-foreground)] lf-num">2.8h</div>
+            <div class="text-[10px] text-[var(--lf-muted-foreground)] mt-0.5">总时长</div>
+          </div>
+          <div>
+            <div class="lf-display text-2xl text-[var(--lf-foreground)] lf-num">1,840</div>
+            <div class="text-[10px] text-[var(--lf-muted-foreground)] mt-0.5">消耗 kcal</div>
+          </div>
+        </div>
+        <div class="mt-4 space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5" style="color:var(--lf-primary)"></i><span class="text-[var(--lf-foreground)]">力量训练</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">1次 · 45min</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-3.5 h-3.5" style="color:var(--lf-primary)"></i><span class="text-[var(--lf-foreground)]">跑步</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">1次 · 50min</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="bike" class="w-3.5 h-3.5" style="color:var(--lf-primary)"></i><span class="text-[var(--lf-foreground)]">骑行</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">1次 · 35min</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="heart" class="w-3.5 h-3.5" style="color:var(--lf-primary)"></i><span class="text-[var(--lf-foreground)]">核心</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">1次 · 40min</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan Card 1 (today, highlighted) -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4 border-l-[3px] border-[var(--lf-primary)]" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="dumbbell" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+            <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">上肢力量训练</h3>
+          </div>
+          <span class="bg-[var(--lf-mint-50)] text-[var(--lf-primary)] rounded-full px-2 py-0.5 text-[10px]">今天</span>
+        </div>
+        <p class="text-xs text-[var(--lf-muted-foreground)] mt-1 lf-num">4个动作 · 45分钟 · 中等强度</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">杠铃卧推</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">4 × 8-10 · 60kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">引体向上</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">4 × 8-10 · 自重</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">哑铃肩推</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 12 · 20kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">哑铃划船</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 12 · 22kg</span>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-between items-center">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-protein)"></span>
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-fat)"></span>
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-carbs)"></span>
+            <span class="text-xs text-[var(--lf-muted-foreground)] ml-1">胸 · 背 · 肩</span>
+          </div>
+          <span class="lf-display text-xs text-[var(--lf-muted-foreground)] lf-num">320 kcal</span>
+        </div>
+      </div>
+
+      <!-- Plan Card 2: 跑步间歇 -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="footprints" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+            <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">跑步间歇训练</h3>
+          </div>
+          <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-2 py-0.5 text-[10px]">周三</span>
+        </div>
+        <p class="text-xs text-[var(--lf-muted-foreground)] mt-1 lf-num">4组间歇 · 50分钟 · 高强度</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">热身慢跑</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">10min · 配速6:30</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">400m间歇</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">6组 · 配速4:30</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">恢复慢跑</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">10min · 配速6:30</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="footprints" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">静态拉伸</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">5min · 自重</span>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-between items-center">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-carbs)"></span>
+            <span class="text-xs text-[var(--lf-muted-foreground)] ml-1">有氧 · 心肺</span>
+          </div>
+          <span class="lf-display text-xs text-[var(--lf-muted-foreground)] lf-num">300 kcal</span>
+        </div>
+      </div>
+
+      <!-- Plan Card 3: 核心 -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="heart" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+            <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">核心训练</h3>
+          </div>
+          <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-2 py-0.5 text-[10px]">周五</span>
+        </div>
+        <p class="text-xs text-[var(--lf-muted-foreground)] mt-1 lf-num">4个动作 · 40分钟 · 低强度</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="heart" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">平板支撑</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">4 × 45s · 自重</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="heart" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">卷腹</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 20 · 自重</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="heart" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">俄罗斯转体</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 20 · 5kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="heart" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">悬垂举腿</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 12 · 自重</span>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-between items-center">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-fat)"></span>
+            <span class="text-xs text-[var(--lf-muted-foreground)] ml-1">核心</span>
+          </div>
+          <span class="lf-display text-xs text-[var(--lf-muted-foreground)] lf-num">180 kcal</span>
+        </div>
+      </div>
+
+      <!-- Plan Card 4: 室内骑行 -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="bike" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+            <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">室内骑行</h3>
+          </div>
+          <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-2 py-0.5 text-[10px]">周六</span>
+        </div>
+        <p class="text-xs text-[var(--lf-muted-foreground)] mt-1 lf-num">4段骑行 · 35分钟 · 中等强度</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="bike" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">热身骑行</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">5min · 阻力4</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="bike" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">间歇冲刺</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">8组 · 阻力8</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="bike" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">爬坡骑行</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">10min · 阻力10</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="bike" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">放松骑行</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">5min · 阻力3</span>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-between items-center">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-water)"></span>
+            <span class="text-xs text-[var(--lf-muted-foreground)] ml-1">有氧 · 下肢</span>
+          </div>
+          <span class="lf-display text-xs text-[var(--lf-muted-foreground)] lf-num">250 kcal</span>
+        </div>
+      </div>
+
+      <!-- Plan Card 5: 下肢力量 (下周) -->
+      <div class="bg-[var(--lf-card)] rounded-[16px] p-4" style="box-shadow:var(--lf-shadow-1)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="dumbbell" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+            <h3 class="text-sm font-semibold text-[var(--lf-foreground)]">下肢力量训练</h3>
+          </div>
+          <span class="bg-[var(--lf-muted)] text-[var(--lf-muted-foreground)] rounded-full px-2 py-0.5 text-[10px]">下周</span>
+        </div>
+        <p class="text-xs text-[var(--lf-muted-foreground)] mt-1 lf-num">4个动作 · 40分钟 · 中等强度</p>
+        <div class="mt-3 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">杠铃深蹲</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">4 × 8-10 · 80kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">罗马尼亚硬拉</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">4 × 8 · 60kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">腿举</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 12 · 120kg</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2"><i data-lucide="dumbbell" class="w-3.5 h-3.5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[var(--lf-foreground)]">保加利亚分腿蹲</span></div>
+            <span class="text-[var(--lf-muted-foreground)] lf-num">3 × 10 · 16kg</span>
+          </div>
+        </div>
+        <div class="mt-3 flex justify-between items-center">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:var(--lf-protein)"></span>
+            <span class="text-xs text-[var(--lf-muted-foreground)] ml-1">腿 · 臀</span>
+          </div>
+          <span class="lf-display text-xs text-[var(--lf-muted-foreground)] lf-num">380 kcal</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ===== 6. FLOATING NEW PLAN BUTTON ===== -->
+  <div class="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-0 right-0 w-full max-w-md mx-auto z-40 flex justify-end px-4 pointer-events-none">
+    <button id="cta-new-plan" class="w-12 h-12 rounded-full flex items-center justify-center pointer-events-auto" style="background:var(--lf-primary);box-shadow:0 4px 16px color-mix(in srgb, var(--lf-primary) 40%, transparent)">
+      <i data-lucide="plus" class="w-6 h-6" style="color:var(--lf-primary-foreground)"></i>
+    </button>
+  </div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav data-mobile-nav="global" class="relative w-full max-w-md mx-auto grid grid-cols-5 h-[64px] items-center px-2 border-t border-[var(--lf-border)] bg-[var(--lf-card)]/95 backdrop-blur"><div class="w-full contents"><a data-nav-key="dashboard" data-dom-id="nav-dashboard" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="home" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">今日</span></a><a data-nav-key="nutrition" data-dom-id="nav-nutrition" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="utensils" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">饮食</span></a><a data-nav-key="ai" data-dom-id="nav-ai-workbench" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><span class="flex items-center justify-center w-14 h-14 rounded-full -mt-4" style="background:linear-gradient(135deg,var(--lf-mint-500),var(--lf-mint-600));box-shadow:0 0 0 2px var(--lf-background),0 4px 12px rgba(47,190,143,0.3)"><i data-lucide="sparkles" class="w-5 h-5 shrink-0" style="color:#fff"></i></span><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">AI</span></a><a data-nav-key="training" data-dom-id="nav-training" data-active="true" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="dumbbell" class="w-5 h-5 shrink-0" style="color:var(--lf-primary)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-primary);font-weight:500">训练</span></a><a data-nav-key="settings" data-dom-id="nav-settings" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="user" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">我的</span></a></div></nav>
+
+  <script>lucide.createIcons();</script>
+  <script>
+    // Weekly capacity bar chart — dark hero section
+    (function() {
+      var canvas = document.getElementById('capacityChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      var days     = ['一','二','三','四','五','六','日'];
+      var minutes  = [45, 0, 50, 0, 40, 35, 0];
+      var todayIdx = 0; // Monday (today)
+
+      var rootStyle = getComputedStyle(document.documentElement);
+      var barToday  = rootStyle.getPropertyValue('--lf-mint-300').trim() || '#6FDBB0';
+      var barNormal = rootStyle.getPropertyValue('--lf-mint-400').trim() || '#4ED9A6';
+
+      var barColors = minutes.map(function(v, i) {
+        if (v === 0) return 'rgba(255,255,255,0.12)';
+        return i === todayIdx ? barToday : barNormal;
+      });
+
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: days,
+          datasets: [{
+            data: minutes,
+            backgroundColor: barColors,
+            borderRadius: 8,
+            borderSkipped: false,
+            barPercentage: 0.5,
+            categoryPercentage: 0.7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend:  { display: false },
+            tooltip: { enabled: false }
+          },
+          scales: {
+            x: {
+              grid:   { display: false },
+              border: { display: false },
+              ticks: {
+                color: 'rgba(255,255,255,0.35)',
+                font: { size: 10 }
+              }
+            },
+            y: {
+              display: false,
+              beginAtZero: true,
+              max: 60
+            }
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/
+
+# Windows desktop runner (2026-10-18, P0 eval harness; no git metadata in this repo, convention only).
+/windows/flutter/ephemeral/
+
+# Signing material (2026-10-21 RV-P2-15): never commit keystores or their passwords.
+/android/key.properties
+/android/**/*.jks
+/android/**/*.keystore
+
+# ── 2026-10-25 首次上传前补充 ─────────────────────────────────────────
+# 构建中间产物与发布二进制不进版本库（发布包走 GitHub Releases）：
+/dist/
+/release/
+/tmp/
+/reports/
+# 食物目录 ETL 的中间产物（8 GB，可随时用 tool/food_catalog 重新生成）：
+/tool/food_catalog/build/
+/tool/food_catalog/raw/
+# 上游原始数据快照（7 GB，按 tool/food_catalog/README 重新下载即可）：
+/tool/food_catalog/sources/
+
+# Gradle / Kotlin 缓存（构建时自动重建）：
+/android/.gradle/
+/android/.kotlin/
+/.gradle/
+/.kotlin/
+# JVM 崩溃日志：
+hs_err_pid*.log
+
+# ── 2026-10-25 仓库瘦身：过程证据移出版本库（本地保留）──────────────
+# `docs/evidence/` 是逐批次的截图/日志/实测记录（1547 个文件、181 MB），
+# 对本仓库的**代码**来说是噪音——改代码要看的是规范文档（docs/21 等）。
+# 文件仍在本地，随时可查；只是不进版本库。
+/docs/evidence/

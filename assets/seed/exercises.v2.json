@@ -1,0 +1,485 @@
+{
+  "version": 2,
+  "exercises": [
+    {
+      "id": "ex-barbell-bench-press",
+      "name": "杠铃卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 95
+    },
+    {
+      "id": "ex-dumbbell-bench-press",
+      "name": "哑铃卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 90
+    },
+    {
+      "id": "ex-push-up",
+      "name": "俯卧撑",
+      "muscle_group": "chest",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 92
+    },
+    {
+      "id": "ex-machine-chest-fly",
+      "name": "蝴蝶机夹胸",
+      "muscle_group": "chest",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 70
+    },
+    {
+      "id": "ex-barbell-row",
+      "name": "杠铃划船",
+      "muscle_group": "back",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 82
+    },
+    {
+      "id": "ex-lat-pulldown",
+      "name": "高位下拉",
+      "muscle_group": "back",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 93
+    },
+    {
+      "id": "ex-pull-up",
+      "name": "引体向上",
+      "muscle_group": "back",
+      "equipment": "bodyweight",
+      "difficulty": "advanced",
+      "popularity": 80
+    },
+    {
+      "id": "ex-seated-cable-row",
+      "name": "坐姿划船",
+      "muscle_group": "back",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 78
+    },
+    {
+      "id": "ex-barbell-squat",
+      "name": "杠铃深蹲",
+      "muscle_group": "legs",
+      "equipment": "barbell",
+      "difficulty": "advanced",
+      "popularity": 94
+    },
+    {
+      "id": "ex-leg-press",
+      "name": "腿举",
+      "muscle_group": "legs",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 88
+    },
+    {
+      "id": "ex-romanian-deadlift",
+      "name": "罗马尼亚硬拉",
+      "muscle_group": "legs",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 76
+    },
+    {
+      "id": "ex-dumbbell-lunge",
+      "name": "哑铃弓步蹲",
+      "muscle_group": "legs",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 68
+    },
+    {
+      "id": "ex-barbell-overhead-press",
+      "name": "杠铃推举",
+      "muscle_group": "shoulders",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 78
+    },
+    {
+      "id": "ex-dumbbell-lateral-raise",
+      "name": "哑铃侧平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 90
+    },
+    {
+      "id": "ex-face-pull",
+      "name": "面拉",
+      "muscle_group": "shoulders",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 74
+    },
+    {
+      "id": "ex-barbell-curl",
+      "name": "杠铃弯举",
+      "muscle_group": "arms",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 86
+    },
+    {
+      "id": "ex-dumbbell-curl",
+      "name": "哑铃弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 91
+    },
+    {
+      "id": "ex-cable-triceps-pushdown",
+      "name": "绳索下压",
+      "muscle_group": "arms",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 89
+    },
+    {
+      "id": "ex-dumbbell-overhead-triceps-extension",
+      "name": "哑铃颈后臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 66
+    },
+    {
+      "id": "ex-plank",
+      "name": "平板支撑",
+      "muscle_group": "core",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 90
+    },
+    {
+      "id": "ex-crunch",
+      "name": "卷腹",
+      "muscle_group": "core",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 85
+    },
+    {
+      "id": "ex-hanging-leg-raise",
+      "name": "悬垂举腿",
+      "muscle_group": "core",
+      "equipment": "bodyweight",
+      "difficulty": "advanced",
+      "popularity": 62
+    },
+    {
+      "id": "ex-deadlift",
+      "name": "硬拉",
+      "muscle_group": "fullBody",
+      "equipment": "barbell",
+      "difficulty": "advanced",
+      "popularity": 88
+    },
+    {
+      "id": "ex-burpee",
+      "name": "波比跳",
+      "muscle_group": "fullBody",
+      "equipment": "bodyweight",
+      "difficulty": "advanced",
+      "popularity": 72
+    },
+    {
+      "id": "ex-db-incline-press",
+      "name": "哑铃斜板卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 84
+    },
+    {
+      "id": "ex-bb-incline-press",
+      "name": "杠铃斜板卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 86
+    },
+    {
+      "id": "ex-chest-press-machine",
+      "name": "力量板卧推",
+      "muscle_group": "chest",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 73
+    },
+    {
+      "id": "ex-decline-db-press",
+      "name": "哑铃下斜卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 58
+    },
+    {
+      "id": "ex-decline-bb-press",
+      "name": "杠铃下斜卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell",
+      "difficulty": "advanced",
+      "popularity": 52
+    },
+    {
+      "id": "ex-cable-crossover",
+      "name": "绳索交叉飞鸟",
+      "muscle_group": "chest",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 72
+    },
+    {
+      "id": "ex-wide-push-up",
+      "name": "宽距俯卧撑",
+      "muscle_group": "chest",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 70
+    },
+    {
+      "id": "ex-wide-grip-pullup",
+      "name": "宽握引体向上",
+      "muscle_group": "back",
+      "equipment": "bodyweight",
+      "difficulty": "advanced",
+      "popularity": 64
+    },
+    {
+      "id": "ex-underhand-pulldown",
+      "name": "反手下拉",
+      "muscle_group": "back",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 55
+    },
+    {
+      "id": "ex-t-bar-row",
+      "name": "T杠划船",
+      "muscle_group": "back",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 60
+    },
+    {
+      "id": "ex-seated-good-morning",
+      "name": "坐姿好早上",
+      "muscle_group": "back",
+      "equipment": "barbell",
+      "difficulty": "advanced",
+      "popularity": 34
+    },
+    {
+      "id": "ex-leg-extension",
+      "name": "腿伸展",
+      "muscle_group": "legs",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 84
+    },
+    {
+      "id": "ex-leg-curl",
+      "name": "腿弯举",
+      "muscle_group": "legs",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 83
+    },
+    {
+      "id": "ex-seated-leg-curl",
+      "name": "坐姿腿弯举",
+      "muscle_group": "legs",
+      "equipment": "machine",
+      "difficulty": "beginner",
+      "popularity": 79
+    },
+    {
+      "id": "ex-smith-squat",
+      "name": "史密斯架深蹲",
+      "muscle_group": "legs",
+      "equipment": "machine",
+      "difficulty": "intermediate",
+      "popularity": 71
+    },
+    {
+      "id": "ex-lunge",
+      "name": "箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 66
+    },
+    {
+      "id": "ex-walking-lunge",
+      "name": "行走箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 63
+    },
+    {
+      "id": "ex-side-lunge",
+      "name": "侧箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight",
+      "difficulty": "intermediate",
+      "popularity": 42
+    },
+    {
+      "id": "ex-bulgarian-split-squat",
+      "name": "保加利亚分腿蹲",
+      "muscle_group": "legs",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 54
+    },
+    {
+      "id": "ex-calf-raise",
+      "name": "小腿提踵",
+      "muscle_group": "legs",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 80
+    },
+    {
+      "id": "ex-arnold-press",
+      "name": "Arnold 推举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 65
+    },
+    {
+      "id": "ex-db-shoulder-press",
+      "name": "哑铃肩部推举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 82
+    },
+    {
+      "id": "ex-bb-shoulder-press",
+      "name": "杠铃肩部推举",
+      "muscle_group": "shoulders",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 76
+    },
+    {
+      "id": "ex-lateral-raise",
+      "name": "侧平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 88
+    },
+    {
+      "id": "ex-front-raise",
+      "name": "前平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 74
+    },
+    {
+      "id": "ex-rear-delt-fly",
+      "name": "后 deltoid 飞鸟",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 69
+    },
+    {
+      "id": "ex-shrugs",
+      "name": "耸肩",
+      "muscle_group": "shoulders",
+      "equipment": "barbell",
+      "difficulty": "beginner",
+      "popularity": 67
+    },
+    {
+      "id": "ex-hammer-curl",
+      "name": "锤子弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 78
+    },
+    {
+      "id": "ex-preacher-curl",
+      "name": "牧师弯举",
+      "muscle_group": "arms",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 64
+    },
+    {
+      "id": "ex-concentration-curl",
+      "name": "专注弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 52
+    },
+    {
+      "id": "ex-triceps-pushdown-rope",
+      "name": "绳索下压",
+      "muscle_group": "arms",
+      "equipment": "cable",
+      "difficulty": "beginner",
+      "popularity": 76
+    },
+    {
+      "id": "ex-triceps-kickback",
+      "name": "臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "beginner",
+      "popularity": 55
+    },
+    {
+      "id": "ex-overhead-triceps-ext",
+      "name": "哑铃颈后臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell",
+      "difficulty": "intermediate",
+      "popularity": 61
+    },
+    {
+      "id": "ex-close-grip-bench",
+      "name": "窄距卧推",
+      "muscle_group": "arms",
+      "equipment": "barbell",
+      "difficulty": "intermediate",
+      "popularity": 68
+    },
+    {
+      "id": "ex-close-grip-pushup",
+      "name": "窄距俯卧撑",
+      "muscle_group": "arms",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 57
+    },
+    {
+      "id": "ex-russian-twist",
+      "name": "俄罗斯转弯",
+      "muscle_group": "core",
+      "equipment": "bodyweight",
+      "difficulty": "beginner",
+      "popularity": 70
+    }
+  ]
+}

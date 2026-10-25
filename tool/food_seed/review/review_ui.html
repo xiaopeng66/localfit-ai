@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>食物库人工审核台（LocalFit）</title>
+<!--
+  食物库人工审核台的单页 UI（docs/29 §P8b-1）。
+
+  零依赖：不引任何 CDN/框架，本地开发工具、不进 App 包。
+
+  只做三件事：把服务端给的一窗「待审分组」画出来、把键盘八动作发回去、
+  把进度画出来。**不在这里重算任何上屏规则**——卡片预览那一段的每个字符都由
+  服务端从 `reports/display_preview.jsonl` 里取（那份文件由 App 自己的 Dart
+  函数产出）。在这里用 JS 再写一遍拆分规则，人审的就是一张并不存在的卡片。
+
+  键盘八动作（与服务端 `review_lib.DECISIONS` 一一对应）：
+    1 通过 · 2 改名称 · 3 定品牌 · 4 并入品牌词表 · 5 改营养 · 6 删除 ·
+    7 存疑 · 8 撤回；b 整组族批确认；j/k 上下组；Enter 编辑框提交。
+-->
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --ink: #1c1f24; --muted: #6b7280;
+    --line: #e3e6ea; --brand: #b45309; --ok: #15803d; --warn: #b45309;
+    --danger: #b91c1c; --mint: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5; background: #fff;
+    border-bottom: 1px solid var(--line); padding: 10px 16px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  .prog { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .prog b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .prog .item b { color: var(--mint); }
+  .prog .warn b { color: var(--warn); }
+  main { padding: 14px 16px 40vh; max-width: 980px; margin: 0 auto; }
+  .group {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .group > .bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    background: #fbfcfd; border-bottom: 1px solid var(--line); font-size: 12px;
+  }
+  .group.batchable > .bar { background: #f0fdfa; }
+  .group > .bar .head { font-weight: 700; }
+  .group > .bar .spacer { flex: 1; }
+  .row {
+    display: grid; grid-template-columns: 26px 1fr 300px; gap: 12px;
+    padding: 12px; border-bottom: 1px solid #f1f3f5; align-items: start;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row.active { background: #fffdf5; box-shadow: inset 3px 0 0 var(--brand); }
+  .row select, .row input { width: 100%; }
+  .idx { color: var(--muted); font-size: 12px; text-align: right; padding-top: 3px; }
+  .raw { font-size: 12px; color: var(--muted); word-break: break-all; }
+  .raw code { background: #f4f5f7; padding: 0 3px; border-radius: 3px; }
+  .flags { margin-top: 5px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .flag {
+    font-size: 11px; padding: 1px 6px; border-radius: 10px;
+    background: #fef3c7; color: var(--warn); border: 1px solid #fde68a;
+  }
+  .flag.dup { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+  .preview {
+    margin-top: 8px; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 8px 10px; background: #fcfcfd;
+  }
+  .preview .pt { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .preview .pname { font-weight: 600; }
+  .preview .pbottom { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .chip {
+    font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid;
+  }
+  .chip.brand { color: var(--brand); border-color: #fcd34d; }
+  .chip.builtin { color: var(--muted); border-color: var(--line); }
+  .ring {
+    font-size: 11px; color: var(--muted); margin-left: auto; text-align: right;
+  }
+  .ring b { color: var(--ink); font-size: 15px; }
+  .macros { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .macros b { color: var(--ink); }
+  .fields label { display: block; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .fields .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .fields input[type=text], .fields input[type=number] {
+    padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
+    font: inherit; font-size: 12px;
+  }
+  .fields .src { margin-top: 6px; }
+  .keymap {
+    position: fixed; bottom: 0; left: 0; right: 0; background: #fffffff2;
+    border-top: 1px solid var(--line); padding: 7px 16px; font-size: 12px;
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    backdrop-filter: blur(4px);
+  }
+  kbd {
+    background: #f2f3f5; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; font-family: ui-monospace, monospace;
+    font-size: 11px;
+  }
+  .keymap .sep { flex: 1; }
+  .toast {
+    position: fixed; right: 16px; bottom: 56px; background: #1c1f24; color: #fff;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0;
+    transition: opacity .18s; pointer-events: none; max-width: 60vw;
+  }
+  .toast.show { opacity: .95; }
+  .toast.err { background: var(--danger); }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  button {
+    font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: #fff; cursor: pointer;
+  }
+  button.batch { border-color: #99f6e4; background: #f0fdfa; color: var(--mint); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>食物库人工审核台</h1>
+  <div class="prog" id="prog"></div>
+  <div class="spacer" style="flex:1"></div>
+  <div class="prog" id="filter"></div>
+</header>
+<main id="main"><div class="empty">载入中…</div></main>
+<div class="keymap">
+  <span><kbd>1</kbd> 通过</span>
+  <span><kbd>2</kbd> 改名称</span>
+  <span><kbd>3</kbd> 定品牌</span>
+  <span><kbd>4</kbd> 并入品牌词表</span>
+  <span><kbd>5</kbd> 改营养</span>
+  <span><kbd>6</kbd> 删除</span>
+  <span><kbd>7</kbd> 存疑</span>
+  <span><kbd>8</kbd> 撤回</span>
+  <span><kbd>b</kbd> 整组族批确认</span>
+  <span><kbd>j</kbd><kbd>k</kbd> 上下</span>
+  <span class="sep"></span>
+  <span>在编辑框里按 <kbd>Enter</kbd> 提交该项改动（<kbd>Esc</kbd> 退出框）</span>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+
+// ---- 状态（全部来自服务端；这里不重算任何上屏规则） ----------------------
+const WINDOW_SIZE = 20;
+let state = { index: 0, cursor: 0, groups: [], stats: null, only: null };
+let busy = false;
+
+const el = (tag, cls, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+};
+
+function toast(message, isError) {
+  const node = document.getElementById("toast");
+  node.textContent = message;
+  node.className = "toast show" + (isError ? " err" : "");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { node.className = "toast"; }, isError ? 4200 : 1600);
+}
+
+// ---- 进度 ---------------------------------------------------------------
+function renderProgress() {
+  const s = state.stats;
+  const box = document.getElementById("prog");
+  box.replaceChildren();
+  if (!s) return;
+  const add = (label, value, cls) => {
+    const span = el("span", cls || "");
+    span.append(label + " ", el("b", null, String(value)));
+    box.append(span);
+  };
+  add("已裁决", s.decided);
+  box.lastChild.firstChild.textContent = "已裁决 ";
+  box.append(el("span", null, `/ ${s.total}（${s.coverage}%）`));
+  add("逐条核验", s.item_verified, "item");
+  add("族批确认", s.batch_confirmed);
+  add("待审", s.pending);
+  add("存疑", s.uncertain, "warn");
+  const f = document.getElementById("filter");
+  f.replaceChildren();
+  if (state.only) f.append(el("span", "flag", "--only " + state.only));
+}
+
+// ---- 一条 ---------------------------------------------------------------
+function renderRow(group, member, position) {
+  const row = el("div", "row" + (position === state.cursor ? " active" : ""));
+  row.dataset.id = member.id;
+
+  row.append(el("div", "idx", String(position + 1)));
+
+  const left = el("div");
+  const raw = el("div", "raw");
+  raw.append("原始 ", el("code", null, member.raw), "　·　", member.id);
+  left.append(raw);
+
+  if (member.flag_labels && member.flag_labels.length) {
+    const flags = el("div", "flags");
+    const codes = member.flags || [];
+    member.flag_labels.forEach((label, i) => {
+      const cls = codes[i] === "near_duplicate" ? "flag dup" : "flag";
+      flags.append(el("span", cls, label));
+    });
+    left.append(flags);
+  }
+
+  // 卡片预览：每个字符都来自服务端的上屏预览（App 的 Dart 函数产出的）。
+  const preview = el("div", "preview");
+  preview.append(el("div", "pt", "在卡上长这样（App 同一批 Dart 函数产出）"));
+  preview.append(el("div", "pname", member.name == null ? "—" : member.name));
+  const bottom = el("div", "pbottom");
+  if (member.brand) bottom.append(el("span", "chip brand", member.brand));
+  bottom.append(el("span", "chip builtin", "内置"));
+  const ring = el("div", "ring");
+  ring.append(el("b", null, member.ring == null ? "—" : member.ring), " ",
+              member.ring_label == null ? "" : member.ring_label);
+  bottom.append(ring);
+  preview.append(bottom);
+  const macros = el("div", "macros");
+  macros.append("蛋白质 ", el("b", null, member.protein || "0g"),
+                "　碳水 ", el("b", null, member.carbs || "0g"),
+                "　脂肪 ", el("b", null, member.fat || "0g"));
+  preview.append(macros);
+  left.append(preview);
+  row.append(left);
+
+  // 编辑框：只在按了对应动作时读值（键值来自账本的 before/after 口径）。
+  const fields = el("div", "fields");
+  const nameLabel = el("label", null, "改名称（2）");
+  const nameInput = el("input");
+  nameInput.type = "text";
+  nameInput.value = member.name || "";
+  nameInput.dataset.field = "name";
+  fields.append(nameLabel, nameInput);
+  const brandLabel = el("label", null, "定品牌（3）／并入词表（4 用名称首词）");
+  const brandInput = el("input");
+  brandInput.type = "text";
+  brandInput.value = member.brand || "";
+  brandInput.dataset.field = "brand";
+  fields.append(brandLabel, brandInput);
+  const nutLabel = el("label", null, "改营养（5，需填来源）");
+  const grid = el("div", "grid4");
+  [["kcal", member.kcal], ["protein", member.protein_g],
+   ["carbs", member.carbs_g], ["fat", member.fat_g]].forEach(([key, value]) => {
+    const input = el("input");
+    input.type = "number";
+    input.step = "0.1";
+    input.min = "0";
+    input.value = value == null ? "" : String(value);
+    input.dataset.nutrition = key;
+    input.title = key;
+    grid.append(input);
+  });
+  fields.append(nutLabel, grid);
+  const srcLabel = el("label", null, "来源（改营养必填，留空按「人工估值」记）");
+  const srcInput = el("input");
+  srcInput.type = "text";
+  srcInput.dataset.field = "source";
+  fields.append(srcLabel, srcInput);
+  row.append(fields);
+  return row;
+}
+
+function renderGroup(group, groupIndex) {
+  const box = el("div", "group" + (group.batchable ? " batchable" : ""));
+  const bar = el("div", "bar");
+  let offset = 0;
+  for (let i = 0; i < groupIndex; i++) offset += state.groups[i].members.length;
+  bar.append(el("span", "head", group.head ? "「" + group.head + "」" : "（无首词）"));
+  bar.append(el("span", null, group.members.length + " 条"));
+  bar.append(el("span", "spacer"));
+  if (group.batchable) {
+    const button = el("button", "batch", "整组族批确认（b）");
+    button.onclick = () => submitBatch(group);
+    bar.append(button);
+  }
+  box.append(bar);
+  group.members.forEach((member, i) => {
+    box.append(renderRow(group, member, offset + i));
+  });
+  return box;
+}
+
+function render() {
+  renderProgress();
+  const main = document.getElementById("main");
+  main.replaceChildren();
+  if (!state.groups.length) {
+    main.append(el("div", "empty",
+      state.stats && state.stats.pending === 0
+        ? "这一轮审完了（待审 0）。"
+        : "没有待审条目（换个 --only 试试？）"));
+    return;
+  }
+  state.groups.forEach((group, i) => main.append(renderGroup(group, i)));
+  focusActive();
+}
+
+/// 把「当前行」标记挪到 `state.cursor` 指的那一行并滚进视野。
+///
+/// 早先只在整页渲染时决定谁带 `active`，`j`/`k` 改的 `state.cursor` 就只影响
+/// 键盘动作的目标、屏上看不出来——审到哪一行全靠猜。动作目标与视觉标记必须同一个。
+///
+/// 注意 `flatten()` 给的是**成员对象**（`submit` 要用它的 `raw`/`flags`），
+/// 与行上的 `data-id`（字符串）比较时必须取 `.id`；早先直接比对象，`active`
+/// 永远挂不上，`j`/`k` 移动在屏上完全看不见。
+function focusActive() {
+  const main = document.getElementById("main");
+  const current = flatten()[state.cursor];
+  const currentId = current ? current.id : null;
+  main.querySelectorAll(".row").forEach((row) => {
+    const on = row.dataset.id === currentId;
+    row.classList.toggle("active", on);
+    if (on && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+  });
+}
+
+// ---- 取一窗 -------------------------------------------------------------
+async function load(index) {
+  const response = await fetch(`/api/window?index=${index}&size=${WINDOW_SIZE}`);
+  const payload = await response.json();
+  state.index = payload.index;
+  state.groups = payload.groups;
+  state.stats = payload.stats;
+  state.only = payload.only;
+  state.cursor = Math.min(state.cursor, Math.max(0, flatten().length - 1));
+  render();
+}
+
+function flatten() {
+  const ids = [];
+  state.groups.forEach((g) => g.members.forEach((m) => ids.push(m)));
+  return ids;
+}
+
+function activeMember() {
+  const ids = flatten();
+  return ids[Math.min(state.cursor, ids.length - 1)] || null;
+}
+
+// ---- 提交 ---------------------------------------------------------------
+async function post(body, okMessage) {
+  if (busy) return;
+  busy = true;
+  try {
+    const response = await fetch("/api/decide", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json();
+    if (!response.ok) { toast(payload.error || "提交失败", true); return; }
+    state.stats = payload.stats;
+    toast(okMessage || `已写账本 ${payload.written} 条`);
+    await load(state.index);
+  } catch (error) {
+    toast("网络错误：" + error, true);
+  } finally {
+    busy = false;
+  }
+}
+/// 单条裁决：把当前行的编辑框值一起带上（服务端按动作取需要的那些）。
+function submit(action, member) {
+  member = member || activeMember();
+  if (!member && action !== "revert") return;
+
+  // 撤回不看「当前行」：裁决一落账本就退出队列、也从屏上消失，按键那一刻当前行
+  // 早已不是刚审的那一条。服务端撤的是**账本里最近一条生效裁决**，这里如实说。
+  if (action === "revert") {
+    return post({ action, rows: [] }, "已撤回最近一条裁决");
+  }
+
+  const row = document.querySelector(`.row[data-id="${CSS.escape(member.id)}"]`);
+  const item = { id: member.id };
+  if (row) {
+    const name = row.querySelector('input[data-field="name"]');
+    const brand = row.querySelector('input[data-field="brand"]');
+    const source = row.querySelector('input[data-field="source"]');
+    if (name) item.name = name.value;
+    if (brand) item.brand = brand.value;
+    if (source) item.source = source.value;
+    if (action === "brand_token") {
+      // 并入词表默认取**原始名称的首 token**（人按 4 就是「这个首词是品牌」）。
+      item.brand_token = (member.raw || "").split(" ")[0] || "";
+    }
+    if (action === "edit_nutrition") {
+      item.nutrition = {};
+      row.querySelectorAll("input[data-nutrition]").forEach((input) => {
+        item.nutrition[input.dataset.nutrition] = input.value;
+      });
+    }
+  }
+  return post({ action, rows: [item] }, ACTION_LABEL[action] + " 已记账");
+}
+
+const ACTION_LABEL = {
+  approve: "通过", rename: "改名称", set_brand: "定品牌",
+  brand_token: "并入词表", edit_nutrition: "改营养", delete: "删除",
+  uncertain: "存疑", revert: "撤回",
+};
+
+/// 整组族批确认：服务端记 `review_mode=batch`（报告里与逐条核验分列）。
+function submitBatch(group) {
+  const rows = group.members.map((m) => ({ id: m.id }));
+  return post({ action: "approve", batch: true, rows },
+               `族批确认 ${rows.length} 条（记为族批）`);
+}
+
+// ---- 键盘 ---------------------------------------------------------------
+// 两套互不冲突的输入：
+//  * **在编辑框里**：按键就是打字（名称里有「7-ELEVEN」「450g」这类数字，
+//    在框里把数字键劫持成动作就没法输数据了）；改完按 **Enter** 提交本行该项改动
+//    （名称框 → 改名称；品牌框 → 定品牌；营养框 → 改营养，来源留空按「人工估值」记），
+//    按 **Esc** 退出编辑框。
+//  * **在页面上**（焦点不在编辑框）：1–8 是八个动作、b 是整组族批、j/k 上下移动。
+//
+// 早先的写法是「框里也不许按数字键」，而屏上的键位提示却写着「先填编辑框、再按数字键」
+// ——提示与行为互相矛盾，照提示做等于什么都没发生（改名就这样静默丢掉过）。现在
+// 提示按真实行为写，两处不再打架。
+const KEY_ACTION = { "1": "approve", "2": "rename", "3": "set_brand",
+  "4": "brand_token", "5": "edit_nutrition", "6": "delete",
+  "7": "uncertain", "8": "revert" };
+
+//: 编辑框所属的动作（在框里按 Enter 时用它）。
+const FIELD_ACTION = { name: "rename", brand: "set_brand" };
+
+document.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  const inField = event.target && event.target.tagName === "INPUT";
+
+  if (inField) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitField(event.target);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.target.blur();
+      return;
+    }
+    return; // 其余按键都当打字
+  }
+
+  if (event.key === "Enter") { event.preventDefault(); activeMember() && submit("approve"); return; }
+  if (event.key === "j" || event.key === "ArrowDown") { event.preventDefault(); move(1); return; }
+  if (event.key === "k" || event.key === "ArrowUp") { event.preventDefault(); move(-1); return; }
+  if (event.key === "b") {
+    event.preventDefault();
+    const group = groupOfActive();
+    if (group && group.batchable) submitBatch(group);
+    else toast("这一组不是同首词的族批，只能逐条审", true);
+    return;
+  }
+  const action = KEY_ACTION[event.key];
+  if (action) { event.preventDefault(); submit(action); }
+});
+
+/// 编辑框里按 Enter：提交**这一行**的对应动作（用的就是框里的值）。
+function commitField(input) {
+  const row = input.closest(".row");
+  if (!row) return;
+  const member = flatten().find((m) => m.id === row.dataset.id);
+  if (!member) return;
+  const action = FIELD_ACTION[input.dataset.field] || "edit_nutrition";
+  return submit(action, member);
+}
+
+function move(delta) {
+  const ids = flatten();
+  const next = state.cursor + delta;
+  if (next < 0 || next >= ids.length) {
+    // 走到这一窗尽头：翻下一页（账本已落盘，翻页不会丢东西）。
+    load(Math.max(0, state.index + (delta > 0 ? WINDOW_SIZE : -WINDOW_SIZE)));
+    return;
+  }
+  state.cursor = next;
+  render();
+}
+function groupOfActive() {
+  let offset = 0;
+  for (const group of state.groups) {
+    if (state.cursor < offset + group.members.length) return group;
+    offset += group.members.length;
+  }
+  return null;
+}
+
+// ---- 启动 ---------------------------------------------------------------
+load(0).catch((error) => toast("载入失败：" + error, true));
+</script>
+</body>
+</html>

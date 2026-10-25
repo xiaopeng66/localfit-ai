@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拍照识餐</title>
+    <style id="theme-vars">
+/* ==========================================================================
+   LocalFit AI — Brand CSS
+   Primary hue: mint (#2FBE8F) — single brand color system
+   Category data-viz tokens: protein / carbs / fat / water / weight
+   ========================================================================== */
+
+/* ---- Light Mode (default) ---- */
+:root {
+  /* Brand ramp — mint tonal scale */
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;   /* anchor */
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp */
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-800: #2A342F;
+  --lf-neutral-900: #1A201D;
+
+  /* Category data-viz tokens (domain-specific, not brand identity) */
+  --lf-protein: #FF8A65;   /* peach — protein */
+  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;     /* honey — carbs */
+  --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;       /* taro — fat */
+  --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;    /* salt — water */
+  --lf-weight: #C9A27E;   /* cocoa — weight */
+
+  /* State tokens */
+  --lf-state-success: #2FBE8F;
+  --lf-state-success-foreground: #FFFFFF;
+  --lf-state-warning: #FF9800;
+  --lf-state-warning-foreground: #FFFFFF;
+  --lf-state-error: #F44336;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #42A5F5;
+  --lf-state-info-foreground: #FFFFFF;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #D2F5E6;   /* mint100 — confirmed */
+  --lf-evidence-b: #FFF4D6;   /* honey100 — estimated */
+  --lf-evidence-c: #EDE6F7;   /* taro100 — incomplete */
+
+  /* Semantic surface tokens */
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-popover: #FFFFFF;
+  --lf-popover-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-input: #DDE5E1;
+  --lf-ring: #2FBE8F;
+
+  /* Primary */
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+
+  /* Radius scale — restrained 4/8/12/16px */
+  --lf-radius-xs: 4px;
+  --lf-radius-sm: 8px;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-xl: 16px;
+  --lf-radius-2xl: 16px;
+  --lf-radius-full: 9999px;
+
+  /* Shadows — static surfaces <= 0.05 alpha */
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  /* Floating-layer shadows (modal/popover/dropdown/drawer/overlay only) */
+  --lf-shadow-float: 0 8px 24px -8px rgba(15, 36, 28, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(15, 36, 28, 0.05);
+
+  /* Hero gradient (mint500 → mint200 → mint50, 135deg) */
+  --lf-hero-gradient: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 55%, #ECFBF5 100%);
+
+  /* Typography */
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --lf-font-display: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --lf-font-mono: "SF Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* ---- Dark Mode ---- */
+html.dark {
+  /* Brand ramp — mint提亮至400 in dark */
+  --lf-mint-50:  #0F1412;
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-mint-400: #4ED9A6;   /* dark anchor (提亮) */
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-mint-800: #166B4D;
+  --lf-mint-900: #114A36;
+
+  /* Neutral ramp — 分层深色 */
+  --lf-neutral-50:  #0F1412;
+  --lf-neutral-100: #171E1A;
+  --lf-neutral-200: #1F2823;
+  --lf-neutral-300: #2A342F;
+  --lf-neutral-400: #3D4A45;
+  --lf-neutral-500: #556760;
+  --lf-neutral-600: #6B7E78;
+  --lf-neutral-700: #8FA09A;
+  --lf-neutral-800: #B8C6C0;
+  --lf-neutral-900: #DDE5E1;
+
+  /* Category colors — 提亮并降饱和5% */
+  --lf-protein: #FF9D7E;
+  --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;
+  --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;
+  --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+
+  /* State tokens */
+  --lf-state-success: #4ED9A6;
+  --lf-state-success-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-state-warning-foreground: #0F1412;
+  --lf-state-error: #EF5350;
+  --lf-state-error-foreground: #FFFFFF;
+  --lf-state-info: #64B5F6;
+  --lf-state-info-foreground: #0F1412;
+
+  /* Evidence tokens */
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+
+  /* Semantic surface tokens */
+  --lf-background: #0F1412;
+  --lf-foreground: #DDE5E1;
+  --lf-card: #171E1A;
+  --lf-card-foreground: #DDE5E1;
+  --lf-popover: #1F2823;
+  --lf-popover-foreground: #DDE5E1;
+  --lf-muted: #1F2823;
+  --lf-muted-foreground: #8FA09A;
+  --lf-border: #2A342F;
+  --lf-input: #2A342F;
+  --lf-ring: #4ED9A6;
+
+  /* Primary */
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+
+  /* Hero gradient — dark */
+  --lf-hero-gradient: linear-gradient(135deg, #166B4D 0%, #1B8A62 50%, #0F1412 100%);
+
+  /* Shadows — 暗色用outline替代 */
+  --lf-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --lf-shadow-float: 0 8px 24px -8px rgba(0, 0, 0, 0.04);
+  --lf-shadow-float-lg: 0 24px 60px -20px rgba(0, 0, 0, 0.05);
+}
+
+/* ---- Base Typography ---- */
+body {
+  font-family: var(--lf-font-sans);
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display number family — w800 tabular figures */
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.0;
+}
+
+/* Tabular numbers for all data values */
+.lf-num {
+  font-variant-numeric: tabular-nums;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--lf-background);
+    --color-foreground: var(--lf-foreground);
+    --color-card: var(--lf-card);
+    --color-card-foreground: var(--lf-card-foreground);
+    --color-popover: var(--lf-popover);
+    --color-popover-foreground: var(--lf-popover-foreground);
+    --color-primary: var(--lf-primary);
+    --color-primary-foreground: var(--lf-primary-foreground);
+    --color-muted: var(--lf-muted);
+    --color-muted-foreground: var(--lf-muted-foreground);
+    --color-border: var(--lf-border);
+    --color-input: var(--lf-input);
+    --color-ring: var(--lf-ring);
+    --radius-sm: var(--lf-radius-sm);
+    --radius-md: var(--lf-radius-md);
+    --radius-lg: var(--lf-radius-lg);
+    --radius-xl: var(--lf-radius-xl);
+  }
+  @layer base {
+    body { background: var(--lf-background); color: var(--lf-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--lf-background); }
+      .text-background { color: var(--lf-background); }
+      .border-background { border-color: var(--lf-background); }
+      .ring-background { --tw-ring-color: var(--lf-background); }
+      .bg-foreground { background-color: var(--lf-foreground); }
+      .text-foreground { color: var(--lf-foreground); }
+      .border-foreground { border-color: var(--lf-foreground); }
+      .ring-foreground { --tw-ring-color: var(--lf-foreground); }
+      .bg-card { background-color: var(--lf-card); }
+      .text-card { color: var(--lf-card); }
+      .border-card { border-color: var(--lf-card); }
+      .ring-card { --tw-ring-color: var(--lf-card); }
+      .bg-card-foreground { background-color: var(--lf-card-foreground); }
+      .text-card-foreground { color: var(--lf-card-foreground); }
+      .border-card-foreground { border-color: var(--lf-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--lf-card-foreground); }
+      .bg-popover { background-color: var(--lf-popover); }
+      .text-popover { color: var(--lf-popover); }
+      .border-popover { border-color: var(--lf-popover); }
+      .ring-popover { --tw-ring-color: var(--lf-popover); }
+      .bg-popover-foreground { background-color: var(--lf-popover-foreground); }
+      .text-popover-foreground { color: var(--lf-popover-foreground); }
+      .border-popover-foreground { border-color: var(--lf-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--lf-popover-foreground); }
+      .bg-primary { background-color: var(--lf-primary); }
+      .text-primary { color: var(--lf-primary); }
+      .border-primary { border-color: var(--lf-primary); }
+      .ring-primary { --tw-ring-color: var(--lf-primary); }
+      .bg-primary-foreground { background-color: var(--lf-primary-foreground); }
+      .text-primary-foreground { color: var(--lf-primary-foreground); }
+      .border-primary-foreground { border-color: var(--lf-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--lf-primary-foreground); }
+      .bg-muted { background-color: var(--lf-muted); }
+      .text-muted { color: var(--lf-muted); }
+      .border-muted { border-color: var(--lf-muted); }
+      .ring-muted { --tw-ring-color: var(--lf-muted); }
+      .bg-muted-foreground { background-color: var(--lf-muted-foreground); }
+      .text-muted-foreground { color: var(--lf-muted-foreground); }
+      .border-muted-foreground { border-color: var(--lf-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--lf-muted-foreground); }
+      .bg-border { background-color: var(--lf-border); }
+      .text-border { color: var(--lf-border); }
+      .border-border { border-color: var(--lf-border); }
+      .ring-border { --tw-ring-color: var(--lf-border); }
+      .bg-input { background-color: var(--lf-input); }
+      .text-input { color: var(--lf-input); }
+      .border-input { border-color: var(--lf-input); }
+      .ring-input { --tw-ring-color: var(--lf-input); }
+      .bg-ring { background-color: var(--lf-ring); }
+      .text-ring { color: var(--lf-ring); }
+      .border-ring { border-color: var(--lf-ring); }
+      .ring-ring { --tw-ring-color: var(--lf-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased max-w-md mx-auto relative" style="background:var(--lf-background)">
+    <main class="pb-[150px]">
+
+      <!-- 1. TOP BAR -->
+      <div class="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-[var(--lf-border)]" style="background:color-mix(in srgb, var(--lf-background) 95%, transparent);backdrop-filter:blur(8px)">
+        <button id="back-nutrition" data-dom-id="back-nutrition" class="w-9 h-9 rounded-full flex items-center justify-center" style="background:var(--lf-muted)">
+          <i data-lucide="chevron-left" class="w-5 h-5" style="color:var(--lf-foreground)"></i>
+        </button>
+        <h1 class="text-base font-semibold flex-1">拍照识餐</h1>
+        <button id="cta-rescan" data-dom-id="cta-rescan" class="w-9 h-9 rounded-full flex items-center justify-center" style="background:var(--lf-muted)">
+          <i data-lucide="refresh-cw" class="w-4 h-4" style="color:var(--lf-foreground)"></i>
+        </button>
+      </div>
+
+      <!-- 2. FOOD PHOTO PREVIEW -->
+      <div class="relative mx-4 mt-4 overflow-hidden rounded-[16px]" style="aspect-ratio:4/3;background:var(--lf-hero-gradient);box-shadow:var(--lf-shadow-1)">
+        <div class="absolute inset-0 flex items-center justify-center">
+          <i data-lucide="utensils" class="w-16 h-16" style="color:color-mix(in srgb, var(--lf-primary-foreground) 60%, transparent)"></i>
+        </div>
+        <span class="absolute top-3 left-3 rounded-full px-2.5 py-1 text-xs font-medium" style="background:color-mix(in srgb, var(--lf-primary-foreground) 90%, transparent);color:var(--lf-foreground)">已拍摄</span>
+        <span class="absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs lf-num" style="background:color-mix(in srgb, var(--lf-primary-foreground) 90%, transparent);color:var(--lf-foreground)">12:15</span>
+        <button id="cta-retake" data-dom-id="cta-retake" class="absolute bottom-3 right-3 flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium" style="background:color-mix(in srgb, var(--lf-primary-foreground) 90%, transparent);color:var(--lf-foreground)">
+          <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+          重新拍摄
+        </button>
+      </div>
+
+      <!-- 3. AI RECOGNITION RESULT -->
+      <section class="px-4 mt-4">
+        <div class="rounded-[16px] p-4" style="background:var(--lf-card);box-shadow:var(--lf-shadow-1)">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4" style="color:var(--lf-primary)"></i>
+              <span class="text-sm font-medium">AI 识别结果</span>
+            </div>
+            <button id="cta-edit-items" data-dom-id="cta-edit-items" class="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium" style="background:var(--lf-mint-50);color:var(--lf-primary)">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+              修正
+            </button>
+          </div>
+
+          <!-- Dish name + confidence -->
+          <div class="mt-3">
+            <h2 class="text-lg font-semibold" style="color:var(--lf-foreground)">鸡胸肉藜麦沙拉</h2>
+            <div class="mt-2 flex items-center gap-2">
+              <span class="text-xs shrink-0" style="color:var(--lf-muted-foreground)">置信度</span>
+              <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background:var(--lf-muted)">
+                <div class="h-full rounded-full" style="width:94%;background:var(--lf-primary)"></div>
+              </div>
+              <span class="text-xs font-medium lf-num shrink-0" style="color:var(--lf-primary)">94%</span>
+            </div>
+          </div>
+
+          <!-- Total calories -->
+          <div class="mt-3 flex items-end justify-between">
+            <div>
+              <div class="lf-display text-2xl lf-num" style="color:var(--lf-foreground)">520 <span class="text-sm font-normal" style="color:var(--lf-muted-foreground)">kcal</span></div>
+              <div class="text-xs mt-0.5" style="color:var(--lf-muted-foreground)">预估总热量</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px]" style="background:var(--lf-evidence-b);color:var(--lf-state-warning)">AI 估算</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. DETECTED INGREDIENTS LIST -->
+      <section class="px-4 mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium">识别食材</span>
+          <span class="text-xs lf-num" style="color:var(--lf-muted-foreground)">5 项</span>
+        </div>
+        <div class="rounded-[16px] overflow-hidden" style="background:var(--lf-card);box-shadow:var(--lf-shadow-1)">
+          <!-- Ingredient 1 -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--lf-border)]">
+            <div class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full" style="background:var(--lf-protein)"></span>
+              <div>
+                <div class="text-sm font-medium">鸡胸肉</div>
+                <div class="text-xs lf-num" style="color:var(--lf-muted-foreground)">150 g</div>
+              </div>
+            </div>
+            <span class="lf-display text-sm lf-num" style="color:var(--lf-foreground)">248 kcal</span>
+          </div>
+          <!-- Ingredient 2 -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--lf-border)]">
+            <div class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full" style="background:var(--lf-carbs)"></span>
+              <div>
+                <div class="text-sm font-medium">藜麦</div>
+                <div class="text-xs lf-num" style="color:var(--lf-muted-foreground)">80 g</div>
+              </div>
+            </div>
+            <span class="lf-display text-sm lf-num" style="color:var(--lf-foreground)">96 kcal</span>
+          </div>
+          <!-- Ingredient 3 -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--lf-border)]">
+            <div class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full" style="background:var(--lf-fat)"></span>
+              <div>
+                <div class="text-sm font-medium">牛油果</div>
+                <div class="text-xs lf-num" style="color:var(--lf-muted-foreground)">40 g</div>
+              </div>
+            </div>
+            <span class="lf-display text-sm lf-num" style="color:var(--lf-foreground)">64 kcal</span>
+          </div>
+          <!-- Ingredient 4 -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--lf-border)]">
+            <div class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full" style="background:var(--lf-mint-500)"></span>
+              <div>
+                <div class="text-sm font-medium">混合蔬菜</div>
+                <div class="text-xs lf-num" style="color:var(--lf-muted-foreground)">100 g</div>
+              </div>
+            </div>
+            <span class="lf-display text-sm lf-num" style="color:var(--lf-foreground)">35 kcal</span>
+          </div>
+          <!-- Ingredient 5 -->
+          <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center gap-3">
+              <span class="w-2 h-2 rounded-full" style="background:var(--lf-fat)"></span>
+              <div>
+                <div class="text-sm font-medium">橄榄油</div>
+                <div class="text-xs lf-num" style="color:var(--lf-muted-foreground)">10 ml</div>
+              </div>
+            </div>
+            <span class="lf-display text-sm lf-num" style="color:var(--lf-foreground)">77 kcal</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. MACRO BREAKDOWN -->
+      <section class="px-4 mt-4">
+        <div class="rounded-[16px] p-4" style="background:var(--lf-card);box-shadow:var(--lf-shadow-1)">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-medium">营养拆分</span>
+            <span class="text-xs lf-num" style="color:var(--lf-muted-foreground)">总 520 kcal</span>
+          </div>
+
+          <!-- Protein -->
+          <div class="mb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="flex items-center gap-1.5 text-xs">
+                <span class="w-2 h-2 rounded-full" style="background:var(--lf-protein)"></span>
+                蛋白质
+              </span>
+              <span class="text-xs lf-num" style="color:var(--lf-foreground)">35g · 140 kcal</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background:var(--lf-muted)">
+              <div class="h-full rounded-full" style="width:27%;background:var(--lf-protein)"></div>
+            </div>
+          </div>
+
+          <!-- Carbs -->
+          <div class="mb-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="flex items-center gap-1.5 text-xs">
+                <span class="w-2 h-2 rounded-full" style="background:var(--lf-carbs)"></span>
+                碳水
+              </span>
+              <span class="text-xs lf-num" style="color:var(--lf-foreground)">52g · 208 kcal</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background:var(--lf-muted)">
+              <div class="h-full rounded-full" style="width:40%;background:var(--lf-carbs)"></div>
+            </div>
+          </div>
+
+          <!-- Fat -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="flex items-center gap-1.5 text-xs">
+                <span class="w-2 h-2 rounded-full" style="background:var(--lf-fat)"></span>
+                脂肪
+              </span>
+              <span class="text-xs lf-num" style="color:var(--lf-foreground)">19g · 171 kcal</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background:var(--lf-muted)">
+              <div class="h-full rounded-full" style="width:33%;background:var(--lf-fat)"></div>
+            </div>
+          </div>
+
+          <!-- Macro ratio summary -->
+          <div class="mt-3 pt-3 border-t border-[var(--lf-border)]">
+            <div class="flex items-center gap-2 text-[10px] lf-num" style="color:var(--lf-muted-foreground)">
+              <span>蛋白质 27%</span>
+              <span>·</span>
+              <span>碳水 40%</span>
+              <span>·</span>
+              <span>脂肪 33%</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. AI TIPS -->
+      <section class="px-4 mt-4">
+        <div class="rounded-[16px] p-4 flex items-start gap-3" style="background:var(--lf-mint-50);border:1px solid var(--lf-mint-200)">
+          <i data-lucide="lightbulb" class="w-4 h-4 shrink-0 mt-0.5" style="color:var(--lf-primary)"></i>
+          <div>
+            <p class="text-xs font-medium" style="color:var(--lf-primary)">AI 建议</p>
+            <p class="text-xs mt-1" style="color:var(--lf-muted-foreground)">该餐蛋白质占比适中，碳水略高。建议晚餐减少主食份量以平衡全天摄入。</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 7. FIXED CONFIRM BUTTON (with safe-area-inset-bottom) -->
+    <div class="fixed left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-30" style="bottom:calc(80px + env(safe-area-inset-bottom))">
+      <button id="cta-confirm-scan" data-dom-id="cta-confirm-scan" class="w-full rounded-full py-3.5 text-sm font-semibold flex items-center justify-center gap-2" style="background:var(--lf-primary);color:var(--lf-primary-foreground);box-shadow:0 4px 20px -4px color-mix(in srgb, var(--lf-primary) 40%, transparent)">
+        <i data-lucide="check" class="w-4 h-4"></i>
+        确认记录此餐
+      </button>
+    </div>
+
+    <!-- 8. BOTTOM NAV -->
+    <nav data-mobile-nav="global" class="relative w-full max-w-md mx-auto grid grid-cols-5 h-[64px] items-center px-2 border-t border-[var(--lf-border)] bg-[var(--lf-card)]/95 backdrop-blur"><div class="w-full contents"><a data-nav-key="dashboard" data-dom-id="nav-dashboard" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="home" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">今日</span></a><a data-nav-key="nutrition" data-dom-id="nav-nutrition" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="utensils" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">饮食</span></a><a data-nav-key="ai" data-dom-id="nav-ai-workbench" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><span class="flex items-center justify-center w-14 h-14 rounded-full -mt-4" style="background:linear-gradient(135deg,var(--lf-mint-500),var(--lf-mint-600));box-shadow:0 0 0 2px var(--lf-background),0 4px 12px rgba(47,190,143,0.3)"><i data-lucide="sparkles" class="w-5 h-5 shrink-0" style="color:#fff"></i></span><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">AI</span></a><a data-nav-key="training" data-dom-id="nav-training" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="dumbbell" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">训练</span></a><a data-nav-key="settings" data-dom-id="nav-settings" class="min-w-0 flex flex-col items-center justify-center gap-0.5 h-full"><i data-lucide="user" class="w-5 h-5 shrink-0" style="color:var(--lf-muted-foreground)"></i><span class="text-[10px] leading-none whitespace-nowrap" style="color:var(--lf-muted-foreground)">我的</span></a></div></nav>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>

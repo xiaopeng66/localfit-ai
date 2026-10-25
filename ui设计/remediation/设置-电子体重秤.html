@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设置 · 电子体重秤 — 设计稿（S6 · docs/31 需求 47 / D6）</title>
+<!--
+  ============================================================================
+  LocalFit AI 第四轮 S6 设计稿（docs/31 §1 需求 47 / §2 D6）
+  ----------------------------------------------------------------------------
+  用户原话：「另外能不能支持授权电子体重秤，例如小小米体重秤，可以自动导入
+  体重数据。」
+
+  裁决 D6（仅前台、用户主动同步；不做后台自动导入）：
+    ① 设置页加「电子体重秤」行（与步数行同构）：
+       未授权 / 已授权 / 设备不支持（API ≤ 30 诚实降级，不撒谎）；
+    ② 新增 MethodChannel('localfit/scale')，仅前台 扫描 + 连接 + 读一次；
+    ③ 写入区分来源（source: 'ble_scale'），且**默认不覆盖当天已有记录**——
+       覆盖要让用户明确选择（弹层二选一，默认保留原记录）；
+    ④ 权限：BLUETOOTH_SCAN / BLUETOOTH_CONNECT（API 31+，neverForLocation），
+       legacy BLUETOOTH / BLUETOOTH_ADMIN 仅 maxSdkVersion=30（不运行时申请）；
+       **不申请 ACCESS_FINE_LOCATION**（D6 备注：隐私姿态优先于老设备支持）；
+    ⑤ 厂商私有 GATT（小米等）无真秤无法验证 —— 本轮验收上限 =
+       通道契约 + 权限流 + 落地规则 + 假设备单测；只支持标准体重秤服务
+       （Bluetooth SIG 0x181D，特征 0x2A9D Weight Measurement），
+       秤不广播该服务如实报「未发现支持的电子秤」。
+
+  帧清单：
+    ① 设置页「数据管理」组新行（三态并列展示：设备不支持 / 未授权 / 已授权）
+    ② 授权说明弹层（与步数说明弹层同构）：正文说清三件事（数据只进本机、
+       仅前台扫描、标准体重秤协议）+ 动作「授权并开始同步」+「去系统设置」
+    ③ 扫描中：弹层内进度态（最多 10 秒；期间可取消）
+    ④ 结果三态：成功落库 / 同日冲突（二选一，默认保留原记录）/ 未发现秤
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5; --lf-mint-100: #D2F5E6; --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0; --lf-mint-400: #4ED9A6; --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877; --lf-mint-700: #1B8A62;
+  --lf-honey-100: #FFF3E0; --lf-honey-700: #B26A00;
+  --lf-neutral-50:  #F7F9F8; --lf-neutral-100: #EFF3F1; --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0; --lf-neutral-400: #8FA09A; --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760; --lf-neutral-700: #3D4A45; --lf-neutral-900: #1A201D;
+  --lf-state-success: #2FBE8F; --lf-state-warning: #FF9800; --lf-state-error: #F44336;
+  --lf-background: #F7F9F8; --lf-foreground: #1A201D; --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D; --lf-muted: #EFF3F1; --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1; --lf-ring: #2FBE8F; --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px; --lf-radius-lg: 16px; --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823; --lf-mint-200: #242E28; --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32; --lf-neutral-400: #8FA09A; --lf-neutral-500: #9FB3AC;
+  --lf-state-success: #4ED9A6; --lf-state-warning: #FFB74D; --lf-state-error: #EF5350;
+  --lf-background: #0F1412; --lf-foreground: #E8EFEB; --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB; --lf-muted: #1F2622; --lf-muted-foreground: #9FB3AC;
+  --lf-border: #242E28;
+  --lf-honey-100: #33291A; --lf-honey-700: #FFB74D;
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, .note, .fbox, .dline, .sheetbody, .conflictcards { overflow-wrap: anywhere; min-width: 0; }
+  body {
+    background: var(--lf-background); color: var(--lf-foreground);
+    font-family: var(--lf-font-sans); font-size: 14px; line-height: 1.45;
+  }
+  /* frame 必须钉死 360：headless Edge 窗口有 ~500px 最小宽度（实测 layout
+     视口 483），不钉宽度整帧被拉宽、右侧裁掉（S5 已踩过，教训见稿注释）。 */
+  .frame { width: 360px; min-height: 120px; padding: 0 0 20px; overflow: hidden; }
+  .frame .label {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--lf-neutral-100); color: var(--lf-neutral-600);
+    font-size: 12px; font-weight: 600; padding: 8px 16px;
+    border-bottom: 1px solid var(--lf-border);
+  }
+  .pad { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .note {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 12px; padding: 10px 12px; font-size: 11px;
+    color: var(--lf-muted-foreground);
+  }
+  .note b { color: var(--lf-card-foreground); }
+  .num { font-feature-settings: "tnum" 1; }
+
+  /* 设置行（与设置页 SettingRow 同构） */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 16px; box-shadow: var(--lf-shadow-1);
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border-bottom: 1px solid var(--lf-border); font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .ric {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--lf-mint-100); color: var(--lf-mint-700); font-size: 17px;
+  }
+  .row .rmain { flex: 1; min-width: 0; }
+  .row .rtitle { font-size: 14px; }
+  .row .chev { color: var(--lf-neutral-400); font-size: 16px; flex: none; }
+  .badge {
+    display: inline-flex; align-items: center; padding: 2px 8px;
+    border-radius: var(--lf-radius-full); font-size: 11px; font-weight: 600;
+    flex: none;
+  }
+  .b-mint { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  .b-honey { background: var(--lf-honey-100); color: var(--lf-honey-700); }
+  .b-neutral { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+
+  /* 底部弹层（AppSheet 同构） */
+  .scrim { background: rgba(15, 20, 18, 0.45); padding: 16px; }
+  .sheet {
+    background: var(--lf-card); border-radius: 16px 16px 0 0;
+    padding: 18px 16px 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .sheet .grip { width: 36px; height: 4px; border-radius: 2px; background: var(--lf-neutral-200); margin: 0 auto; }
+  .sheet .stitle { font-size: 16px; font-weight: 600; text-align: center; }
+  .sheetbody { font-size: 13px; color: var(--lf-muted-foreground); display: flex; flex-direction: column; gap: 8px; }
+  .sheetbody li { margin-left: 18px; }
+  .sheetbody b { color: var(--lf-card-foreground); }
+  .bigact {
+    display: flex; align-items: center; justify-content: center;
+    height: 48px; border-radius: 14px; font-size: 15px; font-weight: 600;
+    background: var(--lf-primary); color: var(--lf-primary-foreground);
+  }
+  .ghostact {
+    display: flex; align-items: center; justify-content: center;
+    height: 48px; border-radius: 14px; font-size: 15px;
+    border: 1px solid var(--lf-border); color: var(--lf-card-foreground);
+  }
+  .textact { text-align: center; font-size: 13px; color: var(--lf-muted-foreground); padding: 4px; }
+
+  /* 扫描中 */
+  .spinwrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0 6px; }
+  .spin {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 4px solid var(--lf-mint-100); border-top-color: var(--lf-mint-500);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spintext { font-size: 13px; color: var(--lf-muted-foreground); text-align: center; }
+  .spintext b { color: var(--lf-card-foreground); }
+
+  /* 结果帧 */
+  .resultcard {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .resultline { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+  .resultline .dot { flex: none; margin-top: 2px; font-size: 14px; }
+  .ok { color: var(--lf-state-success); }
+  .warn { color: var(--lf-state-warning); }
+  .err { color: var(--lf-state-error); }
+  .conflictcards { display: flex; gap: 10px; }
+  .conflictcards .side {
+    flex: 1; min-width: 0; border: 1px solid var(--lf-border); border-radius: 12px;
+    padding: 10px; display: flex; flex-direction: column; gap: 2px; font-size: 12px;
+    color: var(--lf-muted-foreground);
+  }
+  .conflictcards .side.sel { border-color: var(--lf-mint-500); background: var(--lf-mint-50); }
+  .conflictcards .side .v { font-size: 18px; font-weight: 700; color: var(--lf-card-foreground); font-feature-settings: "tnum" 1; }
+</style>
+</head>
+<body>
+
+<!-- ① 设置页数据管理组：三态并列展示 -->
+<div class="frame" id="f1">
+  <div class="label"><span>① 设置 · 数据管理组 · 电子体重秤行（三态并列）</span><span>360dp</span></div>
+  <div class="pad">
+    <div class="note">
+      <b>与步数行同构</b>：状态用带底色徽章表达（四态不合并）；
+      未授权态仍可点进说明弹层。API ≤ 30 设备诚实显示「设备不支持」
+      （D6 备注：不加定位权限，老设备不支持扫描）。
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="ric">⚖</div>
+        <div class="rmain">
+          <div class="rtitle">电子体重秤</div>
+        </div>
+        <span class="badge b-neutral">设备不支持</span>
+        <div class="chev">›</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="ric">⚖</div>
+        <div class="rmain">
+          <div class="rtitle">电子体重秤</div>
+        </div>
+        <span class="badge b-honey">未授权</span>
+        <div class="chev">›</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="ric">⚖</div>
+        <div class="rmain">
+          <div class="rtitle">电子体重秤</div>
+        </div>
+        <span class="badge b-mint">已授权</span>
+        <div class="chev">›</div>
+      </div>
+    </div>
+    <div class="note">
+      状态来自 <b>localfit/scale</b> 通道 <b>check</b>（API 版本 + 蓝牙适配器 +
+      权限），不缓存猜测：首帧未读到显示「状态未知」。
+    </div>
+  </div>
+</div>
+
+<!-- ② 授权说明弹层 -->
+<div class="frame" id="f2">
+  <div class="label"><span>② 说明弹层（未授权 → 去授权）</span><span>360dp</span></div>
+  <div class="pad" style="padding:0;">
+    <div class="scrim" style="min-height: 560px; display:flex; align-items:flex-end;">
+      <div class="sheet" style="flex:1;">
+        <div class="grip"></div>
+        <div class="stitle">电子体重秤</div>
+        <div class="sheetbody">
+          <ul>
+            <li>上秤后点「<b>授权并开始同步</b>」，本机将<b>只在前台</b>扫描约 10 秒，读到一次体重就停。</li>
+            <li>读数<b>只写入本机数据库</b>，不上传；来源会标为「秤同步」。</li>
+            <li>支持<b>标准体重秤协议</b>（Bluetooth SIG 体重秤服务）的秤；厂商私有协议（如部分小米秤）暂不支持，会如实提示。</li>
+            <li>需要系统授予<b>附近设备（蓝牙）</b>权限；用于扫描与连接秤，<b>不用于获取位置</b>。</li>
+          </ul>
+        </div>
+        <div class="bigact">授权并开始同步</div>
+        <div class="ghostact">去系统设置</div>
+        <div class="textact">取消</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 扫描中 -->
+<div class="frame" id="f3">
+  <div class="label"><span>③ 扫描中（可取消，最多 10 秒）</span><span>360dp</span></div>
+  <div class="pad" style="padding:0;">
+    <div class="scrim" style="min-height: 560px; display:flex; align-items:flex-end;">
+      <div class="sheet" style="flex:1;">
+        <div class="grip"></div>
+        <div class="stitle">正在同步电子秤…</div>
+        <div class="spinwrap">
+          <div class="spin"></div>
+          <div class="spintext">请站上秤并保持稳定<br><b>最多等待 10 秒</b>，期间可取消</div>
+        </div>
+        <div class="ghostact">取消同步</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ④ 结果三态 -->
+<div class="frame" id="f4">
+  <div class="label"><span>④ 结果三态（成功 / 同日冲突 / 未发现秤）</span><span>360dp</span></div>
+  <div class="pad">
+    <div class="resultcard">
+      <div class="stitle" style="font-size:15px;">同步成功（当天无记录 → 直接落库）</div>
+      <div class="resultline"><span class="dot ok">✓</span><span>已同步秤读数 <b class="num">62.40 kg</b>（来源：秤同步，2026-10-10）。</span></div>
+    </div>
+    <div class="resultcard">
+      <div class="stitle" style="font-size:15px;">同日冲突：默认<b>不覆盖</b>手输值（D6 ③）</div>
+      <div class="resultline"><span class="dot warn">!</span><span>今天已有一条手输记录 <b class="num">62.80 kg</b>，秤读到 <b class="num">62.40 kg</b>。要替换吗？<b>不选就保留原记录</b>。</span></div>
+      <div class="conflictcards">
+        <div class="side sel">
+          <span>保留原记录（默认）</span>
+          <span class="v num">62.80</span>
+          <span>手输 · 今天</span>
+        </div>
+        <div class="side">
+          <span>用秤读数覆盖</span>
+          <span class="v num">62.40</span>
+          <span>秤同步 · 现在</span>
+        </div>
+      </div>
+    </div>
+    <div class="resultcard">
+      <div class="stitle" style="font-size:15px;">未发现支持的电子秤</div>
+      <div class="resultline"><span class="dot err">✕</span><span>10 秒内没有发现广播<b>标准体重秤服务</b>的设备。请确认秤已唤醒（站上秤），或换用支持标准协议的秤。</span></div>
+      <div class="resultline"><span class="dot err">✕</span><span>超范围读数（&lt;35 kg 或 &gt;300 kg）不落库，如实报错。</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

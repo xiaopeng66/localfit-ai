@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-ios" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="0" fill="url(#mint-02-ring-ios)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>

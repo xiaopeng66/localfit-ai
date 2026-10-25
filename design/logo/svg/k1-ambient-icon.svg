@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k1-ambient"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k1-ambient" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+    <radialGradient id="amb-k1-ambient" gradientUnits="userSpaceOnUse" cx="512" cy="512" r="440">
+      <stop offset="0" stop-color="#4ED9A6" stop-opacity="0.05"/>
+      <stop offset="0.62" stop-color="#4ED9A6" stop-opacity="0.13"/>
+      <stop offset="1" stop-color="#4ED9A6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig-k1-ambient" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#amb-k1-ambient)"/>
+    <rect width="1024" height="1024" rx="232" fill="url(#vig-k1-ambient)"/>
+  <g clip-path="url(#sq-k1-ambient)">
+    
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k1-ambient)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

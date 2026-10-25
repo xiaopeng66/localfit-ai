@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="sq-k2-specular"><rect width="1024" height="1024" rx="232"/></clipPath>
+    <filter id="soft-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="tight-k2-specular" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g clip-path="url(#sq-k2-specular)">
+    
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#4ED9A6" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 691.98 297.51 A 280 280 0 1 1 332.02 297.51" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <g filter="url(#soft-k2-specular)" opacity="0.5"><path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#FF8A65" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M400 297.5 L458 297.5 L508 206 L536 378 L578 297.5 L624 297.5" fill="none" stroke="#0F1412" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 218.36 590.68 A 304 304 0 0 1 308.58 286.08" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.32"/>
+    <path d="M 488.95 195.00 A 22 22 0 0 1 500.48 185.33" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+  </g>
+</svg>

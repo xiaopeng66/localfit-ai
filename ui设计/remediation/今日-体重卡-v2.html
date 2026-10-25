@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日 · 体重卡重做 v2 — 整改设计稿（S1 · docs/31）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第四轮 设计稿（S1 · docs/31）
+  ----------------------------------------------------------------------------
+  覆盖需求（docs/31 §1，用户 2026-10-09 原话，编号 38–44）：
+    「体重卡片还是太丑」                                                    (38)
+    「日月的切换需要我发的第二张图」                                         (39)
+    「你之前有设计过柱状图的柱子太宽了」                                      (40)
+    「一周就直接横坐标七天都显示，没有数据的时间就空着」                        (41)
+    「月视图标题写本月体重」                                                (42)
+    「下边不要写较月初」                                                   (43)
+    「添加的按钮做好看点，只要图标，不要添加两个字」                           (44)
+
+  ── 与现状（R2 交付态）的差异，逐条 ────────────────────────────────────
+
+  ① 需求 39 · 周/月切换**取形态、压尺寸**（docs/31 §2 D2）
+     用户发的第二张图 = 我们 R2 稿的 ④ 改造前帧：**统一灰轨道 + 内嵌白色滑块**。
+     用户否掉的是 R2 的「两颗独立胶囊」，要的是这个**形态**；但 R3 用户嫌过
+     「太大了，上下宽度也很大」——嫌的是**尺寸**（当时布局盒 48dp）。
+     ⇒ 本稿取形态（单一轨道 + 滑块 + 两段标签），压尺寸（**轨道视觉高 28dp**，
+        滑块 24dp，命中盒 ≥44dp 但不参与布局）。
+     这就是「两个对立要求的合成」：形状照第二张图，高度照第三轮的意见。
+
+  ② 需求 40 · 柱宽 40 → 22dp
+     R2 落地的是设计稿的 `.bars .b { max-width: 40px }`。360dp 屏 7 根柱时
+     实际每根 ≈36dp（slot − 3dp 内边距×2），在「只有一两个点」的数据下
+     显得像色块——用户的原话是「柱子太宽了」。
+     改成 **22dp** 上限 + 格内左右各 8dp 内边距（格间空隙 16dp）：
+     周长 7 格时柱净宽 ≈21dp，柱隙比从 6:1 收到约 1.3:1，柱与柱之间「分得开」。
+
+  ③ 需求 41 · 周视图 = **恒定七格**（这是本轮最实质的行为改变）
+     现状 `buildWeekChartPoints` 取「最近 ≤7 条记录」⇒ 只有 1 条记录时图上
+     **只有 1 根柱、1 个标签**，横坐标不是一周。用户要：**横坐标恒定显示七天**
+     （一…日），**没有记录的那天留空槽**（不画柱，标签仍在）。
+     ⇒ 本稿的「周视图」帧里刻意只给 3 天数据（三/五/日），其余 4 格**空着**，
+        标签一…日齐全。空槽**不是 0kg 的柱**——一格墨点都不画，只有标签。
+
+  ④ 需求 42 · 月视图标题「体重趋势」→「本月体重」
+     周视图保持「本周体重」；两标题**同构**（本X体重），扫视时不跳。
+
+  ⑤ 需求 43 · 删「较月初」三字，**保留**箭头与增减量（docs/31 §2 D3）
+     用户原话删的是那**三个字**。`↓ 0.8` 是卡头唯一的趋势信息，删掉会让
+     「最新 65.0 kg」变成纯快照。
+
+  ⑥ 需求 44 · 「添加」按钮 = **纯图标**（新增共享件 `LfIconButton`）
+     现状 `LfTextButton(label:'添加', icon: Icons.add)`。改成 36dp 圆形图标钮
+     （`Icons.add`），四周各外扩 4dp 得 44 命中盒；卡头右侧一组两件。
+
+  ⑦ 需求 38 · 「还是太丑」的整体收拾
+     卡头从「标题块 | [添加] [周|月]」的**两段式**收成**一段式**：
+     标题与控件同一基线，右侧两件间距一致（8dp），视觉块高度接近（36 / 28），
+     不再是「文字按钮 + 两颗胶囊」三种宽度混排。柱图区与卡头的间距
+     从 12dp 收到 8dp，卡整体更紧凑。行高 48 → **44**（触达下限）。
+
+  ── 不在本稿范围 ──────────────────────────────────────────────────────
+  · 录入弹层的字段增删（S2 做，需求 45/46）
+  · 空态文案（R2 已定：0 条记录才出空态）——本稿只画它的新配色
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 `ui设计/pages/训练.html`
+  的 <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+  尺寸按 360dp 逻辑宽画：页面左右 16dp、卡圆角 16、卡内 padding 16。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA; color: #1A201D; font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note + .note { margin-top: 6px; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+
+  .frame.theme-dark {
+    --lf-mint-100: #1F2823; --lf-mint-200: #242E28; --lf-mint-300: #2A3A32;
+    --lf-background: #0F1412; --lf-foreground: #E8EFEB;
+    --lf-card: #1A211D; --lf-card-foreground: #E8EFEB;
+    --lf-muted: #242E28; --lf-muted-foreground: #9FB3AC;
+    --lf-border: #2A3A32; --lf-primary: #4ED9A6;
+    --lf-shadow-1: 0 1px 3px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.24);
+    background: var(--lf-background); color: var(--lf-foreground);
+  }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .card { background: var(--lf-card); border-color: var(--lf-border); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+
+  /* ── 卡 ─────────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .ctitle { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .csub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .num { font-feature-settings: "tnum" 1; }
+  .delta-down { color: var(--lf-mint-700); font-weight: 600; }
+  html.dark .delta-down, .frame.theme-dark .delta-down { color: var(--lf-mint-400); }
+
+  /* ── 卡头：一段式（标题块 + 右侧两件等视觉高）────────────────────────
+     需求 38「还是太丑」的收拾点：R2 是「文字按钮(宽) + 胶囊(宽) + 胶囊(宽)」
+     三种宽度混排、且各自对齐基线；这里右侧收成一组，两件间距一致（8dp），
+     与标题块共一条中心线。
+
+     【实现口径，与本节下方的占位尺寸一致】Flutter 的命中盒**不能大于布局盒**
+     还照样收点击（父级 hitTest 先查 size.contains）。所以「视觉 28 + 命中 44
+     且不撑布局」是做不到的：真实落地是 **布局盒 44（=命中盒）、视觉块 28/36
+     在盒内居中**，卡头行高因此是 **44dp**（R2 交付态 48 → 44）。 */
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .head .hgroup { min-width: 0; }
+
+  /* ── ① 需求 39：周/月切换（形态照用户第二张图，尺寸照 R3 意见）─────────
+     轨道 28dp 视觉高（内 24dp + 上下各 2dp 内边距），滑块 24dp 白底 + 1dp 阴影，
+     选中段绿字、未选中灰字。**单一控件**，不是两颗分开的胶囊。
+     布局/命中盒 44dp 高：轨道在 44dp 盒里垂直居中，两侧各留 8dp。 */
+  .seg {
+    display: inline-flex; align-items: center; height: 28px; padding: 2px;
+    background: var(--lf-muted); border-radius: var(--lf-radius-full);
+    position: relative; flex: none;
+  }
+  .seg .thumb {
+    position: absolute; top: 2px; bottom: 2px; width: 44px;
+    background: var(--lf-card); border-radius: var(--lf-radius-full);
+    box-shadow: 0 1px 2px rgba(15,36,28,0.10);
+  }
+  .seg .thumb.left  { left: 2px; }
+  .seg .thumb.right { right: 2px; }
+  .seg .segitem {
+    position: relative; z-index: 1; width: 44px; height: 24px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: var(--lf-muted-foreground);
+  }
+  .seg .segitem.on { color: var(--lf-mint-700); }
+  html.dark .seg .segitem.on, .frame.theme-dark .seg .segitem.on { color: var(--lf-mint-400); }
+  .frame.theme-dark .seg { background: var(--lf-muted); }
+  .frame.theme-dark .seg .thumb { background: #2E3A34; box-shadow: 0 1px 2px rgba(0,0,0,0.35); }
+
+  /* 44dp 布局盒（=命中盒）用伪元素画出来示意，不改 DOM：
+     轨道 28dp → 上下各外扩 8dp 得 44；图标钮 36dp → 四周各外扩 4dp 得 44。
+     这两圈虚线**是评审用的标注，不是实现物**——实现里就是父级给 44×44 的盒子、
+     视觉块在其中居中。 */
+  .seg::before {
+    content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px;
+    outline: 1px dashed rgba(47,190,143,0.55); border-radius: 8px;
+    pointer-events: none;
+  }
+  .iconbtn { position: relative; }
+  .iconbtn::before {
+    content: ''; position: absolute; left: -4px; right: -4px; top: -4px; bottom: -4px;
+    outline: 1px dashed rgba(47,190,143,0.55); border-radius: 8px;
+    pointer-events: none;
+  }
+
+  .hactions { display: inline-flex; align-items: center; gap: 8px; flex: none; height: 44px; }
+
+  /* ── ② 需求 44：纯图标「添加」按钮（新共享件 LfIconButton）─────────── */
+  .iconbtn {
+    width: 36px; height: 36px; flex: none; border-radius: var(--lf-radius-full);
+    background: var(--lf-mint-100); color: var(--lf-mint-700);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .iconbtn svg { width: 18px; height: 18px; display: block; }
+  html.dark .iconbtn, .frame.theme-dark .iconbtn { color: var(--lf-mint-400); }
+  .frame.theme-dark .iconbtn { background: var(--lf-mint-100); }
+  .hactions { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+
+  /* ── ③ 柱图：y 轴三档 + 顶部 kg（沿用 R2 的口径）─────────────────────
+     需求 40：柱宽上限 40 → **22dp**。格内水平内边距 3 → 8（空隙 6 → 16dp）。 */
+  .unitband {
+    font-size: 10px; color: var(--lf-muted-foreground);
+    padding-left: 38px; height: 16px; display: flex; align-items: flex-end;
+  }
+  .chartwrap { display: flex; align-items: stretch; height: 130px; }
+  .yaxis {
+    width: 30px; flex: none; position: relative;
+    font-size: 10px; color: var(--lf-muted-foreground);
+  }
+  .yaxis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+  .yaxis span.t0 { top: 0; }
+  .yaxis span.t1 { top: 50%; }
+  .yaxis span.t2 { top: 100%; }
+  .plot { flex: 1; position: relative; margin-left: 8px; }
+  .grid { position: absolute; inset: 0; }
+  .grid i {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background-image: linear-gradient(to right, var(--lf-border) 0 3px, transparent 3px 7px);
+    background-size: 7px 1px;
+  }
+  .grid i.g0 { top: 0; } .grid i.g1 { top: 50%; } .grid i.g2 { bottom: 0; }
+  /* 柱子：七格等分；空格**没有柱子**（需求 41）
+     .bars 必须 align-items:stretch —— 槽位撑满图高，柱子的 height:% 才有参照系。
+     写成 flex-end 会让槽高收缩成内容高，柱子全塌到 min-height（一条小横线）。 */
+  .bars { position: absolute; inset: 0; display: flex; align-items: stretch; padding: 0; }
+  .bars .slot { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding: 0 8px; }
+  /* ↑ 需求 40：paddings 8+8 ⇒ 格间空隙 16dp（周视图七格时柱净宽 ≈21dp）；
+     柱宽上限 22dp —— 月视图 5 格时格子更宽，上限兜住不让柱变胖。 */
+  .bars .slot i {
+    display: block; width: 100%; max-width: 22px; min-height: 4px;
+    border-radius: 6px 6px 0 0; background: var(--lf-mint-500);
+  }
+  .bars .slot.last i { background: var(--lf-mint-600); }
+  .xlabels {
+    display: flex; padding-left: 38px; margin-top: 6px;
+  }
+  .xlabels span {
+    flex: 1; max-width: 100%; text-align: center; font-size: 10px;
+    color: var(--lf-muted-foreground);
+  }
+  /* 空槽的标签**照常显示**，只是颜色更淡（可分辨「这格没数据」而不是「标签丢了」） */
+  .xlabels span.empty { color: var(--lf-neutral-300); }
+  .frame.theme-dark .xlabels span.empty { color: #4A5A54; }
+
+  /* ── 空态（0 条记录）─────────────────────────────────────────────── */
+  .emptywrap { position: relative; height: 130px; }
+  .emptywrap .msg {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+  }
+  /* 衬底：网格线不该从文案中间穿过 —— 实现在 Flutter 里是同一层 Stack，
+     文案带卡片色底即可断开虚线。 */
+  .emptywrap .msg .t, .emptywrap .msg .s {
+    background: var(--lf-card); padding: 0 10px;
+  }
+  .emptywrap .t { font-size: 15px; font-weight: 600; color: var(--lf-muted-foreground); }
+  .emptywrap .s { font-size: 12px; color: var(--lf-muted-foreground); }
+
+  /* ── 弹层壳（S2：需求 45/46/50 的现场）────────────────────────────────
+     与 `AppSheet` 同构：标题在最上、字段区可滚、行动行（取消 | 主行动）钉在最下。
+     **字段数量变化不影响行动行位置**——行动行不是「跟在最后一个字段后面」，
+     而是壳的固定底行；所以删掉两个字段后保存钮仍在同一高度。 */
+  .sheet {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .sheet .stitle { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .sheet .sbody { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .field .flabel {
+    font-size: 11px; color: var(--lf-muted-foreground); margin-bottom: 4px;
+  }
+  .field .fbox {
+    height: 44px; padding: 0 12px; border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-md); background: var(--lf-card);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .field .fbox.focus { border-color: var(--lf-mint-500); }
+  .field .fval { font-size: 14px; color: var(--lf-card-foreground); }
+  .field .funit { font-size: 11px; color: var(--lf-muted-foreground); }
+  .field .fempty { color: var(--lf-muted-foreground); }
+  .actionrow {
+    margin-top: 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .actionrow .cancel { font-size: 13px; color: var(--lf-muted-foreground); }
+  .actionrow .primary {
+    height: 36px; padding: 0 20px; border-radius: var(--lf-radius-full);
+    background: var(--lf-mint-500); color: #fff; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center;
+  }
+  .sw {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0;
+  }
+  .sw .swtext { min-width: 0; }
+  .sw .swt { font-size: 13px; color: var(--lf-card-foreground); }
+  .sw .sws { font-size: 10px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .sw .track {
+    width: 40px; height: 22px; flex: none; border-radius: var(--lf-radius-full);
+    background: var(--lf-muted); position: relative;
+  }
+  .sw .track.on { background: var(--lf-mint-500); }
+  .sw .track i {
+    position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+    border-radius: var(--lf-radius-full); background: #fff;
+    box-shadow: 0 1px 2px rgba(15,36,28,0.18);
+  }
+  .sw .track.on i { left: auto; right: 2px; }
+  .mlabel { font-size: 12px; color: var(--lf-card-foreground); }
+  .chipwrap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    height: 28px; padding: 0 12px; border-radius: var(--lf-radius-full);
+    background: var(--lf-muted); color: var(--lf-muted-foreground);
+    font-size: 12px; display: inline-flex; align-items: center;
+  }
+  .chip.on {
+    background: var(--lf-mint-100); color: var(--lf-mint-700); font-weight: 600;
+  }
+  .frame.theme-dark .chip.on { color: var(--lf-mint-400); }
+  /* 删掉的行：用红虚线框标出「这里原本有东西、现在没有了」（评审用，非实现物） */
+  .removed {
+    position: relative; outline: 1px dashed #F44336; outline-offset: 2px;
+    border-radius: var(--lf-radius-md);
+  }
+  .removed::after {
+    content: attr(data-note); position: absolute; right: 0; top: -13px;
+    font-size: 8px; color: #F44336; white-space: nowrap;
+  }
+  /* 删后留下的空位：让评审看得见「这里腾出了多少高度」 */
+  .gapmeter {
+    border-left: 2px dashed #B8C6C0; padding-left: 8px; font-size: 10px;
+    color: #8FA09A; line-height: 1.6;
+  }
+
+  /* ── S4 · 需求 48：步数卡未授权态（before/after）────────────────────── */
+  .sthead { display: flex; align-items: center; gap: 6px; }
+  .sticon { width: 12px; height: 12px; border-radius: 3px; background: var(--lf-mint-500); flex: none; }
+  .sttitle { font-size: 12px; color: var(--lf-muted-foreground); }
+  .stbadge {
+    margin-left: auto; background: #FFE2A8; color: #241A00;
+    font-size: 12px; font-weight: 600; border-radius: 8px; padding: 3px 8px;
+  }
+  .stval { font-size: 22px; font-weight: 600; color: var(--lf-card-foreground); }
+  .stsub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 8px; }
+  .staction { font-size: 12px; color: var(--lf-mint-700); margin-top: 8px; }
+  .sttrack { height: 6px; border-radius: 3px; background: var(--lf-border); margin-top: 12px; }
+  .stghost {
+    border: 1px dashed var(--lf-border); border-radius: 6px;
+    padding: 10px 8px; text-align: center;
+    font-size: 10px; color: var(--lf-muted-foreground);
+  }
+  .stghost b { color: var(--lf-card-foreground); }
+
+  /* ── 对照标记（评审用，非实现物）────────────────────────────────── */
+  .mark { position: relative; outline: 1px dashed #F44336; outline-offset: 0; }
+  .mark::after {
+    content: attr(data-note); position: absolute; right: 0; top: -13px;
+    font-size: 8px; color: #F44336; white-space: nowrap;
+  }
+  .markok { position: relative; outline: 1px dashed rgba(47,190,143,0.55); outline-offset: 0; }
+  .markok::after {
+    content: attr(data-note); position: absolute; right: 0; top: -13px;
+    font-size: 8px; color: #1B8A62; white-space: nowrap;
+  }
+  .dim { font-size: 9px; color: #8FA09A; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>今日 · 体重卡重做 v2（S1 · docs/31 需求 38–44）</h1>
+<p class="intro">
+  四帧：<b>① 改造前（R2 交付态）</b> · <b>② 改造后 · 周视图（七格含空格）</b> ·
+  <b>③ 改造后 · 月视图（本月体重）</b> · <b>④ 改造后 · 暗色</b>。
+  另有 <b>⑤ 空态</b>（0 条记录）与 <b>⑥ 逐项尺寸对照</b>。
+</p>
+<div class="legend">
+  <b>本稿要解决的七条</b>（用户 2026-10-09 原话）：<br>
+  38「体重卡片还是太丑」→ 卡头一段式、右侧两件等视觉高、留白收紧；
+  39「周月切换需要我发的第二张图」→ <b>统一灰轨道 + 白色滑块</b>（形态照第二张图），
+  但视觉高 <b>28dp</b>（R3 用户嫌「太大」的是尺寸，不是形态）；<br>
+  40「柱子太宽了」→ 柱宽上限 <b>40 → 22dp</b>，格间空隙 6 → 16dp；
+  41「一周就横坐标七天都显示，没有数据的时间就空着」→ 周视图<b>恒定七格</b>，
+  空槽<b>不画柱、标签仍在</b>（帧②里刻意只给三/五/日三天数据）；
+  42「月视图标题写本月体重」→ 标题 <code>体重趋势</code> → <code>本月体重</code>；
+  43「下边不要写较月初」→ 删那三字，<b>保留</b> <code>↓ 0.8</code>；
+  44「添加只要图标」→ 新共享件 <code>LfIconButton</code>（36dp 圆形 + <code>Icons.add</code>，
+  四周各外扩 4dp 得 44 命中盒）。
+</div>
+
+<!-- ================= ① 改造前 ================= -->
+<h2>① 改造前（R2 交付态）：两颗独立胶囊 + 文字「添加」+ 七格按记录数缩水</h2>
+<div class="row">
+  <div class="frame">
+    <div class="label"><span>R2 交付态 · 周视图（1 条记录）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本周体重</div>
+            <div class="csub num">最新 65.0 kg</div>
+          </div>
+          <div class="hactions">
+            <span class="mark" data-note="文字+图标，宽 62dp"><span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--lf-mint-700)">＋ 添加</span></span>
+            <span class="mark" data-note="两颗独立胶囊"><span style="display:inline-flex;gap:4px">
+              <span style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 14px;border-radius:9999px;background:var(--lf-mint-100);color:var(--lf-mint-700);font-size:12px;font-weight:600">周</span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 14px;border-radius:9999px;background:var(--lf-muted);color:var(--lf-muted-foreground);font-size:12px;font-weight:600">月</span>
+            </span></span>
+          </div>
+        </div>
+        <div style="margin-top:12px"></div>
+        <div class="unitband">kg</div>
+        <div class="chartwrap">
+          <div class="yaxis"><span class="t0">65.5</span><span class="t1">65.0</span><span class="t2">64.5</span></div>
+          <div class="plot">
+            <div class="grid"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+            <div class="bars">
+              <div class="slot last"><i style="height:50%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="xlabels"><span>三</span></div>
+        <div class="note" style="margin-top:10px">
+          <b>三处问题</b>：① 柱宽受 <code>max-width:40px</code> 约束但单柱时格宽 300dp ⇒
+          实际被撑到 <b>~36dp</b> 且孤零零一根；② 横坐标<b>只有一个「三」</b>——
+          不是「一周」；③ 右侧三件（文字按钮 + 两颗胶囊）宽度 62 / 56 / 56 混排。
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ② 改造后 · 周视图 ================= -->
+<h2>② 改造后 · 周视图：七格恒定，没记录的那天留空</h2>
+<div class="row">
+  <div class="frame">
+    <div class="label"><span>周视图（三/五/日有数据，其余空格）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本周体重</div>
+            <div class="csub num">最新 65.0 kg <span class="delta-down">↓ 0.8</span></div>
+          </div>
+          <div class="hactions">
+            <span class="markok" data-note="纯图标 36dp"><span class="iconbtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </span></span>
+            <span class="markok" data-note="轨道 28dp + 滑块"><span class="seg">
+              <span class="thumb left"></span>
+              <span class="segitem on">周</span><span class="segitem">月</span>
+            </span></span>
+          </div>
+        </div>
+        <div style="margin-top:8px"></div>
+        <div class="unitband">kg</div>
+        <div class="chartwrap">
+          <div class="yaxis"><span class="t0">65.5</span><span class="t1">65.0</span><span class="t2">64.5</span></div>
+          <div class="plot">
+            <div class="grid"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+            <div class="bars">
+              <div class="slot"></div>
+              <div class="slot"></div>
+              <div class="slot"><i style="height:38%"></i></div>
+              <div class="slot"></div>
+              <div class="slot"><i style="height:62%"></i></div>
+              <div class="slot"></div>
+              <div class="slot last"><i style="height:50%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="xlabels">
+          <span class="empty">一</span><span class="empty">二</span><span>三</span><span class="empty">四</span>
+          <span>五</span><span class="empty">六</span><span>日</span>
+        </div>
+        <div class="note" style="margin-top:10px">
+          <b>七格恒定</b>：横坐标是「一…日」整整一周，与有没有记录无关。
+          空格（一/二/四/六）<b>一个墨点都不画</b>——不是 0kg 的柱；
+          标签照常显示且更淡，明确表达「这天没称」而不是「图坏了」。
+          有数据的格子（三/五/日）标签用正常色——<b>淡显严格跟随有无数据</b>。
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>周视图 · 满数据（七天都有）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本周体重</div>
+            <div class="csub num">最新 64.6 kg <span class="delta-down">↓ 1.2</span></div>
+          </div>
+          <div class="hactions">
+            <span class="iconbtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
+            <span class="seg">
+              <span class="thumb left"></span>
+              <span class="segitem on">周</span><span class="segitem">月</span>
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:8px"></div>
+        <div class="unitband">kg</div>
+        <div class="chartwrap">
+          <div class="yaxis"><span class="t0">66.0</span><span class="t1">65.0</span><span class="t2">64.0</span></div>
+          <div class="plot">
+            <div class="grid"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+            <div class="bars">
+              <div class="slot"><i style="height:88%"></i></div>
+              <div class="slot"><i style="height:78%"></i></div>
+              <div class="slot"><i style="height:70%"></i></div>
+              <div class="slot"><i style="height:64%"></i></div>
+              <div class="slot"><i style="height:52%"></i></div>
+              <div class="slot"><i style="height:40%"></i></div>
+              <div class="slot last"><i style="height:30%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="xlabels">
+          <span>一</span><span>二</span><span>三</span><span>四</span>
+          <span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="note" style="margin-top:10px">
+          七根柱各自独立、空隙 16dp（旧：6dp）。柱宽上限 22dp，格子更宽时柱不再跟着变胖。
+          与改造前帧对比：那时单柱被撑到 ~36dp，像一块色卡。
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ③ 改造后 · 月视图 ================= -->
+<h2>③ 改造后 · 月视图：标题「本月体重」· 不再写「较月初」</h2>
+<div class="row">
+  <div class="frame">
+    <div class="label"><span>月视图（≤5 箱）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本月体重</div>
+            <div class="csub num">最新 65.0 kg <span class="delta-down">↓ 1.2</span></div>
+          </div>
+          <div class="hactions">
+            <span class="iconbtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
+            <span class="seg">
+              <span class="thumb right"></span>
+              <span class="segitem">周</span><span class="segitem on">月</span>
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:8px"></div>
+        <div class="unitband">kg</div>
+        <div class="chartwrap">
+          <div class="yaxis"><span class="t0">66.2</span><span class="t1">65.6</span><span class="t2">65.0</span></div>
+          <div class="plot">
+            <div class="grid"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+            <div class="bars">
+              <div class="slot"><i style="height:92%"></i></div>
+              <div class="slot"><i style="height:74%"></i></div>
+              <div class="slot"><i style="height:58%"></i></div>
+              <div class="slot"><i style="height:44%"></i></div>
+              <div class="slot last"><i style="height:24%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="xlabels">
+          <span>9/5</span><span>9/12</span><span>9/19</span><span>9/26</span><span>10/3</span>
+        </div>
+        <div class="note" style="margin-top:10px">
+          <b>两处改动</b>：① 标题「体重趋势」→「<b>本月体重</b>」（与周视图「本周体重」同构）；
+          ② 副标题删掉「<b>较月初</b>」三字，保留 <code>↓ 1.2</code>——
+          用户删的是那三个字，趋势信息本身留着。
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= ⑤ 空态 ================= -->
+  <div class="frame">
+    <div class="label"><span>空态（真的 0 条记录）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本周体重</div>
+            <div class="csub">还没有体重记录</div>
+          </div>
+          <div class="hactions">
+            <span class="iconbtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
+            <span class="seg">
+              <span class="thumb left"></span>
+              <span class="segitem on">周</span><span class="segitem">月</span>
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:8px"></div>
+        <div class="unitband">kg</div>
+        <div class="emptywrap">
+          <div class="grid" style="position:absolute;left:38px;right:0;top:16px;bottom:16px"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+          <div class="msg">
+            <span class="t">还没有体重记录</span>
+            <span class="s">称一次体重就能看到趋势</span>
+          </div>
+        </div>
+        <div class="xlabels">
+          <span class="empty">一</span><span class="empty">二</span><span class="empty">三</span><span class="empty">四</span>
+          <span class="empty">五</span><span class="empty">六</span><span class="empty">日</span>
+        </div>
+        <div class="note" style="margin-top:10px">
+          空态只在<b>真 0 条记录</b>时出现（R2 已修的口径）。七格标签全部淡显，
+          与「有数据但某天没称」是同一个视觉语言。
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ④ 暗色 ================= -->
+<h2>④ 改造后 · 暗色：切换轨道与滑块、图标钮都要能分辨</h2>
+<div class="row">
+  <div class="frame theme-dark">
+    <div class="label"><span>暗色 · 周视图</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="card">
+        <div class="head">
+          <div class="hgroup">
+            <div class="ctitle">本周体重</div>
+            <div class="csub num">最新 65.0 kg <span class="delta-down">↓ 0.8</span></div>
+          </div>
+          <div class="hactions">
+            <span class="iconbtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
+            <span class="seg">
+              <span class="thumb left"></span>
+              <span class="segitem on">周</span><span class="segitem">月</span>
+            </span>
+          </div>
+        </div>
+        <div style="margin-top:8px"></div>
+        <div class="unitband">kg</div>
+        <div class="chartwrap">
+          <div class="yaxis"><span class="t0">65.5</span><span class="t1">65.0</span><span class="t2">64.5</span></div>
+          <div class="plot">
+            <div class="grid"><i class="g0"></i><i class="g1"></i><i class="g2"></i></div>
+            <div class="bars">
+              <div class="slot"></div>
+              <div class="slot"><i style="height:70%"></i></div>
+              <div class="slot"><i style="height:38%"></i></div>
+              <div class="slot"></div>
+              <div class="slot"><i style="height:62%"></i></div>
+              <div class="slot"></div>
+              <div class="slot last"><i style="height:50%"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="xlabels">
+          <span class="empty">一</span><span>二</span><span>三</span><span class="empty">四</span>
+          <span>五</span><span class="empty">六</span><span>日</span>
+        </div>
+        <div class="note" style="margin-top:10px">
+          暗色下：轨道用 <code>--lf-muted</code>（#242E28）、滑块提亮到 <b>#2E3A34</b> +
+          更重阴影——否则滑块与轨道同色，「选中在哪一段」就看不见了。
+          空格标签用 <b>#4A5A54</b>（比 muted-foreground 再低一档）。
+          暗色帧刻意用与亮色不同的空槽分布（一/四/六空），验证淡显跟随数据而非写死位置。
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= ⑥ 尺寸对照 ================= -->
+  <div style="width:360px;flex:none">
+    <div class="note">
+      <b>⑥ 尺寸对照（本稿的唯一硬指标）</b><br><br>
+      <b>周/月切换（需求 39）</b><br>
+      形态：统一轨道 + 白滑块（照用户第二张图）<br>
+      轨道视觉高：<b class="kw">28dp</b>（内 24 + 上下 2 内边距）<br>
+      滑块：<b class="kw">24dp</b> 高 · 44dp 宽 · 白底 + 1dp 阴影<br>
+      段宽：<b class="kw">44dp</b> 各（总 92dp 含内边距）<br>
+      命中盒：<b class="kw">≥44×44</b>，**不参与布局**<br>
+      <span class="dim">R2 交付态：两颗胶囊各 56dp 宽 × 32dp 视觉 / 48dp 布局盒 ⇒
+      卡头行高被撑到 48。本稿把行高压到 44（命中盒下限，见下）。</span><br><br>
+      <b>柱（需求 40）</b><br>
+      柱宽上限：<b class="kw">40 → 22dp</b><br>
+      格内水平内边距：3 → <b class="kw">8dp</b>（格间空隙 6 → 16dp）<br>
+      圆角顶：6dp（不变）· 最小高 4dp（不变）<br><br>
+      <b>周视图槽位（需求 41）</b><br>
+      槽数：<b class="kw">恒 7</b>（一…日，按 localDate 所在周的周一起）<br>
+      空槽：<b class="kw">不画柱</b>（不是 0 值柱）· 标签淡显<br>
+      <span class="dim">旧口径：取最近 ≤7 条记录 ⇒ 1 条记录时只有 1 格。</span><br><br>
+      <b>标题/副标题（需求 42/43）</b><br>
+      月视图标题：<code>体重趋势</code> → <b class="kw">本月体重</b><br>
+      月视图副标题：删「<b class="kw">较月初</b>」三字，保留 <code>↓ 1.2</code><br><br>
+      <b>添加按钮（需求 44）</b><br>
+      <b class="kw">36dp 圆形 · 纯 Icons.add</b> · mint-100 底 / mint-700 图标<br>
+      无文字；语义标签仍读「添加体重」（读屏不因视觉精简而失语）<br>
+      <span class="dim">旧：文字「添加」+ 图标，宽约 62dp。</span><br><br>
+      <b>卡头（需求 38）</b><br>
+      行高：48 → <b class="kw">44dp</b>（= 触达下限；命中盒即布局盒）<br>
+      右侧两件间距：<b class="kw">8dp</b>（统一）<br>
+      卡头 → 图区间距：12 → <b class="kw">8dp</b>
+    </div>
+    <div class="note">
+      <b>为什么切换控件不能更小</b><br>
+      R3 用户嫌「太大了」指的是那块 76×48 的灰底大块。本稿 28dp 视觉高已经
+      接近最小可读（12px 字 + 24dp 胶囊）。再小会让「周/月」两字的触控区
+      低于 Android 的 48dp 建议值 —— 所以<b>视觉压到 28、命中盒保持 44</b>，
+      这正是「形状照第二张图、尺寸照第三轮意见」的合成点。
+      <br><br>
+      <b>【实测更正：命中盒不可能「不参与布局」】</b>初稿写的是「视觉 28 +
+      命中盒 44 且不撑布局 ⇒ 行高 36」。这在 Flutter 里做不到：父级
+      `hitTest` 先查 <code>size.contains</code>，超出布局盒的点击**根本传不进来**
+      （这与 CSS 可以用负 margin / 伪元素扩大可点区不同）。所以真实落地是
+      <b>布局盒 = 命中盒 = 44×44</b>，视觉块 28（轨道）/36（图标钮）在盒内居中，
+      卡头行高 <b>44dp</b>。相对 R2 的 48 仍收紧了 4dp，而触达一分不让。
+      <br><br>
+      两个 44dp 盒之间间距 8dp：整组宽 44+8+92 = <b>144dp</b>，
+      360dp 屏上标题块仍有约 168dp 可用（「最新 65.0 kg ↓ 0.8」约 120dp），
+      不会挤。<b>这条宽度账是必算的</b>——R2 的 48dp 行高 + 144dp 组宽在
+      320dp 小屏上标题块只剩 ~130dp，是下一处要防的溢出点。
+
+<!-- ================= ⑦ 记录体重弹层（S2 · 需求 45/46） ================= -->
+<h2>⑦ 记录体重弹层：删体脂率与肌肉量（S2 · 需求 45/46）</h2>
+<div class="row">
+  <div class="frame">
+    <div class="label"><span>改造前：5 个字段（日期/体重/体脂率/肌肉量/备注）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">记录体重</div>
+        <div class="sbody">
+          <div class="field">
+            <div class="flabel">日期</div>
+            <div class="fbox"><span class="fval num">2026-10-09</span><span class="funit">今天 · 修改</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">体重（kg）</div>
+            <div class="fbox focus"><span class="fval num">69.4</span><span class="funit">kg</span></div>
+          </div>
+          <div class="field removed" data-note="全局删除（需求 45/46）">
+            <div class="flabel">体脂率（可选）</div>
+            <div class="fbox"><span class="fempty">—</span><span class="funit">%</span></div>
+          </div>
+          <div class="field removed" data-note="全局删除（需求 45/46）">
+            <div class="flabel">肌肉量（可选）</div>
+            <div class="fbox"><span class="fempty">—</span><span class="funit">kg</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">备注（可选）</div>
+            <div class="fbox"><span class="fempty">—</span></div>
+          </div>
+        </div>
+        <div class="actionrow">
+          <span class="cancel">取消</span><span class="primary">保存</span>
+        </div>
+      </section>
+      <div class="note">
+        <b>两个字段各占 44dp 框 + 11dp 标签 + 12dp 间距 = 67dp</b>，两处共 <b>134dp</b>。
+        在 2.0× 屏 + 键盘下，这 134dp 正是把行动行顶出键盘线的那部分
+        （`sheet_action_row_keyboard_test.dart` 拿 780/640dp 两档钉过这件事）。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>改造后：3 个字段（日期/体重/备注）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">记录体重</div>
+        <div class="sbody">
+          <div class="field">
+            <div class="flabel">日期</div>
+            <div class="fbox"><span class="fval num">2026-10-09</span><span class="funit">今天 · 修改</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">体重（kg）</div>
+            <div class="fbox focus"><span class="fval num">69.4</span><span class="funit">kg</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">备注（可选）</div>
+            <div class="fbox"><span class="fempty">—</span></div>
+          </div>
+        </div>
+        <div class="actionrow">
+          <span class="cancel">取消</span><span class="primary">保存</span>
+        </div>
+      </section>
+      <div class="note">
+        <b>删的只是字段，保存路径不变</b>：<code>WeightEntryResult</code> 去掉两个可空
+        double，<code>saveManualWeight</code> 同步去参。行动行位置由弹层壳决定，
+        与字段数无关——<b>保存钮仍在壳底</b>。
+      </div>
+      <div class="note">
+        <b>日期回填语义同步收窄</b>：改日期到有过记录的那天，现在只回填
+        <b>体重</b>与<b>备注</b>（原先四个字段）。<b>不再有「把上次的体脂悄悄挂到
+        这次体重上」这个风险面</b>——那两个字段已经不存在了。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ⑧ 新建食物弹层（S2 · 需求 50） ================= -->
+<h2>⑧ 新建食物弹层：删「过敏原与饮食标签」整块（S2 · 需求 50）</h2>
+<div class="row">
+  <div class="frame">
+    <div class="label"><span>改造前：底部三大块（开关 + 两组 chips）</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">新建食物</div>
+        <div class="sbody">
+          <div class="field">
+            <div class="flabel">食物名称</div>
+            <div class="fbox"><span class="fval">鸡胸肉（去皮）</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">品牌（可选）</div>
+            <div class="fbox"><span class="fempty">—</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 热量（kcal）</div>
+            <div class="fbox"><span class="fval num">133</span><span class="funit">kcal</span></div>
+          </div>
+          <div class="gapmeter">
+            ⋮ 每 100g 蛋白质 / 碳水 / 脂肪 三行照旧（本帧省略）
+          </div>
+          <div class="removed" data-note="整块删除（需求 50）" style="margin-top:4px">
+            <div class="mlabel" style="margin-bottom:6px">过敏原与饮食标签（可选）</div>
+            <div class="sw">
+              <div class="swtext">
+                <div class="swt">我已确认本地事实</div>
+                <div class="sws">未知时标签留空，过敏冲突核验不会用到它。</div>
+              </div>
+              <span class="track"><i></i></span>
+            </div>
+            <div class="mlabel" style="margin:6px 0">适用饮食标签</div>
+            <div class="chipwrap">
+              <span class="chip on">素食</span><span class="chip">纯素</span>
+              <span class="chip">无乳制品</span><span class="chip">无麸质</span>
+            </div>
+            <div class="mlabel" style="margin:8px 0 6px">包含过敏原</div>
+            <div class="chipwrap">
+              <span class="chip">蛋类</span><span class="chip on">乳制品</span>
+              <span class="chip">大豆</span><span class="chip">麸质</span>
+              <span class="chip">花生</span><span class="chip">树坚果</span>
+              <span class="chip">鱼类</span><span class="chip">甲壳类</span>
+              <span class="chip">芝麻</span>
+            </div>
+          </div>
+        </div>
+        <div class="actionrow">
+          <span class="cancel">取消</span><span class="primary">保存</span>
+        </div>
+      </section>
+      <div class="note">
+        这块在 360dp 上共 <b>≈210dp</b>（开关 44 + 两组标签各 ~62 + 三个小标题）。
+        <b>如实的代价</b>：保存钮<b>不会</b>被推出首屏——`AppSheet.showSubmitForm`
+        把 body 放进滚动区、actions 留在滚动区之外（`app_sheet.dart:267/357`），
+        它始终钉在壳底。真正发生的是「六个真字段挤不满一屏的反面：用户要先滚过
+        一整块自己多半不需要的内容才看得到「保存」」。
+        <b>probe 用的四行标签里也写着「体脂率（可选）」「肌肉量（可选）」</b>——
+        那份测试夹具要同步改成三个标签。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>改造后：只有六个字段，保存钮全在首屏</span><span>360dp</span></div>
+    <div class="pad">
+      <section class="sheet">
+        <div class="stitle">新建食物</div>
+        <div class="sbody">
+          <div class="field">
+            <div class="flabel">食物名称</div>
+            <div class="fbox"><span class="fval">鸡胸肉（去皮）</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">品牌（可选）</div>
+            <div class="fbox"><span class="fempty">—</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 热量（kcal）</div>
+            <div class="fbox"><span class="fval num">133</span><span class="funit">kcal</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 蛋白质（g）</div>
+            <div class="fbox"><span class="fval num">24</span><span class="funit">g</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 碳水（g）</div>
+            <div class="fbox"><span class="fval num">1.2</span><span class="funit">g</span></div>
+          </div>
+          <div class="field">
+            <div class="flabel">每 100g 脂肪（g）</div>
+            <div class="fbox"><span class="fval num">3.6</span><span class="funit">g</span></div>
+          </div>
+        </div>
+        <div class="actionrow">
+          <span class="cancel">取消</span><span class="primary">保存</span>
+        </div>
+      </section>
+      <div class="note">
+        <b>数据侧同步删三列</b>：<code>foods.constraint_knowledge</code> /
+        <code>dietary_labels_json</code> / <code>allergens_json</code>（schema 22
+        drop）。<code>FoodConstraintFacts</code> 整个类随之删除。
+      </div>
+      <div class="note">
+        <b>保留</b>（docs/31 §2 D5）：两个 enum（<code>DietaryLabel</code> /
+        <code>FoodAllergen</code>）挪到中立位置继续服务 <b>profiles 侧</b>的
+        「我的 → 饮食约束」与 <code>constraints.set</code> 命令。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>⑨ 步数卡 · 改造前：未授权态多一行（卡更高）</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="card">
+        <div class="sthead">
+          <span class="sticon"></span><span class="sttitle">步数</span>
+          <span class="stbadge">未授权</span>
+        </div>
+        <div class="stval num" style="margin-top:8px">—</div>
+        <div class="stsub">需要「身体活动」权限才能读步数 · <span class="staction" style="margin-top:0;display:inline">去设置</span></div>
+        <div class="sttrack"></div>
+      </div>
+      <div class="note">
+        现状（<code>dashboard_quick_stats_row.dart:275-289</code>）：未授权态 =
+        徽标 + 大号「—」+ 说明行 +「去设置」文字链 + <b>多出来的一行</b>
+        （<code>_StepsCardShell</code> 在 <code>onActionTap != null</code> 时
+        多渲染一行，:376-387）⇒ 未授权卡比已授权卡<b>高出一截</b>——
+        正是用户点名的「不要影响卡片已授权状态的高度和布局」。
+      </div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>⑩ 步数卡 · 改造后：只有徽标，骨架与已授权态逐像素同构</span><span>360dp</span></div>
+    <div class="pad">
+      <div class="card">
+        <div class="sthead">
+          <span class="sticon"></span><span class="sttitle">步数</span>
+          <span class="stbadge">未授权</span>
+        </div>
+        <div class="stghost" style="margin-top:8px">
+          隐形占位（评审标注，<b>实现里不可见</b>）：<br>
+          与「有数据态」正文同一个组件、同字号——藏形不缩格
+        </div>
+        <div class="sttrack"></div>
+      </div>
+      <div class="note">
+        <b>需求 48 落法</b>：卡内文字/按钮全部退场（「—」、说明行、「去设置」）；
+        正文高度由 <code>Visibility(maintainSize)</code> + 与有数据态<b>同一个
+        <code>_StepsValue</code></b> 占住（外层 <code>ExcludeSemantics</code>，
+        读屏听不到编造的「0 / 10,000 步」）；进度条空轨道保留——它是本卡其余
+        空态（读取中/无传感器/没读到）的既有视觉语言，也保住与已授权态的
+        几何一致。<b>点卡片仍可申请权限</b>（不可见路径，语义如实）。
+      </div>
+      <div class="note">
+        <b>测试钉两条</b>：① 未授权态与有数据态的卡<b>同高</b>
+        （<code>tester.getSize</code> 逐像素比对）；②「0 / 10,000 步」在组件树里
+        占位但<b>不进语义树</b>（<code>find.bySemanticsLabel</code> 找不到）。
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

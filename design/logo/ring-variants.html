@@ -1,0 +1,977 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>LocalFit AI · 能量环衍生方案</title>
+<style>
+  :root { --ink:#17251E; --ink2:#5A6B62; --ink3:#93A29A; --line:#E7ECE8; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:48px 56px 64px; background:#FAFBF9; color:var(--ink);
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  h1 { font-size:30px; margin:0 0 6px; letter-spacing:-.4px; }
+  .sub { color:var(--ink2); font-size:15px; }
+  .row { display:grid; grid-template-columns:320px 1fr; gap:0 44px; align-items:center;
+         padding:34px 0; border-top:1px solid var(--line); }
+  .row:first-of-type { border-top:none; margin-top:22px; }
+  .hero-icon { width:300px; }
+  .hero-icon svg { width:100%; height:auto; border-radius:24%; box-shadow:0 10px 26px rgba(23,37,30,.13); }
+  h2 { font-size:24px; margin:0 0 6px; letter-spacing:-.2px; }
+  .tag { font-size:13px; color:#1FA377; margin-bottom:20px; }
+  .ladder { display:flex; align-items:flex-end; gap:24px; }
+  .ladder-cell { display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .ladder-cell span { font-size:11px; color:var(--ink3); }
+  .s svg { display:block; border-radius:22%; }
+  .s128 svg { width:128px; height:128px; box-shadow:0 5px 14px rgba(23,37,30,.10); }
+  .s64 svg  { width:64px;  height:64px;  box-shadow:0 3px 9px rgba(23,37,30,.09); }
+  .s48 svg  { width:48px;  height:48px;  box-shadow:0 2px 7px rgba(23,37,30,.08); }
+  .s32 svg  { width:32px;  height:32px; }
+  .s24 svg  { width:24px;  height:24px; }
+  .mark-cell { padding-left:24px; border-left:1px solid var(--line); }
+  .mark svg { background:#fff; border-radius:22%; box-shadow:inset 0 0 0 1px var(--line); }
+  .note { margin:22px 0 0; font-size:14px; line-height:1.7; color:var(--ink2); max-width:900px; }
+</style></head>
+<body>
+  <h1>能量环 · 衍生方案</h1>
+  <div class="sub">骨架不变：薄荷环 · 营养三色 · 圆形构图 · 缺口开口朝上　｜　变的是「三宏量」的表达方式</div>
+  
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>原方案 02</h2>
+      <div class="tag">你当前选中的版本</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02-ring-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02-ring-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="url(#mint-02-ring-mark)" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 555.55 337.35 A 180 180 0 0 1 685.03 561.61" fill="none" stroke="#FF8A65" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 641.48 637.04 A 180 180 0 0 1 382.52 637.04" fill="none" stroke="#FFC94D" stroke-width="68" stroke-linecap="round"/>
+    <path d="M 338.97 561.61 A 180 180 0 0 1 468.45 337.35" fill="none" stroke="#B39DDB" stroke-width="68" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">外环 82 粗、内三弧 68 粗、断口 28°。下面是五个衍生方向，骨架（薄荷环 / 营养三色 / 圆形 / 缺口朝上）都保持不变。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>A · 内弧加粗</h2>
+      <div class="tag">在选中方案上的直接微调</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02a-arc-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02a-arc-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="url(#mint-02a-arc-mark)" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 556.51 333.47 A 184 184 0 0 1 688.87 562.72" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 644.36 639.82 A 184 184 0 0 1 379.64 639.82" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 335.13 562.72 A 184 184 0 0 1 467.49 333.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">保持外环 + 内三弧结构，把内弧加粗到 82、断口拉到 32°，四段粗细接近、缺口更清楚，小尺寸下不至于糊成一圈。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>B · 环内三点</h2>
+      <div class="tag">三宏量最简表达</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02b-dots-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02b-dots-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="url(#mint-02b-dots-mark)" stroke-width="82" stroke-linecap="round"/>
+    <circle cx="684.00" cy="512.00" r="68" fill="#FF8A65"/>
+    <circle cx="426.00" cy="660.96" r="68" fill="#FFC94D"/>
+    <circle cx="426.00" cy="363.04" r="68" fill="#B39DDB"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">外环保留，三宏量缩成三颗圆点。圆点在小尺寸下比细弧更抗模糊，三色仍然一眼分得开；代价是丢了「构成比例」的含义。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>C · 内外互换</h2>
+      <div class="tag">三色当主角，进度收进内圈</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02c-invert-icon)"/>
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02c-invert-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 593.59 227.47 A 296 296 0 0 1 799.21 583.61" fill="none" stroke="#FF8A65" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 717.62 724.92 A 296 296 0 0 1 306.38 724.92" fill="none" stroke="#FFC94D" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 224.79 583.61 A 296 296 0 0 1 430.41 227.47" fill="none" stroke="#B39DDB" stroke-width="82" stroke-linecap="round"/>
+    <path d="M 584.40 349.39 A 178 178 0 1 1 439.60 349.39" fill="none" stroke="url(#mint-02c-invert-mark)" stroke-width="56" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">把层级反过来：外环由三段彩色弧拼成（营养构成是主视觉），内圈留一条细的薄荷进度弧。三层粗细递减，比双层同粗更透气，小尺寸下三色占的面积也更大。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>D · 环内星芒</h2>
+      <div class="tag">进度环 + AI</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02d-spark-icon)"/>
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="#FFFFFF" stroke-width="82" stroke-linecap="round"/>
+    <path fill="#FFFFFF" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02d-spark-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 632.39 241.59 A 296 296 0 1 1 391.61 241.59" fill="none" stroke="url(#mint-02d-spark-mark)" stroke-width="82" stroke-linecap="round"/>
+    <path fill="url(#mint-02d-spark-mark)" d="M512 302 Q543.5 480.5 722 512 Q543.5 543.5 512 722 Q480.5 543.5 302 512 Q480.5 480.5 512 302 Z"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">环内换成一颗薄荷星芒，讲「AI 辅助」而不是三宏量——营养构成由环下 App 内承担，图标只需要被记住。星芒用反白，深浅底都成立。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>E · 单环四段</h2>
+      <div class="tag">一个环讲两件事</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02e-segments-icon)"/>
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="#FFFFFF" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="url(#mint-02e-segments-mark)" stroke-width="76"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">把内外两层压成一个环：长段薄荷=热量进度，三段彩色=三宏量，用平头对拼换成清晰的 22° 缝。四段同半径、粗细一致，比双层结构更干净、投影更小。</p>
+    </div>
+  </section>
+
+  <section class="row">
+    <div class="hero"><div class="hero-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div></div>
+    <div class="body">
+      <h2>F · 游标轨道</h2>
+      <div class="tag">细轨道 + 进度游标</div>
+      <div class="ladder">
+        <div class="ladder-cell"><div class="s s128"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>128</span></div>
+        <div class="ladder-cell"><div class="s s64"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>64</span></div>
+        <div class="ladder-cell"><div class="s s48"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>48</span></div>
+        <div class="ladder-cell"><div class="s s32"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>32</span></div>
+        <div class="ladder-cell"><div class="s s24"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-02f-gauge-icon)"/>
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="url(#mint-02f-gauge-icon)" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="#FFFFFF"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>24</span></div>
+        <div class="ladder-cell mark-cell"><div class="s s64 mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02f-gauge-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    
+    <path d="M 532.93 212.73 A 300 300 0 1 1 389.98 237.94" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" opacity="0.7"/>
+    <path d="M 512.00 212.00 A 300 300 0 1 1 409.39 230.09" fill="none" stroke="url(#mint-02f-gauge-mark)" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="409.39" cy="230.09" r="54" fill="url(#mint-02f-gauge-mark)"/>
+    <path d="M 555.06 339.29 A 178 178 0 0 1 683.10 561.06" fill="none" stroke="#FF8A65" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 640.04 635.65 A 178 178 0 0 1 383.96 635.65" fill="none" stroke="#FFC94D" stroke-width="76" stroke-linecap="round"/>
+    <path d="M 340.90 561.06 A 178 178 0 0 1 468.94 339.29" fill="none" stroke="#B39DDB" stroke-width="76" stroke-linecap="round"/>
+  </g>
+</svg>
+</div><span>mark</span></div>
+      </div>
+      <p class="note">轨道细到不抢戏，进度由一颗游标圆点表示（缺口位置=已完成比例），内三弧回到主角。结构最轻，也最像仪表盘。</p>
+    </div>
+  </section>
+</body></html>

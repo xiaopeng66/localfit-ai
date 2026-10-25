@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="LocalFit AI 第七轮界面升级交互设计稿。基于现有功能，保留薄荷绿主题；仅使用演示数据，不连接真实应用。">
+  <title>LocalFit AI · Round7 · 原版精修</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="refinement.css">
+  <link rel="stylesheet" href="polish.css">
+  <script src="model.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="studio-bar">
+    <a class="studio-brand" href="index.html" aria-label="LocalFit AI 设计稿首页"><span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><path d="M7 20C5 9 14 5 23 5c0 10-5 18-16 15Z" fill="currentColor"/><path d="m8 20 10-9M12 16l-1-5" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg></span><span>LocalFit AI<small>Round7 · 原版精修</small></span></a>
+    <div class="studio-tools" aria-label="设计预览工具">
+      <div class="width-controls" role="group" aria-label="预览宽度"><button type="button" data-action="width" data-value="360" aria-pressed="false">360</button><button type="button" data-action="width" data-value="390" aria-pressed="true">390</button><button type="button" data-action="width" data-value="430" aria-pressed="false">430</button><span>px</span></div>
+      <button class="studio-tool" type="button" id="theme-toggle" data-action="theme" aria-pressed="false">深色预览</button>
+      <button class="studio-tool" type="button" id="empty-toggle" data-action="empty" aria-pressed="false">查看空状态</button>
+      <button class="studio-tool" type="button" id="text-toggle" data-action="large-text" aria-pressed="false">放大文字</button>
+      <a class="studio-tool" href="details.html">本轮细节</a>
+      <a class="studio-tool overview-link" href="compare.html">三方案对照 <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <div class="studio-layout">
+    <aside class="design-rail" aria-label="设计稿目录">
+      <div class="rail-intro"><span class="small-tag">基于现有功能的视觉升级</span><h1>原来的优点，<br>值得被保留。</h1><p>保留热量环、趋势与仪表。<br>在熟悉的界面上，做精修。</p></div>
+      <nav class="page-directory" aria-label="页面预览">
+        <button type="button" data-action="navigate" data-page="today" aria-current="page"><span class="directory-icon" data-icon="home"></span><span>今日<small>每天从这里开始</small></span><span class="directory-dot"></span></button>
+        <button type="button" data-action="navigate" data-page="nutrition"><span class="directory-icon" data-icon="bowl"></span><span>饮食<small>记录、菜单与食物库</small></span><span class="directory-dot"></span></button>
+        <button type="button" data-action="navigate" data-page="ai"><span class="directory-icon" data-icon="spark"></span><span>AI 助手<small>建议与行动分得清</small></span><span class="directory-dot"></span></button>
+        <button type="button" data-action="navigate" data-page="training"><span class="directory-icon" data-icon="dumbbell"></span><span>训练<small>从计划到每一组</small></span><span class="directory-dot"></span></button>
+        <button type="button" data-action="navigate" data-page="settings"><span class="directory-icon" data-icon="user"></span><span>我的<small>健康数据与本地管理</small></span><span class="directory-dot"></span></button>
+      </nav>
+      <div class="rail-footer"><span class="local-dot"></span><p>离线交互原型<br><span>不读取或修改 App 数据</span></p></div>
+    </aside>
+    <section class="preview-stage" aria-label="手机界面预览">
+      <div class="preview-caption"><span id="preview-page-name">今日</span><span>A 为完整主稿 · B/C 为版式对照</span></div>
+      <div class="device" id="device" style="--device-width:390px">
+        <div class="status-bar" aria-hidden="true"><span>9:41</span><div class="status-icons"><svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="8" width="3" height="4" rx=".6" fill="currentColor"/><rect x="4.5" y="5.5" width="3" height="6.5" rx=".6" fill="currentColor"/><rect x="9" y="3" width="3" height="9" rx=".6" fill="currentColor"/><rect x="13.5" width="3" height="12" rx=".6" fill="currentColor"/></svg><svg width="17" height="12" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 3c4-3 11-3 15 0M4 6c2.5-2 6.5-2 9 0M7 9c1-.8 2-.8 3 0"/><circle cx="8.5" cy="11" r=".6" fill="currentColor"/></svg><svg width="24" height="12" viewBox="0 0 24 12" fill="none"><rect x=".5" y=".5" width="20" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><path d="M22 4v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div></div>
+        <main class="app-screen" id="screen" tabindex="-1"></main>
+        <nav class="app-nav" id="app-nav" aria-label="应用导航"></nav>
+        <div class="home-indicator" aria-hidden="true"><span></span></div>
+        <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+        <div class="sheet-layer" id="sheet-layer" hidden><div class="sheet-scrim" data-action="dismiss-sheet"></div><section class="app-sheet" id="app-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-handle" aria-hidden="true"></div><header class="sheet-header"><h2 id="sheet-title"></h2><button type="button" class="icon-button" data-action="dismiss-sheet" aria-label="关闭弹层">×</button></header><div id="sheet-content" class="sheet-content"></div></section></div>
+      </div>
+      <p class="preview-disclaimer"><span class="local-dot"></span>所有内容均为演示数据，操作仅影响本页</p>
+    </section>
+    <aside class="design-notes" aria-label="当前页面设计说明"><div class="notes-heading"><span class="note-line"></span>这页的升级</div><div id="page-notes"></div><div class="palette"><span style="background:#2FBE8F"></span><span style="background:#D2F5E6"></span><span style="background:#FF8A65"></span><span style="background:#FFC94D"></span><span style="background:#B39DDB"></span></div><p class="notes-foot">图形不删减，含义不改变。<br>另有 B / C 两种版式对照。</p><a class="notes-link" href="README.md">查看设计说明</a></aside>
+  </div>
+  <noscript><div class="noscript">请启用 JavaScript 以查看交互设计稿。本页面不会连接 AI 服务或读取应用数据。</div></noscript>
+</body>
+</html>

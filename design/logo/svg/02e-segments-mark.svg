@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-02e-segments-mark" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  
+  <g>
+    <path d="M 658.00 259.12 A 292 292 0 0 1 802.40 481.48" fill="none" stroke="#FF8A65" stroke-width="76"/>
+    <path d="M 792.69 592.49 A 292 292 0 0 1 611.87 786.39" fill="none" stroke="#FFC94D" stroke-width="76"/>
+    <path d="M 501.81 803.82 A 292 292 0 0 1 269.92 675.28" fill="none" stroke="#B39DDB" stroke-width="76"/>
+    <path d="M 226.38 572.71 A 292 292 0 0 1 512.00 220.00" fill="none" stroke="url(#mint-02e-segments-mark)" stroke-width="76"/>
+  </g>
+</svg>

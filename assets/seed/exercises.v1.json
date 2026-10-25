@@ -1,0 +1,365 @@
+{
+  "version": 1,
+  "exercises": [
+    {
+      "id": "ex-barbell-bench-press",
+      "name": "杠铃卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-dumbbell-bench-press",
+      "name": "哑铃卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-push-up",
+      "name": "俯卧撑",
+      "muscle_group": "chest",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-machine-chest-fly",
+      "name": "蝴蝶机夹胸",
+      "muscle_group": "chest",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-barbell-row",
+      "name": "杠铃划船",
+      "muscle_group": "back",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-lat-pulldown",
+      "name": "高位下拉",
+      "muscle_group": "back",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-pull-up",
+      "name": "引体向上",
+      "muscle_group": "back",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-seated-cable-row",
+      "name": "坐姿划船",
+      "muscle_group": "back",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-barbell-squat",
+      "name": "杠铃深蹲",
+      "muscle_group": "legs",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-leg-press",
+      "name": "腿举",
+      "muscle_group": "legs",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-romanian-deadlift",
+      "name": "罗马尼亚硬拉",
+      "muscle_group": "legs",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-dumbbell-lunge",
+      "name": "哑铃弓步蹲",
+      "muscle_group": "legs",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-barbell-overhead-press",
+      "name": "杠铃推举",
+      "muscle_group": "shoulders",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-dumbbell-lateral-raise",
+      "name": "哑铃侧平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-face-pull",
+      "name": "面拉",
+      "muscle_group": "shoulders",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-barbell-curl",
+      "name": "杠铃弯举",
+      "muscle_group": "arms",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-dumbbell-curl",
+      "name": "哑铃弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-cable-triceps-pushdown",
+      "name": "绳索下压",
+      "muscle_group": "arms",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-dumbbell-overhead-triceps-extension",
+      "name": "哑铃颈后臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-plank",
+      "name": "平板支撑",
+      "muscle_group": "core",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-crunch",
+      "name": "卷腹",
+      "muscle_group": "core",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-hanging-leg-raise",
+      "name": "悬垂举腿",
+      "muscle_group": "core",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-deadlift",
+      "name": "硬拉",
+      "muscle_group": "fullBody",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-burpee",
+      "name": "波比跳",
+      "muscle_group": "fullBody",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-db-incline-press",
+      "name": "哑铃斜板卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-bb-incline-press",
+      "name": "杠铃斜板卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-chest-press-machine",
+      "name": "力量板卧推",
+      "muscle_group": "chest",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-decline-db-press",
+      "name": "哑铃下斜卧推",
+      "muscle_group": "chest",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-decline-bb-press",
+      "name": "杠铃下斜卧推",
+      "muscle_group": "chest",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-cable-crossover",
+      "name": "绳索交叉飞鸟",
+      "muscle_group": "chest",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-wide-push-up",
+      "name": "宽距俯卧撑",
+      "muscle_group": "chest",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-wide-grip-pullup",
+      "name": "宽握引体向上",
+      "muscle_group": "back",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-underhand-pulldown",
+      "name": "反手下拉",
+      "muscle_group": "back",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-t-bar-row",
+      "name": "T杠划船",
+      "muscle_group": "back",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-seated-good-morning",
+      "name": "坐姿好早上",
+      "muscle_group": "back",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-leg-extension",
+      "name": "腿伸展",
+      "muscle_group": "legs",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-leg-curl",
+      "name": "腿弯举",
+      "muscle_group": "legs",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-seated-leg-curl",
+      "name": "坐姿腿弯举",
+      "muscle_group": "legs",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-smith-squat",
+      "name": "史密斯架深蹲",
+      "muscle_group": "legs",
+      "equipment": "machine"
+    },
+    {
+      "id": "ex-lunge",
+      "name": "箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-walking-lunge",
+      "name": "行走箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-side-lunge",
+      "name": "侧箭步蹲",
+      "muscle_group": "legs",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-bulgarian-split-squat",
+      "name": "保加利亚分腿蹲",
+      "muscle_group": "legs",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-calf-raise",
+      "name": "小腿提踵",
+      "muscle_group": "legs",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-arnold-press",
+      "name": "Arnold 推举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-db-shoulder-press",
+      "name": "哑铃肩部推举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-bb-shoulder-press",
+      "name": "杠铃肩部推举",
+      "muscle_group": "shoulders",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-lateral-raise",
+      "name": "侧平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-front-raise",
+      "name": "前平举",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-rear-delt-fly",
+      "name": "后 deltoid 飞鸟",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-shrugs",
+      "name": "耸肩",
+      "muscle_group": "shoulders",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-hammer-curl",
+      "name": "锤子弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-preacher-curl",
+      "name": "牧师弯举",
+      "muscle_group": "arms",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-concentration-curl",
+      "name": "专注弯举",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-triceps-pushdown-rope",
+      "name": "绳索下压",
+      "muscle_group": "arms",
+      "equipment": "cable"
+    },
+    {
+      "id": "ex-triceps-kickback",
+      "name": "臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-overhead-triceps-ext",
+      "name": "哑铃颈后臂屈伸",
+      "muscle_group": "arms",
+      "equipment": "dumbbell"
+    },
+    {
+      "id": "ex-close-grip-bench",
+      "name": "窄距卧推",
+      "muscle_group": "arms",
+      "equipment": "barbell"
+    },
+    {
+      "id": "ex-close-grip-pushup",
+      "name": "窄距俯卧撑",
+      "muscle_group": "arms",
+      "equipment": "bodyweight"
+    },
+    {
+      "id": "ex-russian-twist",
+      "name": "俄罗斯转弯",
+      "muscle_group": "core",
+      "equipment": "bodyweight"
+    }
+  ]
+}

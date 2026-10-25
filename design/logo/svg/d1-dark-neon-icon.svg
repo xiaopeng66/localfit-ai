@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-d1-dark-neon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <filter id="glow-d1-dark-neon" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  <rect width="1024" height="1024" rx="232" fill="#0F1412"/>
+  <g filter="url(#glow-d1-dark-neon)">
+    <path d="M 625.89 256.21 A 280 280 0 1 1 398.11 256.21" fill="none" stroke="#4ED9A6" stroke-width="34" stroke-linecap="round"/>
+    <circle cx="692.00" cy="512.00" r="42" fill="#FF8A65"/>
+    <circle cx="422.00" cy="667.88" r="42" fill="#FFC94D"/>
+    <circle cx="422.00" cy="356.12" r="42" fill="#B39DDB"/>
+    <circle cx="398.11" cy="256.21" r="34" fill="#FFFFFF"/>
+  </g>
+</svg>

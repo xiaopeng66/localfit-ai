@@ -1,0 +1,83 @@
+name: localfit_ai
+description: "Local-first AI nutrition and fitness companion."
+publish_to: 'none'
+version: 0.1.0+50
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 系统级文案（文本选择菜单的「复制/剪切/粘贴」、日期选择器等）随语言走。
+  # **SDK 自带包**，不是第三方依赖（`sdk: flutter` 约束，零外部下载）。
+  flutter_localizations:
+    sdk: flutter
+  cryptography: 2.9.0
+  dio: 5.9.2
+  drift: 2.30.0
+  flutter_riverpod: 3.0.3
+  flutter_secure_storage: 10.0.0
+  go_router: 17.1.0
+  uuid: 4.5.3
+  path: 1.9.1
+  path_provider: 2.1.6
+  sqlcipher_flutter_libs: 0.6.8
+  sqlite3: 2.9.4
+  image: 4.3.0
+  image_picker: 1.1.2
+  file_picker: ^12.3.0
+  flutter_svg: 2.2.1
+  # P0 评测尖刀（docs/39 §4 / docs/41 §6）：端上 ONNX 推理（bge-small-zh-v1.5）。
+  # 仅在 P0 基准与 P3 检索运行时使用；门禁默认剥网络、零外呼。
+  flutter_onnxruntime: 1.9.0
+  battery_plus: ^7.1.2
+
+# P10（需求 36，2026-10-07）：语音输入整族删除，`record` 依赖与为它打的
+# `record_linux` 覆盖一并移除（原注释：record 5.x 上游版本集不自洽，需覆盖
+# record_linux 到 1.3.1 才能编译；上游 6.x 已修复，若将来恢复语音可直接升级）。
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: 2.12.2
+  drift_dev: 2.30.0
+  flutter_lints: 6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # 食物种子已于 2026-10-13 退役（docs/32 §4 T13 / §3 D13，需求 75）：原来随包的
+    # `assets/seed/foods.v5.json`（49,444 条中文食物）每次全新安装首启都要解析
+    # 11 MB JSON、插 49,444 行（实测 842 ms），而用户要求清空这批内置食物、改用自己的
+    # 新结构导入。真数据归档在 `../archive/food-seed-2026-10-13/`（不随包、不进仓库）。
+    # 资产清单断言在 `test/features/nutrition/no_bundled_food_seed_test.dart` 与
+    # `test/privacy/privacy_statement_audit_test.dart`——再往这里加食物类资产会红。
+    # 用户食物库（2026-10-20 用户提供并拍板内置）：8 列 xlsx 转出的 CSV
+    # （转换脚本 tool/food_catalog/convert_food_xlsx.py）。来源与许可证登记在
+    # docs/THIRD_PARTY_LICENSES.md §1b 与「数据来源与许可证」（用户自建混合源：
+    # 成分表转录 / 薄荷历史存档 / 台湾食药署公开数据）。首启由
+    # BundledUserFoodImporter 幂等导入（source=bundled-user-v1）。
+    - assets/seed/user_foods_8col.v1.csv
+    # 存量库一次性归一化资产（ADR-037，2026-10-21）：旧(名称,品牌) → 新名称/品牌/
+    # 分类/别名，由 tool/food_catalog/normalize_food_library.py 生成。首启由
+    # FoodLibraryNormalizer 幂等应用一次（KV food_library_normalized_v1）。
+    - assets/seed/food_library_normalization.v1.csv
+    - assets/seed/exercises.v1.json
+    # v2 只多了 difficulty/popularity 两列标注（训练动作库 schema v15→v16）。v1 保留是
+    # 为了向后兼容的导入测试与「旧源仍在」的隐私审计断言。
+    - assets/seed/exercises.v2.json
+    # 动作库换源到 yuhonas/free-exercise-db（Unlicense）派生的 v3，312 条、带
+    # 难度与常用度；生成脚本 tool/exercise_seed/build_exercises.py。v2 保留是
+    # 为了向后兼容的导入测试与升级路径（v3 沿用 v2 的 58 个本地 id，按 id 原地刷新）。
+    - assets/seed/exercises.v3.json
+    # 食物目录（规范 §5.6）：2026-10-02 起**不再随包任何分片**——中文库改为随包的
+    # foods.v5.json，目录机制保留给用户按需导入的许可数据（分片放
+    # <supportDir>/catalog/ 再「重新扫描本地分片」）。要重新随包分片，必须同步改
+    # test/privacy 的审计断言、CatalogManifest.coreShard 的约定说明与 docs/evidence。
+    - assets/icons/food_categories/
+    # 端上嵌入模型（docs/39 §4.1 / docs/41 §6）：BAAI bge-small-zh-v1.5 int8
+    # ONNX（512 维，MIT）+ 配套 WordPiece 词表。**不是数据集**，是模型权重；
+    # 许可证登记在 docs/THIRD_PARTY_LICENSES.md §6，随包理由与体积代价登记在
+    # docs/evidence/2026-10-18-p0-eval.md §7。
+    - assets/models/

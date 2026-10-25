@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T4 下拉统一 LfSelectField · 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5;
+      --mint-100: #d2f5e6;
+      --mint-500: #2fbe8f;
+      --mint-700: #1b8a62;
+      --ink: #1a201d;
+      --muted-ink: #6b7e78;
+      --line: #dde5e1;
+      --muted: #eff3f1;
+      --canvas: #f7f9f8;
+      --card: #ffffff;
+      --error: #f44336;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 28px 24px 48px;
+      background: #e7ecea; color: var(--ink);
+      font-family: var(--font); font-feature-settings: "tnum" 1;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .intro { max-width: 780px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+    .phone {
+      width: 360px; min-height: 300px; padding: 16px;
+      background: var(--canvas); border: 1px solid #c6d2cc; border-radius: 18px;
+    }
+
+    /* ── 框外标签（§3.10，与 LfTextField 同源）────────────────────────── */
+    /* 框外标签与既有 AppFieldLabel 同源：LfText.bodySmall = 13px（§3.10） */
+    .flabel { margin: 0 0 4px; color: var(--muted-ink); font-size: 13px; }
+    .flabel .opt { color: #8fa09a; }
+    .flabel.error { color: var(--error); }
+
+    /* ── 关闭态：输入框形外观（label + 当前值 + chevron）──────────────── */
+    .field {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      height: 44px; padding: 0 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 14px;
+    }
+    .field .value { color: var(--ink); }
+    .field .value.placeholder { color: var(--muted-ink); }
+    .field .chev { width: 16px; height: 16px; flex: none; color: var(--muted-ink); }
+    .field.focus { border-color: var(--mint-500); box-shadow: 0 0 0 3px rgba(47,190,143,.18); }
+    .field.invalid { border-color: var(--error); }
+    .field.disabled { background: var(--muted); border-color: var(--line); }
+    .field.disabled .value, .field.disabled .chev { color: #8fa09a; }
+
+    /* ── 展开态：AppSheet 单选列表（行高 44、选中主色 + ✓）───────────── */
+    .sheet {
+      background: var(--card); border-top: 1px solid var(--line);
+      border-radius: 16px 16px 0 0; padding: 10px 0 8px;
+      box-shadow: 0 -1px 3px rgba(15,36,28,.04);
+    }
+    .grabber { width: 36px; height: 4px; margin: 0 auto 10px; background: var(--muted); border-radius: 999px; }
+    .sheet-title { padding: 0 16px 8px; font-size: 15px; font-weight: 650; }
+    .options { max-height: 264px; overflow: hidden; }
+    .option {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      height: 44px; padding: 0 16px; font-size: 14px; /* 弹层内沿用 AppSheet 的 16 */
+    }
+    .option .check { width: 16px; color: var(--mint-700); font-weight: 700; visibility: hidden; }
+    .option.on { color: var(--mint-700); font-weight: 650; }
+    .option.on .check { visibility: visible; }
+    .option + .option { border-top: 1px solid rgba(221,229,225,.6); }
+    .scroll-hint { padding: 8px 16px 0; color: #8fa09a; font-size: 10px; }
+
+    .note { margin-top: 12px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; color: #556760; font-size: 11px; line-height: 1.6; }
+    .note strong { color: var(--ink); }
+    .note code { color: var(--mint-700); font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+    .measure { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .measure div { padding: 9px 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; color: var(--muted-ink); font-size: 10px; line-height: 1.5; }
+    .measure b { display: block; color: var(--ink); font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 11px; }
+    th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+    th { background: var(--muted); color: var(--ink); font-weight: 650; }
+    td code { color: var(--mint-700); font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+    @media (max-width: 800px) { body { padding: 20px 0 36px; } h1, .intro { margin-left: 16px; margin-right: 16px; } .frames { gap: 24px 0; } }
+  </style>
+</head>
+<body>
+  <h1>T4 · 下拉统一 <code>LfSelectField</code></h1>
+  <p class="intro">360dp 评审稿，对应需求 66 与 docs/32 §3 D7。<b>外观</b>=输入框形（框外标签 + 当前值 + chevron）；<b>点开</b>=<code>AppSheet</code> 单选列表（紧凑行高 44、选中项主色 + ✓、超长列表可滚）。迁移 11 个站点，返回值与校验语义不变。</p>
+
+  <main class="frames">
+    <section class="frame">
+      <div class="frame-label">A · 关闭态（输入框形）＋ 四种状态</div>
+      <div class="phone">
+        <div class="flabel">日常活动程度</div>
+        <div class="field">
+          <span class="value">轻度活动</span>
+          <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <div class="flabel" style="margin-top:16px">目标描述 <span class="opt">（可选）</span></div>
+        <div class="field focus">
+          <span class="value">每周 3 练</span>
+          <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <div class="flabel error" style="margin-top:16px">动作</div>
+        <div class="field invalid">
+          <span class="value placeholder">请选择动作</span>
+          <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <div class="flabel" style="margin-top:16px">餐次</div>
+        <div class="field disabled">
+          <span class="value">午餐</span>
+          <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="note"><strong>与既有输入框同源</strong>：框外标签 13px（`LfText.bodySmall`）、框内文字 14px、水平内边距 14dp、圆角 12dp、行高 44dp——与 `LfTextField`/`AppNumberField` 完全一致（自检二轮修正：初稿误写 11px 标签 / 12dp 内边距）。</div>
+        <div class="note"><strong>四态</strong>：默认 / 聚焦（主色描边 + 3px 光晕）/ 校验错误（红描边 + 框外标签变红）/ 禁用（muted 底、字与 chevron 降级）。禁用与错误态是既有下拉就有的语义，迁移后必须保住。</div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">B · 展开态（AppSheet 单选列表）</div>
+      <div class="phone" style="padding:0; overflow:hidden">
+        <div style="padding:16px 16px 0">
+          <div class="flabel">日常活动程度</div>
+          <div class="field">
+            <span class="value">轻度活动</span>
+            <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">日常活动程度</div>
+          <div class="options">
+            <div class="option"><span>久坐少动</span><span class="check">✓</span></div>
+            <div class="option on"><span>轻度活动</span><span class="check">✓</span></div>
+            <div class="option"><span>中度活动</span><span class="check">✓</span></div>
+            <div class="option"><span>高强度活动</span><span class="check">✓</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">C · 长列表（动作 / 候选，可滚 + 选中项可见）</div>
+      <div class="phone" style="padding:0; overflow:hidden">
+        <div style="padding:16px 16px 0">
+          <div class="flabel">动作</div>
+          <div class="field">
+            <span class="value">杠铃深蹲</span>
+            <svg class="chev" viewBox="0 0 16 16" fill="none"><path d="M4 6.5L8 10.5L12 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div style="height:16px"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="sheet-title">动作</div>
+          <div class="options">
+            <div class="option"><span>杠铃卧推</span><span class="check">✓</span></div>
+            <div class="option on"><span>杠铃深蹲</span><span class="check">✓</span></div>
+            <div class="option"><span>罗马尼亚硬拉</span><span class="check">✓</span></div>
+            <div class="option"><span>引体向上</span><span class="check">✓</span></div>
+            <div class="option"><span>哑铃肩推</span><span class="check">✓</span></div>
+            <div class="option" style="opacity:.45"><span>俯卧撑</span><span class="check">✓</span></div>
+          </div>
+          <div class="scroll-hint">↕ 列表可滚，打开时自动滚到选中项</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-label">D · 11 个迁移站点与契约</div>
+      <div class="phone" style="min-height:auto">
+        <table>
+          <tr><th>站点</th><th>Key</th><th>备注</th></tr>
+          <tr><td>onboarding 活动程度</td><td><code>onboarding-日常活动程度</code></td><td>4 档，标签改描述式归 T15</td></tr>
+          <tr><td>设置 · 协议</td><td><code>ai-protocol</code></td><td>切换后清失败原因</td></tr>
+          <tr><td>设置 · 推理</td><td><code>ai-reasoning</code></td><td>—</td></tr>
+          <tr><td>计划条目 · 训练日</td><td><code>training-entry-weekday</code></td><td>锁定态仍是同 Key 的 Text</td></tr>
+          <tr><td>计划条目 · 动作</td><td><code>training-entry-exercise</code></td><td>长列表</td></tr>
+          <tr><td>训练 · AI 天数</td><td><code>training-ai-days</code></td><td>1–7 天</td></tr>
+          <tr><td>训练 · 组内动作</td><td><code>training-set-exercise</code></td><td>长列表</td></tr>
+          <tr><td>识别候选 · 餐次</td><td><code>scan-candidate-slot</code></td><td><b>禁用态</b>：saving 时不可点</td></tr>
+          <tr><td>动作库 · 目标肌群</td><td><code>training-exercise-muscle-group</code></td><td>—</td></tr>
+          <tr><td>动作库 · 器械类型</td><td><code>training-exercise-equipment</code></td><td>—</td></tr>
+          <tr><td>新建食物 · 种类</td><td><code>new-food-category</code></td><td>长列表（10 类）</td></tr>
+        </table>
+        <div class="note"><strong>不动的契约</strong>：11 个 Key 全部保留；返回值类型与可选性不变；<code>onChanged(null)</code> 的旧语义（部分站点忽略 null）在迁移后表现为「永不传 null」——弹层只有确定选中才回写；禁用态不可打开；<code>training-entry-weekday</code> 锁定态仍渲染同 Key 的 <code>Text</code>。</div>
+        <div class="note"><strong>不迁移</strong>：<code>daily_menu_plan_workbench_task.dart</code> 的那处下拉随 D6 旧管线退役一并删除（本轮不迁）。<code>PopupMenuButton</code>×2（餐卡管理菜单）是动作菜单不是选择器，不动。</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

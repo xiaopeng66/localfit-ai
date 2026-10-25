@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalFit AI · T8 设置清理与通勤下线 · 360dp 评审稿</title>
+  <style>
+    :root {
+      --mint-50: #ecfbf5;
+      --mint-100: #d2f5e6;
+      --mint-500: #2fbe8f;
+      --mint-600: #22a877;
+      --mint-700: #1b8a62;
+      --ink: #1a201d;
+      --muted-ink: #6b7e78;
+      --line: #dde5e1;
+      --muted: #eff3f1;
+      --canvas: #f7f9f8;
+      --card: #ffffff;
+      --error: #f44336;
+      --warn: #b26a00;
+      --font: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px 24px 48px; background: #e7ecea; color: var(--ink);
+      font-family: var(--font); font-feature-settings: "tnum" 1; -webkit-font-smoothing: antialiased; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    .intro { max-width: 860px; margin: 0 0 20px; color: #556760; font-size: 13px; line-height: 1.65; }
+    .intro code { background: #dde7e2; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px 22px; align-items: flex-start; justify-content: center; }
+    .frame { width: 360px; flex: 0 0 360px; }
+    .frame-label { margin: 0 0 8px; color: #3d4a45; font-size: 12px; font-weight: 700; }
+    .phone { width: 360px; min-height: 200px; padding: 16px; background: var(--canvas);
+      border: 1px solid #c6d2cc; border-radius: 18px; }
+    .group-title { margin: 0 0 6px 4px; font-size: 12px; font-weight: 650; color: var(--muted-ink);
+      letter-spacing: .04em; }
+    .group { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(15,36,28,.04), 0 1px 2px rgba(15,36,28,.03); overflow: hidden; }
+    .group + .group-title { margin-top: 20px; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+      border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .row .ic { flex: none; width: 22px; height: 22px; display: grid; place-items: center;
+      color: var(--muted-ink); font-size: 18px; }
+    .row .main { flex: 1; min-width: 0; }
+    .row .title { display: block; font-size: 14px; font-weight: 500; }
+    .row .sub { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted-ink); line-height: 1.45; }
+    .row .sub.warn { color: var(--warn); }
+    .row .sub.anno { display: inline-block; margin-top: 3px; padding: 0 5px;
+      border-left: 2px dashed #c3b28f; background: #faf6ec; color: #8a7440;
+      font-size: 10.5px; }
+    .row .value { flex: none; font-size: 13px; color: var(--muted-ink); }
+    .row .chev { flex: none; width: 16px; text-align: center; color: #b3c1bb; font-size: 15px; }
+    .row.ghosted { opacity: .45; }
+    .row.ghosted .title { text-decoration: line-through; }
+    .tag { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; vertical-align: 1px; }
+    .tag.del { background: #fdecea; color: var(--error); }
+    .tag.keep { background: var(--mint-50); color: var(--mint-700); }
+    .tag.cond { background: #fff4e0; color: var(--warn); }
+    .note { margin: 10px 2px 0; font-size: 11.5px; color: #5d6f68; line-height: 1.6; }
+    .note b { color: #33423c; }
+    .cmp { width: 360px; flex: 0 0 360px; }
+    .cmp .phone { min-height: 0; }
+    .legend { margin: 0 0 26px; max-width: 860px; font-size: 12px; color: #4d5f58; line-height: 1.8; }
+    .legend b { color: #2c3a34; }
+  </style>
+</head>
+<body>
+  <h1>Round 5 · T8 设置清理与通勤全链路下线（需求 70/71 · D10）</h1>
+  <p class="intro">
+    本轮只改<strong>「食材库」组</strong>与<strong>「数据管理」组的三个导出行</strong>：删「添加自定义食材」行
+    （弹层「手动添加一种食物」已覆盖同一动作）；「导入扩展食物目录（可选）」改为
+    <code>lastResult</code> 显示失败/分片缺失时<strong>才渲染</strong>（正常态零入口，失败时恢复路径不死）；
+    「通勤时间」行连同通勤纵切整条下线；三个导出行去掉 "CSV" 后缀。
+    行高、图标、圆角、字号全部沿用 <code>SettingRow</code> 既有 token，不动任何组件形态。
+  </p>
+
+  <div class="frames">
+    <div class="frame">
+      <p class="frame-label">① 食材库 · 正常态（改动后：3 行，零恢复入口）</p>
+      <div class="phone">
+        <p class="group-title">食材库</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">1,284 条（自建 3 条）</span>
+          </div>
+          <div class="row">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <p class="note"><b>零入口：</b>`lastResult` 成功（含「已在库中」）或仍在检查时不渲染扩展目录行——
+          首启已自动导入（`main.dart` 的 `unawaited(catalogBootstrap.importAvailable())`），
+          常驻一行「可选导入」等于请用户重复做一件已经做完的事。</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">② 食材库 · 失败态（恢复入口只在此时渲染）</p>
+      <div class="phone">
+        <p class="group-title">食材库</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">356 条（自建 3 条）</span>
+          </div>
+          <div class="row">
+            <span class="ic">☁</span>
+            <span class="main">
+              <span class="title">导入扩展食物目录（可选）<span class="tag cond">条件</span></span>
+              <span class="sub warn">上次导入未完成：分片 2/4 校验不通过</span>
+            </span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <p class="note">触发条件 = `result.failure != null || result.missingShards.isNotEmpty`；
+          点击行为不变（`importAvailable()`）。状态句仍是「只陈述已经发生的事」。</p>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <p class="frame-label">③ 通勤行删除对照（设置页内）</p>
+      <div class="phone">
+        <p class="group-title">改前 · 食材库（6 行）</p>
+        <div class="group" style="margin-bottom:14px">
+          <div class="row">
+            <span class="ic">▤</span>
+            <span class="main"><span class="title">食材数据库</span></span>
+            <span class="value">1,284 条</span>
+          </div>
+          <div class="row ghosted">
+            <span class="ic">☁</span>
+            <span class="main"><span class="title">导入扩展食物目录（可选）</span>
+              <span class="sub">没有可导入的分片。</span></span>
+            <span class="tag del">行删除</span>
+          </div>
+          <div class="row ghosted">
+            <span class="ic">＋</span>
+            <span class="main"><span class="title">添加自定义食材</span></span>
+            <span class="tag del">行删除</span>
+          </div>
+          <div class="row">
+            <span class="ic">▥</span>
+            <span class="main"><span class="title">添加食物数据</span></span>
+            <span class="tag keep">保留</span>
+          </div>
+          <div class="row">
+            <span class="ic">⌂</span>
+            <span class="main"><span class="title">维护地点 / 窗口 / 菜品</span></span>
+            <span class="tag keep">保留</span>
+          </div>
+          <div class="row ghosted">
+            <span class="ic">→</span>
+            <span class="main"><span class="title">通勤时间</span>
+              <span class="sub">用于推荐时的到达时间估算（本地保存，不使用定位）</span></span>
+            <span class="tag del">整链下线</span>
+          </div>
+        </div>
+        <p class="note">通勤纵切（数据列 / 仓储 / 对话框 / AI 命令 `commute.set` / 快照段 /
+          solver 输入）同包删除；solver 的 `travelFit` 参数保留但恒为中性值。</p>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label">④ 数据管理 · 导出三行（去 CSV 后缀）</p>
+      <div class="phone">
+        <p class="group-title">数据管理</p>
+        <div class="group">
+          <div class="row">
+            <span class="ic">↓</span>
+            <span class="main"><span class="title">备份数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">↑</span>
+            <span class="main"><span class="title">恢复数据</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">▦</span>
+            <span class="main"><span class="title">导出饮食记录</span>
+              <span class="sub anno">稿注 · 改前文案：导出 CSV</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">▦</span>
+            <span class="main"><span class="title">导出训练记录</span>
+              <span class="sub anno">稿注 · 改前文案：导出训练 CSV</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">▦</span>
+            <span class="main"><span class="title">导出食物数据</span>
+              <span class="sub anno">稿注 · 改前文案：导出食物库 CSV</span></span>
+            <span class="chev">›</span>
+          </div>
+          <div class="row">
+            <span class="ic">⇅</span>
+            <span class="main"><span class="title">自动本地备份</span></span>
+            <span class="value">开关</span>
+          </div>
+        </div>
+        <p class="note">只改 label：三个 Key（`cta-export-csv` / `backup-export-training-csv` /
+          `backup-export-foods-csv`）与各自的导出调用、文件名一字不动——回归测试钉住三行调用。</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="legend">
+    <b>图例</b>：<span class="tag del">行删除</span> 该行整行移除 ·
+    <span class="tag cond">条件</span> 仅失败态渲染 ·
+    <span class="tag keep">保留</span> 不动。
+  </p>
+</body>
+</html>

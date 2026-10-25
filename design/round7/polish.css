@@ -1,0 +1,118 @@
+:root {
+  --muted: #5C7067;
+  --brand-strong: #187653;
+  --equipment-barbell: #E5F7EF;
+  --equipment-dumbbell: #FFF0E9;
+  --equipment-machine: #FFF6D8;
+  --equipment-cable: #F1ECF9;
+  --equipment-bodyweight: #EAF2F7;
+}
+html[data-theme="dark"] {
+  --equipment-barbell: #203C30;
+  --equipment-dumbbell: #422D26;
+  --equipment-machine: #3F3620;
+  --equipment-cable: #342D43;
+  --equipment-bodyweight: #243540;
+}
+
+.food-list { padding: 0 12px; }
+.food-row { min-height: 56px; padding: 8px 0; gap: 10px; border-bottom-color: var(--track); }
+.food-symbol { display: inline-grid; place-items: center; flex: none; border-radius: 12px; background: var(--bg); }
+.food-symbol img, .food-detail-icon img { display: block; width: 40px; height: 40px; object-fit: contain; }
+html[data-theme="dark"] .food-symbol img, html[data-theme="dark"] .food-detail-icon img { filter: brightness(1.65) saturate(.8); }
+.food-main .food-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 550; }
+.food-density { margin-left: 4px; }
+.food-density .data-ring-center b { font-size: 10px; font-weight: 650; }
+.library-footer { flex-wrap: wrap; gap: 4px 12px; }
+.library-footer .link-button { font-size: 12px; }
+.library-footer .link-button > span { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.6; }
+.library-footer .link-button small { color: var(--muted); font-size: 10px; }
+.food-main { display: flex; align-items: center; gap: 6px; }
+.food-main .food-name { min-width: 0; flex: 1; }
+.food-warning { color: var(--muted); flex: none; }
+.search-field { border-radius: 12px; background: var(--card); min-height: 46px; }
+.search-field input { font-size: 13px; }
+.food-category-row { gap: 4px; }
+.food-category-row button { border-color: transparent; padding: 0 12px; font-size: 12px; }
+.food-category-row [aria-pressed="true"] { font-weight: 600; }
+.food-detail-hero { display: flex; align-items: center; gap: 12px; padding: 2px 0 4px; }
+.food-detail-hero > div { min-width: 0; }
+.food-detail-icon { width: 52px; height: 52px; display: grid; place-items: center; flex: none; border-radius: 16px; background: var(--bg); }
+.food-detail-title { font-size: 20px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; }
+.food-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 7px; color: var(--muted); font-size: 12px; }
+.food-detail-meta .pill { font-size: 10px; padding: 2px 8px; }
+.food-nutrition-panel { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; gap: 24px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg); }
+.detail-density .data-ring-center b { font-size: 14px; font-weight: 700; }
+.food-macro-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.food-macro-stack > div { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; line-height: 17px; }
+.food-macro-stack b { font-size: 14px; font-weight: 650; white-space: nowrap; }
+.food-macro-stack .macro-dot { width: 7px; height: 7px; border-radius: 50%; }
+.food-macro-stack .protein { background: var(--protein); }
+.food-macro-stack .carbs { background: var(--carbs); }
+.food-macro-stack .fat { background: var(--fat); }
+.food-density-note { margin-top: -6px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.8; }
+.food-detail-actions { display: flex; gap: 10px; padding: 12px 0 2px; position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--track); }
+.food-detail-actions .btn { flex: 1; min-height: 46px; }
+.food-detail-actions .btn.danger { color: var(--danger); background: transparent; border-color: var(--border); }
+.app-sheet:has(.food-detail-hero) { padding-bottom: 18px; }
+.app-sheet:has(.food-detail-hero) .sheet-content { gap: 16px; }
+
+html[data-view="exercise-library"] .app-nav { display: none; }
+.exercise-library-page { gap: 14px; padding-top: 4px; }
+.library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; }
+.library-toolbar h1 { font-size: 20px; font-weight: 700; margin: 0; flex: 1; }
+.library-toolbar > button { min-width: 44px; min-height: 44px; flex: none; }
+.library-toolbar > button:first-child { margin-left: -10px; }
+.library-toolbar > button:last-child { color: var(--brand-strong); font-size: 13px; }
+.exercise-search { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--muted); }
+.exercise-search input { flex: 1; width: 0; min-width: 0; min-height: 44px; background: transparent; border: 0; outline: 0; font-size: 13px; color: var(--fg); }
+.exercise-search:focus-within { outline: 2px solid var(--brand-strong); outline-offset: 2px; }
+.muscle-filters { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; margin-top: -4px; }
+.muscle-filters button { flex: none; min-width: 44px; min-height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: 24px; background: transparent; font-size: 12px; color: var(--muted); }
+.muscle-filters button[aria-pressed="true"] { color: var(--brand-strong); background: var(--brand-soft); font-weight: 600; }
+.library-result-count { color: var(--muted); font-size: 11px; margin: 0 0 12px; }
+.exercise-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.exercise-tile { min-width: 0; min-height: 112px; padding: 12px; display: flex; flex-direction: column; align-items: stretch; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: 0 1px 2px #1A201D03; }
+.exercise-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-width: 0; margin-bottom: 8px; }
+.exercise-glyph { display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; color: var(--fg); background: var(--equipment-bodyweight); }
+.exercise-glyph svg { width: 21px; height: 21px; }
+.exercise-glyph[data-equipment="barbell"] { background: var(--equipment-barbell); }
+.exercise-glyph[data-equipment="dumbbell"] { background: var(--equipment-dumbbell); }
+.exercise-glyph[data-equipment="machine"] { background: var(--equipment-machine); }
+.exercise-glyph[data-equipment="cable"] { background: var(--equipment-cable); }
+.exercise-meta { min-width: 0; color: var(--muted); font-size: 10px; text-align: right; line-height: 1.5; }
+.exercise-title { display: block; font-size: 14px; font-weight: 600; line-height: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exercise-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; min-height: 18px; }
+.exercise-badges > span { display: inline-flex; align-items: center; font-size: 10px; line-height: 18px; padding: 0 6px; border-radius: 5px; background: var(--bg); color: var(--muted); }
+.exercise-badges > .beginner { background: var(--brand-soft); color: var(--brand-strong); }
+.exercise-badges > .intermediate { background: var(--equipment-machine); color: var(--fg); }
+.exercise-badges > .advanced { background: var(--equipment-dumbbell); color: var(--fg); }
+.exercise-detail-hero { display: flex; align-items: center; gap: 13px; padding: 4px 0 14px; border-bottom: 1px solid var(--track); }
+.exercise-detail-hero > .exercise-glyph { width: 50px; height: 50px; }
+.exercise-detail-hero > .exercise-glyph svg { width: 28px; height: 28px; }
+.exercise-detail-main { flex: 1; min-width: 0; }
+.exercise-detail-main h3 { font-size: 19px; font-weight: 650; line-height: 1.5; overflow-wrap: anywhere; }
+.exercise-detail-main p { margin-top: 5px; color: var(--muted); font-size: 12px; }
+.exercise-alternatives { display: flex; flex-direction: column; gap: 8px; }
+.exercise-alternative { width: 100%; min-height: 70px; display: flex; align-items: center; gap: 11px; padding: 12px; background: var(--bg); border: 1px solid transparent; border-radius: 12px; text-align: left; }
+.exercise-alternative-main { flex: 1; min-width: 0; }
+.exercise-alternative-main b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exercise-alternative-main small { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; }
+.exercise-alternative > svg { width: 16px; color: var(--muted); }
+
+.settings-group { padding-left: 14px; padding-right: 14px; }
+.settings-row .icon-chip { width: 36px; height: 36px; border-radius: 10px; background: var(--bg); color: var(--muted); }
+.settings-row .settings-sub { line-height: 1.6; }
+.list-link { width: 100%; }
+.list-link .icon-chip { background: var(--brand-soft); color: var(--brand-strong); }
+.app-sheet .sheet-header { margin-bottom: 16px; }
+@media (hover: hover) {
+  .exercise-tile:hover, .exercise-alternative:hover { border-color: var(--brand); }
+  .food-row:hover { background: var(--bg); }
+}
+html[data-large="1"] .exercise-title { font-size: 17px; line-height: 27px; }
+html[data-large="1"] .exercise-meta, html[data-large="1"] .exercise-badges > span { font-size: 12px; }
+html[data-large="1"] .food-main .food-name { font-size: 17px; }
+html[data-large="1"] .food-macro-stack > div { font-size: 15px; line-height: 22px; }
+html[data-large="1"] .food-macro-stack b { font-size: 16px; }
+html[data-large="1"] .food-nutrition-panel { gap: 16px; padding: 16px; }

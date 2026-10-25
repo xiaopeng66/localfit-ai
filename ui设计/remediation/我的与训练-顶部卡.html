@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的身份卡 + 训练 hero + 步数授权行 — 整改设计稿（R5/R6）</title>
+<!--
+  ============================================================================
+  LocalFit AI 界面重设计第三轮 设计稿（R5 + R6 · docs/30）
+  ----------------------------------------------------------------------------
+  为什么有这份文件：§0.4 硬约定「视觉类工作包先出 HTML 设计稿」（放
+  ui设计/remediation/，不得放进 ui设计/pages/ —— 那个目录有 7 页 unorderedEquals
+  断言）。本稿评审通过后才在 Flutter 里原生实现。
+
+  覆盖需求：
+    【需求 5】（docs/30 §1）：用户原话「我的界面的绿色个人信息卡…很丑，请重新设计」
+      → `_IdentityCard`（`settings_page.dart:1580`）= hero 渐变 + 全角 16 + 径向点纹理
+        （`_DotTexture`，1px 点 /14dp 间距）+ 64dp 圆头像「Fit」+ 姓名 + 副标题
+        + 「编辑资料」半透明药丸 + 三段统计（当前体重 / 总记录 / 连续天数）。
+    【需求 6】（同句后半）：「训练界面的黑色数据卡…很丑」
+      → `TrainingHero`（`training_hero.dart:23`）= neutral-900 纯色底
+        （亮色近黑 #1A201D） + 只圆下角 16 + 内容躲状态栏 + 标题「训练」+「第 N 周」
+        + 三段统计（30px w800）+ 7 柱容量图 + 休息日图例。
+    【需求 3】（docs/30 §1）：「步数的授权需要在设置页面可以取消。」
+      → 设置页**没有任何步数/权限入口**（实测 `settings_page.dart` 全文无 steps 字样）。
+        原生 `openAppSettings` 已存在（`MainActivity.kt:178`，跳
+        `ACTION_APPLICATION_DETAILS_SETTINGS`）；`StepsRepository` 已转发
+        `requestPermission`/`openAppSettings`（`steps_repository.dart:148-158`），
+        但**没有注入设置页**。
+
+  裁决（docs/30 §2 D5/D6/D9）：三处同一方向 —— **大色块退场、标准 `DesignCard`**。
+   · 身份卡：avatar 64 → 56（`mint-100` 底 + mint-700 字），姓名与副标题在**同一行**
+     （纵向堆叠白占一整行），「编辑资料」= `LfTextButton`（B6，不再用半透明药丸），
+     三段统计在下、纵向 1px 分隔线。
+   · 训练 hero：改 `DesignCard`；容量图保留（它是真数据），配色从「压黑底」
+     改「白底」：训练日 mint-400、今日 mint-600、无训练 muted；页面上边距改回
+     `pagePadding + LfInsets.top`（不再铺到屏幕物理顶边）。
+   · 步数授权：设置页「数据管理」组内新增 `SettingRow`（Key `settings-steps-permission`），
+     状态短词四态如实映射（已授权 / 未授权 / 设备不支持 / 状态未知）→ 点击开
+     说明弹层 → 「去系统设置」跳系统设置页。
+
+  **为什么不做应用内开关**（需求 3 的诚实边界）：Android 的 `ACTIVITY_RECOGNITION`
+  运行时权限**只能由用户在系统设置里撤销**，应用内做「取消授权」的开关只能停用
+  **读数**、撤不掉权限本身 —— 那会让设置页说「已取消」而系统里权限还在，违背诚实条款。
+  所以本稿的落点是「如实显示状态 + 一键跳系统设置」，弹层里把这件事写明白。
+
+  **Key 全保留**：`settings-identity-card` / `settings-avatar` /
+  `settings-identity-subtitle` / `cta-edit-profile` / `settings-stat-weight` /
+  `-records` / `-streak`；`training-hero` / `-week` / `-count` / `-duration` / `-kcal` /
+  `training-capacity-chart` / `training-rest-legend`。
+
+  令牌来源：下面的 :root / html.dark 块**逐字复制**自 ui设计/pages/训练.html 的
+  <style id="theme-vars">（该目录是 UI 唯一依据；本目录的文件不被任何测试解析）。
+  ============================================================================
+-->
+<style id="theme-vars">
+:root {
+  --lf-mint-50:  #ECFBF5;
+  --lf-mint-100: #D2F5E6;
+  --lf-mint-200: #A8EBCF;
+  --lf-mint-300: #6FDBB0;
+  --lf-mint-400: #4ED9A6;
+  --lf-mint-500: #2FBE8F;
+  --lf-mint-600: #22A877;
+  --lf-mint-700: #1B8A62;
+  --lf-neutral-50:  #F7F9F8;
+  --lf-neutral-100: #EFF3F1;
+  --lf-neutral-200: #DDE5E1;
+  --lf-neutral-300: #B8C6C0;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #6B7E78;
+  --lf-neutral-600: #556760;
+  --lf-neutral-700: #3D4A45;
+  --lf-neutral-900: #1A201D;
+  --lf-protein: #FF8A65;  --lf-protein-100: #FFE5DC;
+  --lf-carbs: #FFC94D;    --lf-carbs-100: #FFF4D6;
+  --lf-fat: #B39DDB;      --lf-fat-100: #EDE6F7;
+  --lf-water: #A8C4D9;
+  --lf-weight: #C9A27E;
+  --lf-state-success: #2FBE8F;
+  --lf-state-warning: #FF9800;
+  --lf-state-error: #F44336;
+  --lf-state-info: #42A5F5;
+  --lf-evidence-a: #D2F5E6;
+  --lf-evidence-b: #FFF4D6;
+  --lf-evidence-c: #EDE6F7;
+  --lf-background: #F7F9F8;
+  --lf-foreground: #1A201D;
+  --lf-card: #FFFFFF;
+  --lf-card-foreground: #1A201D;
+  --lf-muted: #EFF3F1;
+  --lf-muted-foreground: #6B7E78;
+  --lf-border: #DDE5E1;
+  --lf-ring: #2FBE8F;
+  --lf-primary: #2FBE8F;
+  --lf-primary-foreground: #FFFFFF;
+  --lf-radius-md: 12px;
+  --lf-radius-lg: 16px;
+  --lf-radius-full: 9999px;
+  --lf-shadow-1: 0 1px 3px rgba(15, 36, 28, 0.04), 0 1px 2px rgba(15, 36, 28, 0.03);
+  --lf-font-sans: "PingFang SC", "Noto Sans SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+html.dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-300: #2A3A32;
+  --lf-neutral-400: #8FA09A;
+  --lf-neutral-500: #9FB3AC;
+  --lf-protein: #FF9D7E; --lf-protein-100: #3A2820;
+  --lf-carbs: #FFD56B;   --lf-carbs-100: #3A3320;
+  --lf-fat: #C3B0E5;     --lf-fat-100: #2A2438;
+  --lf-water: #B4D0E5;
+  --lf-weight: #D4B08E;
+  --lf-state-success: #4ED9A6;
+  --lf-state-warning: #FFB74D;
+  --lf-state-error: #EF5350;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+</style>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E7ECEA; color: #1A201D; font-family: var(--lf-font-sans);
+    -webkit-font-smoothing: antialiased; font-feature-settings: "tnum" 1;
+    padding: 20px 0 40px;
+  }
+  .page { width: 1108px; margin: 0 auto; }
+  h1 { font-size: 18px; padding: 0 16px 6px; color: #1A201D; }
+  h2 { font-size: 14px; padding: 16px 16px 8px; color: #1A201D; }
+  .intro { font-size: 12px; color: #556760; line-height: 1.7; padding: 0 16px 10px; }
+  .legend {
+    margin: 0 16px 12px; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; color: #556760; line-height: 1.8;
+  }
+  .legend b { color: #1A201D; }
+  .legend .kw { color: #1B8A62; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 10px; }
+  .row { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+  .frame {
+    width: 360px; flex: none; background: #F7F9F8;
+    border: 1px solid #C6D2CC; border-radius: 18px; overflow: hidden;
+  }
+  .frame .label {
+    font-size: 11px; padding: 6px 10px; background: #DDE5E1; color: #3D4A45;
+    display: flex; justify-content: space-between;
+  }
+  .pad { padding: 12px 16px 14px; }
+  .note {
+    margin: 8px 0 0; padding: 8px 10px; border-radius: var(--lf-radius-md);
+    background: #FFFFFF; border: 1px solid #DDE5E1;
+    font-size: 10px; line-height: 1.75; color: #556760;
+  }
+  .note b { color: #1A201D; }
+  .note .kw { color: #1B8A62; font-weight: 600; }
+  .note + .note { margin-top: 6px; }
+/* 暗色帧：CSS 变量需要在帧上**重新声明**一遍（html.dark 是根选择器，
+   帧在 body 里够不着）——沿用 ui设计/remediation/食堂-地点与菜品.html 的写法。 */
+.frame.theme-dark {
+  --lf-mint-100: #1F2823;
+  --lf-mint-200: #242E28;
+  --lf-mint-300: #2A3A32;
+  --lf-neutral-900: #DDE5E1;
+  --lf-evidence-a: #1F2823;
+  --lf-evidence-b: #2A2438;
+  --lf-evidence-c: #242E28;
+  --lf-background: #0F1412;
+  --lf-foreground: #E8EFEB;
+  --lf-card: #1A211D;
+  --lf-card-foreground: #E8EFEB;
+  --lf-muted: #242E28;
+  --lf-muted-foreground: #9FB3AC;
+  --lf-border: #2A3A32;
+  --lf-primary: #4ED9A6;
+  --lf-primary-foreground: #0F1412;
+  --lf-state-warning: #FFB74D;
+  --lf-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+  .frame.theme-dark { background: var(--lf-background); color: var(--lf-foreground); }
+  .frame.theme-dark .label { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note { background: var(--lf-card); border-color: var(--lf-border); color: var(--lf-muted-foreground); }
+  .frame.theme-dark .note b { color: var(--lf-foreground); }
+  .frame.theme-dark .card { background: var(--lf-card); border-color: var(--lf-border); }
+
+  /* ── 改造前：身份卡（hero 渐变 + 点纹理 + 半透明药丸）───────────────── */
+  .idcard-before {
+    background: linear-gradient(135deg, #2FBE8F 0%, #A8EBCF 62%, #ECFBF5 100%);
+    border-radius: var(--lf-radius-lg); padding: 20px; position: relative; overflow: hidden;
+  }
+  .dots {
+    position: absolute; inset: 0; opacity: 0.55;
+    background-image: radial-gradient(rgba(26,32,29,0.22) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+  .idcard-before .inner { position: relative; display: flex; flex-direction: column; align-items: center; }
+  .av64 {
+    width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; background: rgba(26,32,29,0.20); font-size: 16px; font-weight: 700;
+  }
+  .pill-t {
+    display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 12px;
+    border-radius: 999px; background: rgba(26,32,29,0.15); font-size: 12px; font-weight: 500;
+  }
+
+  /* ── 改造前：训练 hero（neutral-900 纯色 + 只圆下角）──────────────── */
+  .trhero-before {
+    background: var(--lf-neutral-900); color: #EFF3F1;
+    border-radius: 0 0 var(--lf-radius-lg) var(--lf-radius-lg);
+    padding: 20px 20px 16px;
+  }
+  .tr-bars { display: flex; align-items: flex-end; gap: 9px; height: 72px; }
+  .tr-bars .b { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  .tr-bars .b > i { display: block; width: 100%; border-radius: 8px; }
+  .tr-labels { display: flex; gap: 9px; margin-top: 8px; }
+  .tr-labels span { flex: 1; text-align: center; font-size: 10px; opacity: 0.35; }
+  .tr-legend { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 10px; opacity: 0.6; }
+  .tr-legend .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* ── 改造后：DesignCard ───────────────────────────────────────────── */
+  .card {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); box-shadow: var(--lf-shadow-1);
+    padding: 16px;
+  }
+  .c-title { font-size: 15px; font-weight: 600; color: var(--lf-card-foreground); }
+  .c-sub { font-size: 12px; color: var(--lf-muted-foreground); }
+  .num { font-feature-settings: "tnum" 1; }
+
+  /* 身份卡改造后：头部一行（头像 + 姓名/副标题 + 编辑文字钮） */
+  .id-head { display: flex; align-items: center; gap: 12px; }
+  .av56 {
+    width: 56px; height: 56px; border-radius: 50%; flex: none; display: flex;
+    align-items: center; justify-content: center;
+    background: var(--lf-mint-100); color: var(--lf-mint-700);
+    font-size: 16px; font-weight: 700;
+  }
+  html.dark .av56, .frame.theme-dark .av56 { color: var(--lf-mint-400); }
+  .id-name { font-size: 18px; font-weight: 700; color: var(--lf-card-foreground); }
+  .id-sub { font-size: 12px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .textbtn {
+    display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 6px;
+    font-size: 12px; font-weight: 500; color: var(--lf-mint-700); flex: none;
+  }
+  .statrow { display: flex; margin-top: 14px; }
+  .statrow .s { flex: 1; min-width: 0; }
+  .statrow .v { font-size: 18px; font-weight: 800; color: var(--lf-card-foreground); }
+  .statrow .l { font-size: 10px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .statrow .d { width: 1px; margin: 2px 14px; background: var(--lf-border); }
+
+  /* 设置组（SettingsGroup：白卡 + 行分隔线；每行 52dp） */
+  .group { background: var(--lf-card); border: 1px solid var(--lf-border);
+           border-radius: var(--lf-radius-lg); overflow: hidden; }
+  .gtitle { font-size: 13px; font-weight: 600; color: var(--lf-card-foreground);
+            padding: 0 2px 8px; }
+  .srow { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; }
+  .srow + .srow { border-top: 1px solid var(--lf-border); }
+  .srow .ic { width: 18px; text-align: center; color: var(--lf-muted-foreground); flex: none; }
+  .srow .t { flex: 1; font-size: 14px; color: var(--lf-card-foreground); }
+  .srow .val { font-size: 12px; color: var(--lf-muted-foreground); }
+  .srow .chev { color: var(--lf-muted-foreground); font-size: 12px; }
+  .pill {
+    display: inline-flex; align-items: center; height: 20px; padding: 0 8px;
+    border-radius: 999px; font-size: 10px; font-weight: 600;
+  }
+  .pill.ok { background: var(--lf-mint-100); color: var(--lf-mint-700); }
+  .pill.no { background: #FFF4D6; color: #8A6D1B; }
+  .pill.na { background: var(--lf-muted); color: var(--lf-muted-foreground); }
+  html.dark .pill.ok, .frame.theme-dark .pill.ok { color: var(--lf-mint-400); }
+  html.dark .pill.no, .frame.theme-dark .pill.no { background: #33291A; color: #E8C77A; }
+
+  /* 说明弹层 */
+  .sheet {
+    background: var(--lf-card); border-radius: 16px 16px 0 0;
+    padding: 16px; border: 1px solid var(--lf-border); border-bottom: 0;
+  }
+  .grabber { width: 32px; height: 4px; border-radius: 999px; background: var(--lf-border); margin: 0 auto 12px; }
+  .sheet .st { font-size: 16px; font-weight: 600; color: var(--lf-card-foreground); }
+  .sheet .body { font-size: 13px; color: var(--lf-muted-foreground); line-height: 1.75; margin-top: 10px; }
+  .sheet .body b { color: var(--lf-card-foreground); }
+  .btnrow { display: flex; gap: 8px; margin-top: 16px; }
+  .btn {
+    flex: 1; height: 44px; border-radius: var(--lf-radius-md); display: flex;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+  }
+  .btn.solid { background: var(--lf-primary); color: #FFFFFF; }
+  .btn.muted { background: var(--lf-muted); color: var(--lf-card-foreground); }
+  html.dark .btn.solid, .frame.theme-dark .btn.solid { color: var(--lf-primary-foreground); }
+
+  /* 训练页改造后：容量图白底配色 */
+  .tbars { display: flex; align-items: flex-end; gap: 9px; height: 72px; }
+  .tbars .b { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  .tbars .b > i { display: block; width: 100%; border-radius: 8px; }
+  .tlabels { display: flex; gap: 9px; margin-top: 8px; }
+  .tlabels span { flex: 1; text-align: center; font-size: 10px; color: var(--lf-muted-foreground); }
+  .tlegend { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 10px; color: var(--lf-muted-foreground); }
+  .tlegend .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--lf-mint-400); }
+  .tr-statrow { display: flex; margin-top: 14px; }
+  .tr-statrow .s { flex: 1; min-width: 0; }
+  .tr-statrow .v { font-size: 30px; font-weight: 800; color: var(--lf-card-foreground); letter-spacing: -0.5px; }
+  .tr-statrow .l { font-size: 10px; color: var(--lf-muted-foreground); margin-top: 2px; }
+  .ph { margin-top: 8px; }
+  .phcard {
+    background: var(--lf-card); border: 1px solid var(--lf-border);
+    border-radius: var(--lf-radius-lg); padding: 12px; box-shadow: var(--lf-shadow-1);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .phdot { width: 32px; height: 32px; border-radius: var(--lf-radius-md); background: var(--lf-muted); flex: none; }
+  .phline { height: 10px; border-radius: 4px; background: var(--lf-muted); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>我的身份卡 + 训练 hero + 步数授权行 — R5/R6 设计稿（docs/30 需求 3、5、6）</h1>
+  <p class="intro">
+    七帧：①我的页身份卡改造前 ②改造后 ③训练页 hero 改造前 ④改造后 ⑤设置页步数授权行
+    ⑥授权说明弹层 ⑦暗色抽查。令牌与 <code>ui设计/pages/训练.html</code> 同源。
+  </p>
+  <div class="legend">
+    <b>三处一个方向</b>：<span class="kw">大色块退场，标准 DesignCard 接管</span>。
+    我的页渐变 + 点纹理 → 白卡（头像 64→56、姓名与副标题同行、「编辑资料」改 B6 文字钮）；
+    训练页 neutral-900 → 白卡（容量图改白底配色、页面顶部不再铺到物理顶边）。<br>
+    <b>步数授权</b>：设置页「数据管理」组新增一行 —— 状态四态如实显示 + 一键跳<b>系统设置</b>。
+    Android 的 <code>ACTIVITY_RECOGNITION</code> <b>只能由用户在系统设置里撤销</b>，
+    应用内开关撤不掉权限本身，所以不做假开关（§6 弹层把这件事写明白）。
+  </div>
+
+  <!-- ================= ①② 我的页身份卡 ================= -->
+  <h2>①② 我的页身份卡：渐变 + 点纹理 → 标准白卡</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 身份卡（settings_page.dart:1580）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="idcard-before">
+          <div class="dots"></div>
+          <div class="inner">
+            <div class="av64">Fit</div>
+            <div style="height:8px"></div>
+            <div style="font-size:18px;font-weight:700">Fit</div>
+            <div style="font-size:12px;margin-top:2px;opacity:0.72">已坚持 12 天 · 目标减脂 4.2 kg</div>
+            <div style="height:8px"></div>
+            <span class="pill-t">✎ 编辑资料</span>
+            <div style="height:16px"></div>
+            <div style="display:flex;width:100%;text-align:center">
+              <div style="flex:1"><div style="font-size:18px;font-weight:800">69.4 kg</div><div style="font-size:10px;opacity:0.7;margin-top:2px">当前体重</div></div>
+              <div style="flex:1"><div style="font-size:18px;font-weight:800">1,284</div><div style="font-size:10px;opacity:0.7;margin-top:2px">总记录</div></div>
+              <div style="flex:1"><div style="font-size:18px;font-weight:800">12 天</div><div style="font-size:10px;opacity:0.7;margin-top:2px">连续天数</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="phcard"><span class="phdot"></span><span class="phline" style="width:120px"></span></div>
+        </div>
+        <div class="note" style="margin-top:10px">
+          <b>四个问题</b>：① 渐变 + 14dp 间距的点纹理两层装饰叠在一起，头像与昵称反而被压住；
+          ② 64dp 头像 + 姓名 + 副标题 + 药丸**四行竖排**，卡高 ≈ 240dp 里有一半是纵向空白；
+          ③ 半透明药丸（<code>onHero α0.15</code>）只在有底色时成立，本身没有边界；
+          ④ 三段统计没有分隔线，三列数字在白底/渐变底之间漂。
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造后 · 身份卡（白卡）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="id-head">
+            <span class="av56">Fit</span>
+            <div style="flex:1;min-width:0">
+              <div class="id-name">Fit</div>
+              <div class="id-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">已坚持 12 天 · 目标减脂 4.2 kg</div>
+            </div>
+            <span class="textbtn">✎ 编辑资料</span>
+          </div>
+          <div class="statrow">
+            <div class="s"><div class="v num">69.4 kg</div><div class="l">当前体重</div></div>
+            <div class="d"></div>
+            <div class="s"><div class="v num">1,284</div><div class="l">总记录</div></div>
+            <div class="d"></div>
+            <div class="s"><div class="v num">12 天</div><div class="l">连续天数</div></div>
+          </div>
+        </section>
+        <div class="ph">
+          <div class="phcard"><span class="phdot"></span><span class="phline" style="width:120px"></span></div>
+        </div>
+      </div>
+      <div class="note">
+        <b>为什么头像收到 56</b>：卡的第一行只有「我是谁」这一件事，56dp 已经是
+        视觉重心的上限（对比：列表项图标 40、分类图标 40）。80dp 级别的大头像
+        适合「个人主页」，不适合设置页顶部的一张摘要卡。
+      </div>
+      <div class="note">
+        <b>Key 与文案全保留</b>：<code>settings-avatar</code>（头像）仍在，
+        底从「半透明白」换 <code>mint-100</code> + <code>mint-700</code> 字；
+        <code>settings-identity-subtitle</code> 文案不变；
+        <code>cta-edit-profile</code> 从药丸换 <code>LfTextButton</code>（B6）。
+        <code>profile_identity_card_test.dart</code> 断言的是「Key 在 + 认到文案」，
+        换皮不该红。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ③④ 训练页 hero ================= -->
+  <h2>③④ 训练页 hero：neutral-900 色块 → 标准白卡（容量图保色不改形）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造前 · 训练 hero（training_hero.dart:23）</span><span>360dp</span></div>
+      <div class="pad" style="padding:0">
+        <div class="trhero-before">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-size:18px;font-weight:700">训练</span>
+            <span style="font-size:14px;opacity:0.6">第38周</span>
+          </div>
+          <div style="height:16px"></div>
+          <div style="display:flex">
+            <div style="flex:1"><div style="font-size:30px;font-weight:800">4</div><div style="font-size:10px;opacity:0.6;margin-top:2px">已完成训练</div></div>
+            <div style="flex:1"><div style="font-size:30px;font-weight:800">2.8h</div><div style="font-size:10px;opacity:0.6;margin-top:2px">总时长</div></div>
+            <div style="flex:1"><div style="font-size:30px;font-weight:800">—</div><div style="font-size:10px;opacity:0.6;margin-top:2px">消耗 kcal</div></div>
+          </div>
+          <div style="height:20px"></div>
+          <div class="tr-bars">
+            <div class="b"><i style="height:100%;background:#6FDBB0"></i></div>
+            <div class="b"><i style="height:0%;background:#4ED9A6;min-height:4px;opacity:0.12"></i></div>
+            <div class="b"><i style="height:70%;background:#4ED9A6"></i></div>
+            <div class="b"><i style="height:0%;background:#4ED9A6;min-height:4px;opacity:0.12"></i></div>
+            <div class="b"><i style="height:88%;background:#4ED9A6"></i></div>
+            <div class="b"><i style="height:45%;background:#4ED9A6"></i></div>
+            <div class="b"><i style="height:0%;background:#4ED9A6;min-height:4px;opacity:0.12"></i></div>
+          </div>
+          <div class="tr-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          <div class="tr-legend"><span class="dot" style="background:#4ED9A6"></span>休息日 · 二 / 四 / 日</div>
+        </div>
+        <div class="pad">
+          <div class="ph"><div class="phcard"><span class="phdot"></span><span class="phline" style="width:130px"></span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>改造后 · 训练 hero（白卡）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span class="c-title">训练</span>
+            <span class="c-sub">第38周</span>
+          </div>
+          <div class="tr-statrow">
+            <div class="s"><div class="v num">4</div><div class="l">已完成训练</div></div>
+            <div class="s"><div class="v num">2.8h</div><div class="l">总时长</div></div>
+            <div class="s"><div class="v num">—</div><div class="l">消耗 kcal</div></div>
+          </div>
+          <div style="height:18px"></div>
+          <div class="tbars">
+            <div class="b"><i style="height:100%;background:var(--lf-mint-600)"></i></div>
+            <div class="b"><i style="height:0%;background:var(--lf-muted);min-height:4px"></i></div>
+            <div class="b"><i style="height:70%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:0%;background:var(--lf-muted);min-height:4px"></i></div>
+            <div class="b"><i style="height:88%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:45%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:0%;background:var(--lf-muted);min-height:4px"></i></div>
+          </div>
+          <div class="tlabels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+          <div class="tlegend"><span class="dot"></span>休息日 · 二 / 四 / 日</div>
+        </section>
+        <div class="ph"><div class="phcard"><span class="phdot"></span><span class="phline" style="width:130px"></span></div></div>
+      </div>
+      <div class="note">
+        <b>配色对照</b>：训练日 <code>mint-400</code>、<b>今日</b> <code>mint-600</code>
+        （比其余训练日更深以示「就是今天」）、无训练 <code>muted</code>。
+        改造前「今日」用 mint-300（比其余更浅）—— 在近黑底上「更浅 = 更亮 = 更远」的
+        语义是对的，但白底上必须反过来：更饱和才更近。
+      </div>
+      <div class="note">
+        <b>30px 数值保留</b>：三段统计的字号（<code>displayHero</code> 30 w800）不动 ——
+        它是这张卡的量级感来源，白卡化不改变它。三条 Key
+        （<code>-count</code>/<code>-duration</code>/<code>-kcal</code>）与
+        <code>training-capacity-chart</code>、<code>training-rest-legend</code> 全保留。
+      </div>
+      <div class="note">
+        <b>顶部留白改回</b>：不再铺到屏幕物理顶边 ⇒ 页面上边距 =
+        <code>pagePadding + LfInsets.top</code>（与我的页同一处理），
+        <code>respectTopInset</code> 相关注释同步改写。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑤⑥ 步数授权 ================= -->
+  <h2>⑤⑥ 步数授权：设置页新增一行（状态四态）+ 说明弹层（跳系统设置）</h2>
+  <div class="row">
+    <div class="frame">
+      <div class="label"><span>改造后 · 设置页「数据管理」组</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="gtitle">数据管理</div>
+        <div class="group">
+          <div class="srow"><span class="ic">⤓</span><span class="t">备份数据</span><span class="chev">›</span></div>
+          <div class="srow"><span class="ic">⤒</span><span class="t">恢复数据</span><span class="chev">›</span></div>
+          <div class="srow"><span class="ic">▦</span><span class="t">导出 CSV</span><span class="chev">›</span></div>
+          <div class="srow">
+            <span class="ic">🏃</span><span class="t">步数与身体活动</span>
+            <span class="pill ok">已授权</span><span class="chev">›</span>
+          </div>
+        </div>
+        <div class="note" style="margin-top:10px">
+          新行插在「数据管理」组内（备份/恢复/CSV 之后、自动备份开关之前）——
+          它与步数的<b>本地数据</b>同组，不与 AI 配置混在一起。<br>
+          状态短词四态（<b>不猜</b>）：<code>available</code> → 已授权、
+          <code>denied</code> → 未授权、<code>noSensor</code> → 设备不支持、
+          其余 → 状态未知。读数用 <code>StepsChannel.read()</code>（同一来源，
+          与今日页步数卡说同一句话）。
+          <br><br>
+          <b>实现校准（2026-10-08，两处，取实现）</b>：<br>
+          ① 状态徽章用 <code>LfBadge</code> 的 <code>radiusSm</code>（8 圆角），
+          不是本稿画的 <code>999px</code> 全圆角——全 App 徽章只有一种形状
+          （§3.9 收敛），为新行引入第二种圆角是回退。<br>
+          ② <b>本行没有副标题</b>：实现第一版自发加了一行说明，已删除。D9 只裁定
+          「标题 + 状态 + 弹层」，且加了副标题会让本行比同组的备份/恢复/CSV 高，
+          打断组的节奏（说明文字归弹层）。
+        </div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="label"><span>授权说明弹层（点击该行）</span><span>360dp</span></div>
+      <div class="pad" style="padding-bottom:0">
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div class="st">步数与身体活动</div>
+          <div class="body">
+            步数权限由系统管理。要取消，请在系统设置里关闭「身体活动」权限；
+            取消后步数卡显示「未授权」，其余功能不受影响。
+          </div>
+          <div class="btnrow">
+            <span class="btn muted">取消</span>
+            <span class="btn solid">去系统设置</span>
+          </div>
+          <div style="height:16px"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:8px 16px 14px">
+        <b>为什么不放应用内开关</b>：Android 的运行时权限<b>只能由用户在系统设置里撤销</b>，
+        应用内做「取消授权」的开关只能停用读数、撤不掉权限本身 —— 那会让设置页说
+        「已取消」而系统里权限还在，违背诚实条款。<b>去系统设置</b>跳
+        <code>ACTION_APPLICATION_DETAILS_SETTINGS</code>（原生
+        <code>openAppSettings</code> 已存在）。
+      </div>
+    </div>
+    <div style="width:300px;flex:none">
+      <div class="note">
+        <b>接线</b>：<code>createAppRouter</code> 已有 <code>stepsRepository</code> 形参
+        （<code>app_router.dart:90</code>），加一行传给 <code>SettingsPage</code>；
+        未接线（null）时<b>不渲染该行</b>（与 <code>settings-commute-row</code> 同约定）。
+        <code>docs/08</code> 权限说明同步补一句「取消路径：我的 → 步数与身体活动 → 去系统设置」。
+      </div>
+      <div class="note">
+        <b>四种状态在设置页的呈现</b>（同一行的 <code>pill</code> 换色换字）：<br>
+        已授权 <code>mint</code> / 未授权 <code>warning</code> /
+        设备不支持 <code>muted</code> / 状态未知 <code>muted</code>。<br>
+        「去系统设置」按钮在四态下都可点 —— 已授权时它是「去撤销」的入口，
+        未授权时是「去开启」的入口，两者同一动作（打开本应用的系统设置页）。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ⑦ 暗色 ================= -->
+  <h2>⑦ 暗色抽查（身份卡 / 训练 hero / 设置行）</h2>
+  <div class="row">
+    <div class="frame theme-dark">
+      <div class="label"><span>身份卡（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div class="id-head">
+            <span class="av56">Fit</span>
+            <div style="flex:1;min-width:0">
+              <div class="id-name">Fit</div>
+              <div class="id-sub">已坚持 12 天 · 目标减脂 4.2 kg</div>
+            </div>
+            <span class="textbtn">✎ 编辑资料</span>
+          </div>
+          <div class="statrow">
+            <div class="s"><div class="v num">69.4 kg</div><div class="l">当前体重</div></div>
+            <div class="d"></div>
+            <div class="s"><div class="v num">1,284</div><div class="l">总记录</div></div>
+            <div class="d"></div>
+            <div class="s"><div class="v num">12 天</div><div class="l">连续天数</div></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="frame theme-dark">
+      <div class="label"><span>训练 hero（暗色）</span><span>360dp</span></div>
+      <div class="pad">
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span class="c-title">训练</span><span class="c-sub">第38周</span>
+          </div>
+          <div class="tr-statrow">
+            <div class="s"><div class="v num">4</div><div class="l">已完成训练</div></div>
+            <div class="s"><div class="v num">2.8h</div><div class="l">总时长</div></div>
+            <div class="s"><div class="v num">—</div><div class="l">消耗 kcal</div></div>
+          </div>
+          <div style="height:18px"></div>
+          <div class="tbars">
+            <div class="b"><i style="height:100%;background:var(--lf-mint-600)"></i></div>
+            <div class="b"><i style="height:4px;background:var(--lf-muted)"></i></div>
+            <div class="b"><i style="height:70%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:4px;background:var(--lf-muted)"></i></div>
+            <div class="b"><i style="height:88%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:45%;background:var(--lf-mint-400)"></i></div>
+            <div class="b"><i style="height:4px;background:var(--lf-muted)"></i></div>
+          </div>
+          <div class="tlabels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+        </section>
+      </div>
+    </div>
+    <div class="frame theme-dark">
+      <div class="label"><span>设置行（暗色·未授权）</span><span>360dp</span></div>
+      <div class="pad">
+        <div class="gtitle">数据管理</div>
+        <div class="group">
+          <div class="srow"><span class="ic">⤓</span><span class="t">备份数据</span><span class="chev">›</span></div>
+          <div class="srow">
+            <span class="ic">🏃</span><span class="t">步数与身体活动</span>
+            <span class="pill no">未授权</span><span class="chev">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="mint-05-pin-icon" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1024" y2="1024">
+      <stop offset="0" stop-color="#3ECC9B"/>
+      <stop offset="0.52" stop-color="#2FBE8F"/>
+      <stop offset="1" stop-color="#17875F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#mint-05-pin-icon)"/>
+  <g>
+    
+    <path d="M282 404 A230 230 0 0 1 742 404 C742 590 650 720 512 850 C374 720 282 590 282 404 Z" fill="#FFFFFF"/>
+    <path d="M426 404 L486 464 L604 346" fill="none" stroke="url(#mint-05-pin-icon)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

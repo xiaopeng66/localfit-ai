@@ -1,0 +1,433 @@
+# FoodCalu 非中文名人工翻译表（左列=原名，空白已折叠；右列=中文名）
+# 构建脚本 build_foodcalu.py 强制要求每一条不含汉字的食物行都有译名，缺一条就报错退出。
+Sunshine PandanBread	Sunshine 香兰面包
+Bonjour Pandan Bread	Bonjour 香兰面包
+kaphaban Консервы горох	罐装豌豆
+kaphaban Консервы из кукурузы	甜玉米罐头
+kaphaban Консервы Кукуруза	玉米罐头
+Perencah Maggi Asam Laksa	Maggi 亚参叻沙调料
+Ibumie Always Mi Goreng	Ibumie 印尼炒面
+Sara Lee Pound Cake	Sara Lee 磅蛋糕
+IDEAL AUSTRALIA HARVEST INSTANT OATS	Ideal 即食燕麦片
+IDEAL AUSTRALIA HARVEST QUICK COOKING OATS	Ideal 快熟燕麦片
+Aunt Millie's whole grain bread	Aunt Millie's 全麦面包
+Helga‘s Helgas Light Rye	Helga‘s 轻怡黑麦面包
+French Chocolate Chip Mini Chinois	法式迷你巧克力豆面包
+French Butter Croissants	法式黄油牛角包
+NONGSHIM chapaghetti	农心 炸酱面
+Mug Shot Pasta Creamy Cheese	Mug Shot 奶油芝士意面
+Mug Shot Pasta Roasted Chicken	Mug Shot 烤鸡味意面
+Mug Shot Pasta Tikka Style	Mug Shot 提卡风味意面
+Mug Shot Pasta Tomato & Herb	Mug Shot 番茄香草意面
+Mug Shot Noodle Thai Style	Mug Shot 泰式汤面
+Fuel Chocolate Loaded Granola	Fuel 巧克力麦片
+Fuel Fruit Loaded Chunky Granola	Fuel 果干块状麦片
+Nature's Path Granola with Almonds	Nature's Path 杏仁麦片
+ENER-G Tapioca Dinner Rolls	ENER-G 木薯餐包
+Sunrice Low GI Brown rice	SunRice 低 GI 糙米
+Dr Schar Gluten-free Ciabatta rolls	Dr Schar 无麸质恰巴塔面包卷
+Dr Schar Gluten-free lunch rolls	Dr Schar 无麸质午餐面包卷
+Dr Schar Gluten-free rustic rolls	Dr Schar 无麸质乡村面包卷
+Dr Schar Dr.Schar Salti Magic Pop Cocoa Cereals	Dr Schar 可可味脆米片
+McCambridge Irish Stone-Ground Whole Wheat Bread	McCambridge 爱尔兰石磨全麦面包
+Oatilicious Fruit Porridge	Oatilicious 水果燕麦粥
+Asian Hamburger Helper Mongolian-Style Beef	Hamburger Helper 蒙古牛肉风味意面
+Hamburger Helper Cheeseburger Mac	Hamburger Helper 芝士汉堡通心粉
+Hamburger Helper Classic Cheddar Cheese Melt	Hamburger Helper 经典车打芝士意面
+Hamburger Helper Classic Cheesy Beef Pasta	Hamburger Helper 经典芝士牛肉意面
+Hamburger Helper Microwave Cheeseburger Macaroni	Hamburger Helper 微波芝士汉堡通心粉
+Hamburger Helper Hamburger Helper, Lasagna	Hamburger Helper 千层面
+Hamburger Helper Chili Macaroni	Hamburger Helper 辣酱通心粉
+Little Dish Chicken Risotto	Little Dish 鸡肉烩饭
+Mendake Oriental Style Noodles	Mendake 东方风味面条
+harraways wholegrain oats	Harraways 全麦燕麦片
+Raisin Bran Whole Grain Wheat&Bran Cereal	葡萄干全麦麸皮麦片
+Laziza Kheer Rice Pudding Mix	Laziza 米布丁粉
+Arrowhead Mills, Organic Oat Bran	Arrowhead Mills 有机燕麦麸
+Harvest Morn - Original Instant Oats	Harvest Morn 原味即食燕麦片
+Hovis BREAD-ORIGINAL WHEATGERM	Hovis 原味小麦胚芽面包
+RYVITA WHOLEGRAIN RYE CRISPBREAD(ORIGINAL RYE)	Ryvita 全麦黑麦脆面包（原味黑麦）
+Scottish Whole Rolled Porridge Oats	苏格兰全粒燕麦片
+Selection Italian Style White Bread 675g	Selection 意式白面包 675克
+Middle East Style Bread 397g 6 pieces	中东风味面包 397克 6片
+Burgen wholegrain&oat bread	Burgen 全麦燕麦面包
+Burgen wholemeal&seeds bread	Burgen 全麦籽粒面包
+Oroweat 100% Whole Wheat Bread	Oroweat 100%全麦面包
+WeightWatchers‘ Weight watcher wholemeal bread	Weight Watchers 全麦面包
+Warburton wholemeal bread	Warburtons 全麦面包
+Wonder+ + + + 100% whole wheat	Wonder 100%全麦面包
+Waitrose fruit muesli	Waitrose 水果麦片
+Natural Five Grain Porridge	天然五谷燕麦粥
+Wonder 18 whole grains white bread	Wonder 18谷白面包
+LOWAN Wholegrain Rolled Oats	Lowan 全麦燕麦片
+Pacific Coffee Company Cranberry, Apple & Pecan	Pacific Coffee 蔓越莓苹果碧根果麦片
+Grace Instant Oats	Grace 即食燕麦片
+old fashioned Vienna White bread	老式维也纳白面包
+organics Organics quick oats	Organics 快熟燕麦片
+SEASON BRAND Sardines	Season 沙丁鱼罐头
+Four'n Twenty angus beef &pepper	Four'N Twenty 安格斯牛肉胡椒派
+Wattie's Butter chicken	Wattie's 黄油鸡
+Exeter CORNED BEEF	Exeter 咸牛肉
+Waitrose smoked German peppered salami	Waitrose 烟熏德式胡椒萨拉米
+Beretta Mortadella Bologna I.G.P.	Beretta 博洛尼亚肉糜肠
+Fray Bentos Corned Beef	Fray Bentos 咸牛肉
+Ye Yolde Oak Meatballs Bolognese	Ye Olde Oak 意式番茄肉丸
+Ye Yolde Oak Meatballs Gravy	Ye Olde Oak 肉汁肉丸
+Ye Yolde Oak Meatballs Tomato	Ye Olde Oak 番茄汁肉丸
+Pek Cured Chopped Pork Gold	Pek 腌制猪肉糜（金装）
+Pek Cured Chopped Pork	Pek 腌制猪肉糜
+John West Black Lumpfish Caviar	John West 圆鳍鱼黑鱼子酱
+Kate Kitchen Sliced Beef	Kate Kitchen 切片牛肉
+Columbus Herb Turkey Breast	Columbus 香草火鸡胸
+Johnsonville Garlic Brats	Johnsonville 蒜味香肠
+ReFiletto Re Filetto di alici girasole	Re Filetto 葵花籽油腌鳀鱼
+armour vienna sausage original	Armour 原味维也纳香肠
+peche ocean thon entier	Peche Ocean 整块金枪鱼罐头
+Fray Bentos Meatballs In Tomato Sauce	Fray Bentos 番茄汁肉丸罐头
+Fray Bentos Steak & Kidney Pudding	Fray Bentos 牛排腰子布丁罐头
+la Merenda Prosciutto Crudo	La Merenda 生火腿
+john west sardines in BBQ sauce	John West 烧烤汁沙丁鱼
+john west sardines in sunflower oil	John West 葵花籽油沙丁鱼
+john west sardines in tomato sauce	John West 番茄汁沙丁鱼
+Nellie's Nest Cage-Free Large Egg(omega-3)	Nellie's Nest 散养大鸡蛋（含 omega-3）
+JOHN WEST John west light tuna(onion&tomato)	John West 洋葱番茄金枪鱼
+Johnsonville Brats Sausage 500g	Johnsonville 香肠 500克
+Greenseas sweet chilli tuna	Greenseas 甜辣金枪鱼
+The Original The original prosciutto	The Original 生火腿
+BUMBLE BEE Bumble Bee Fat-Free Tuna Salad with Crackers	Bumble Bee 脱脂金枪鱼沙拉（配饼干）
+Pfeffers chinken	Pfeffers 火腿
+LEICHT-KOST Corned Beef	Leicht-Kost 咸牛肉
+Oscar Mayer OSCAR MAYER Delifresh	Oscar Mayer Deli Fresh 冷切肉
+THE FISHMONFER WILD PINK SALMON FILLETS	The Fishmonger 野生粉鲑鱼柳
+Libby's corned beef	Libby's 咸牛肉
+Earthbound farm (Earthbound Farm) Baby Romanie Salad	Earthbound Farm 小罗马生菜沙拉
+BONDUELLE salade de jeunes pousses	Bonduelle 嫩叶沙拉
+coles law	凉拌卷心菜沙拉
+Wendy's chicken BLT salad	Wendy's 鸡肉 BLT 沙拉
+HYTOP Mixed Vegetables	Hytop 混合蔬菜罐头
+Astro strawberry yogourt	Astro 草莓酸奶
+Peanut Butter & Co. Crunchy Peanut Butter	Peanut Butter & Co. 颗粒花生酱
+Olivani Avocado Spread with Olive Oil	Olivani 牛油果橄榄油涂抹酱
+Fruit d' Or fruit d'or butter	Fruit d'Or 黄油
+Muller Corner Deluxe (After Dinner Mint)	Müller 豪华角酸奶（餐后薄荷味）
+avocado cold press oil	冷压牛油果油
+(cobram estate) extra virgin olive oil	Cobram Estate 特级初榨橄榄油
+Harvest Award Buttery Spread with Olive Oil	Harvest Award 橄榄油黄油涂抹酱
+Whole Earth organic peanut butter crunchy	Whole Earth 有机颗粒花生酱
+Diploma Instant Skim Milk Powder	Diploma 速溶脱脂奶粉
+Becel butter	Becel 黄油涂抹酱
+Alfa One 100pa Pure Rice Barn Oil	Alfa One 纯米糠油
+OIKOS yogurt	Oikos 酸奶
+Vaalia luscious berries probiotic Yoghurt	Vaalia 莓果益生菌酸奶
+essential Waitrose lighter medium sliced chesse	Waitrose 轻怡中切芝士片
+WAITEMATA CLOVER HONEY	Waitemata 三叶草蜂蜜
+Nature's Delight chia seeds	Nature's Delight 奇亚籽
+skippy peanut butter	Skippy 花生酱
+PURA tone no fat milk	Pura Tone 脱脂牛奶
+Newman's Own Blue Cheese Dressing	Newman's Own 蓝纹芝士沙拉酱
+Zottis Fruit	Zottis 水果酸奶
+Branston Brazilian Relish	Branston 巴西风味酱
+Branston Small Chunk Pickle Squeezy	Branston 小块腌菜酱（挤瓶）
+Branston Smooth Pickle	Branston 细腻腌菜酱
+Askeys Treat Dessert Sauce Limited Edition	Askeys 限定版甜品酱
+Askeys Treat Toffee Sauce	Askeys 太妃酱
+Liberté Liberte Greek Yogurt(blueberry)	Liberté 希腊酸奶（蓝莓）
+Chobani Simply 100 Greek Yogurt (blueberry)	Chobani Simply 100 希腊酸奶（蓝莓）
+CATERINA Ragù di Anatra	Caterina 鸭肉酱
+AMORA MOUTARDE Fine et Forte	Amora 第戎芥末酱
+Chobani Simply 100 Greek Yogurt (Black cherry)	Chobani Simply 100 希腊酸奶（黑樱桃）
+Chobani Simply 100 Greek Yogurt (pineapple)	Chobani Simply 100 希腊酸奶（菠萝）
+Otaga Otago MANUKA HONEY	Otago 麦卢卡蜂蜜
+PETER PAN PEANUT BUTTER CREAMY	Peter Pan 柔滑花生酱
+MELITA Honey Farm blue gum	Melita 蓝胶树蜂蜜
+hnz Manuka Honey	HNZ 麦卢卡蜂蜜
+Belcubeベルキューブ チーズキューブ ビールセレクト	Belcube 啤酒风味芝士方块
+Go Naturally Go Natural NutDelight	Go Naturally 坚果麦片
+keluaran Pulau Pinang Buah Pala	槟城土产 帕拉果
+Nice! chopped pecans	Nice! 碧根果碎
+Natural Almonds	天然杏仁
+Fitakl Original creamy taste Cheese	Fitakl 原味奶油芝士
+Y.S.Eco Bee Farms Y.S. Eco Bee Farms Super Enriched Honey	Y.S. Eco Bee Farms 高营养蜂蜜
+Napolina Crated Cheese	Napolina 芝士碎
+elle & vire Carre frais	Elle & Vire 鲜奶酪方块
+bridelight fromagere fondue legere	Bridelight 轻怡芝士火锅底料
+Horlicks Malted Milk Drink	好立克麦芽奶饮
+Options Indulgence Belgian Chocolate	Options 比利时巧克力饮品
+Options White Choc	Options 白巧克力饮品
+Galaxy Silky Smooth Chocolate Drink	Galaxy 丝滑巧克力饮品
+Garelick Milk(fat free)	Garelick 脱脂牛奶
+Queso Del Valle Cotija( Part Skim Milk Cheese)	Queso Del Valle 科蒂哈半脱脂芝士
+Bottle Green Elderflower Pomegranate	Bottle Green 接骨木花石榴饮料
+CANADA DRY GINGER ALE	Canada Dry 姜汁汽水
+Neilson 2% Partly Skimmed Milk	Neilson 2%半脱脂牛奶
+Truslen Coffee	Truslen 咖啡
+Waitrose organic peanut butter smooth	Waitrose 有机柔滑花生酱
+Waitrose peanut butter crunchy	Waitrose 颗粒花生酱
+Alpina Revive Greek Non-Fat Yogurt	Alpina Revive 希腊脱脂酸奶
+The Collective (Kefir Yoghurt)	The Collective 开菲尔酸奶
+Milky Way Magic Stars Hot Chocolate	Milky Way 热巧克力
+Tuscan Fat Free Milk	Tuscan 脱脂牛奶
+House MEGASHAK	House 摇摇饮品
+Neilson 1% partly skimmed milk	Neilson 1%半脱脂牛奶
+Astro Zer0% Yogurt (175g Single Serve Cup)	Astro Zer0% 酸奶（175克杯装）
+Piako ourmet yohurt	Piako 酸奶
+Lactantia Skim Milk	Lactantia 脱脂牛奶
+Taylor's Caesar Salad Dressing	Taylor's 凯撒沙拉酱
+Baristar Barista Espresso Latte	Barista 意式浓缩拿铁
+Haldiram's dilli style palak paneer	Haldiram's 德里面菠菜芝士
+Chobani Greek Yogurt Blood Orange Fat Free	Chobani 血橙脱脂希腊酸奶
+JALNA A2 YOGHOURT(REDUCED FAT)	Jalna A2 低脂酸奶
+Siggi's Strained Non-fat Yogurt (Blueberry)	Siggi's 脱脂滤乳酸奶（蓝莓）
+perfect italiano extra light ricotta cheese	Perfect Italiano 超轻乳清芝士
+Dairy farmers dairy farmer lite cottage cheese	Dairy Farmers 低脂白软芝士
+TEXAS PETE original hot sauce	Texas Pete 原味辣酱
+Chobani non-fat strawberry Greek yogurt	Chobani 草莓脱脂希腊酸奶
+Chobani blueberry non-fat greek yogurt	Chobani 蓝莓脱脂希腊酸奶
+Chobani fat free plain yogurt	Chobani 原味脱脂酸奶
+Dairylea cheese triangles	Dairylea 三角芝士
+Natrel Organic Milk 1%	Natrel 有机 1%牛奶
+Activia Breafast Pot	Activia 早餐酸奶杯
+The Greek Gods Greek Yogurt (Honey)	The Greek Gods 希腊酸奶（蜂蜜）
+Danone DanActive	达能 DanActive 活性乳酸菌饮品
+Panos Crispy Yogurt	Panos 脆片酸奶
+Chobani Greek Yogurt (2% Mango Lowfat)	Chobani 2%芒果低脂希腊酸奶
+Schnucks skim milk	Schnucks 脱脂牛奶
+The laughing cow The Laughing Cow cheese wedges(50%less fat)	笑牛 芝士小方块（减脂 50%）
+Chobani Chobai Nonfat Vanilla Yogurt	Chobani 香草脱脂酸奶
+Ralph's Lite Nonfat Yogurt (Peach)	Ralph's 轻怡脱脂酸奶（桃子）
+Patak's Pataks Jalfrez	Patak's 贾尔弗里兹咖喱酱
+Gossner foods GossnerReducedFatMilk	Gossner 低脂牛奶
+macro FullCreamMilk	Macro 全脂牛奶
+WOOLWORTHS homebrand skimmilk	Woolworths 自有品牌脱脂牛奶
+dairyland Vanilla Fat Free Yogurt	Dairyland 香草脱脂酸奶
+Philadelphia strawberry cream cheese (light)	Philadelphia 草莓奶油奶酪（轻怡）
+Fromage Frais	法式鲜奶酪
+Sweet Home Farm Granola(Maple Pecan)	Sweet Home Farm 枫糖碧根果麦片
+Castello Bluechesse	Castello 蓝纹芝士
+BROOKS Cantafe Soy Cafe	Brooks Cantafe 豆乳咖啡
+PACO Cappuccino	Paco 卡布奇诺
+BROOKS Cantafe Sesame Cappuccino	Brooks Cantafe 芝麻卡布奇诺
+Lyles Golden Syrup	Lyle's 金色糖浆
+ASTRO ORIGINAL YOGOURT	Astro 原味酸奶
+Hartley's Hartleys Smooth Jam Blackcurrant	Hartley's 黑加仑果酱
+LaVache QuiritQubeSnack	笑牛 芝士方块零食
+Simply Bag & Bake french Chicken	Simply 法式烤鸡调料
+Schwartz Creamy Mild Peppercorn Sauce Mix	Schwartz 奶油胡椒酱料包
+Schwartz Creamy Port and Mushroom	Schwartz 奶油波特酒蘑菇酱料包
+Patak's Pataks Mango Pickle	Patak's 芒果腌菜酱
+Schwartz Creamy Pepper Sauce Mix	Schwartz 奶油黑椒酱料包
+Shippam's Shippam Beef Spread	Shippam's 牛肉涂抹酱
+stevia Canderel Sweetener	Canderel 甜菊糖代糖
+Paxo Sage&Onion Stuffing	Paxo 鼠尾草洋葱填料
+Astora Original Shredded Suet	Atora 原味板油碎
+Philadelphia Light with Chives	Philadelphia 香葱轻怡奶油奶酪
+MTR READY TO EAT Alu Methi	MTR 即食土豆胡芦巴
+MTR READY TO EAT Dal Fry	MTR 即食炒扁豆
+Kitchens of INDIA Diced Potato and Pea Curry	Kitchens of India 土豆豌豆咖喱
+AROMA PASTA CHOCOLATE	Aroma 巧克力酱
+AROMA PASTA DURIAN	Aroma 榴莲酱
+rosarita not fat refried beans	Rosarita 脱脂炒豆泥
+amora mayonnaise	Amora 蛋黄酱
+Philadelphia cream cheese	Philadelphia 奶油奶酪
+Black Diamond black diamond cheese(Cheddar)	Black Diamond 车打芝士
+Colavita Red Pesto	Colavita 红香蒜酱
+Colavita Pesto Sauce	Colavita 青酱
+Albert Menes Moutarde au Bleu	Albert Ménès 蓝纹芝士芥末酱
+Albert Menes Moutarde au Miel	Albert Ménès 蜂蜜芥末酱
+Albert Menes Moutarde Noix	Albert Ménès 核桃芥末酱
+Albert Menes Moutarde Poivre	Albert Ménès 胡椒芥末酱
+sealtest 3.25%M.F. Homogenized Milk	Sealtest 3.25%均质牛奶
+sealtest fat free skim milk	Sealtest 脱脂牛奶
+wishbone balsamic vinaigrette dressing	Wish-Bone 黑醋油醋汁
+wishbone blue cheese dressing	Wish-Bone 蓝纹芝士沙拉酱
+wishbone house italian dressing	Wish-Bone 意式沙拉酱
+wishbone thousand island dressing	Wish-Bone 千岛酱
+Lobster pate officer	龙虾肉酱
+America's choice Honey Musturd	America's Choice 蜂蜜芥末酱
+BROOKS Cantafe Japanesque	Brooks Cantafe 日式咖啡
+BROOKS Cantafe Matcha Cappuccino	Brooks Cantafe 抹茶卡布奇诺
+BROOKS Cantafe Coffee Cappuccino	Brooks Cantafe 咖啡卡布奇诺
+BROOKS Cantafe Cocoa Latte	Brooks Cantafe 可可拿铁
+Cindy's Kitchen Rasberry Nectar Vinagrette	Cindy's Kitchen 覆盆子花蜜油醋汁
+B&W instant coffee mix drink	B&W 速溶混合咖啡饮品
+Monster ripper energy juice	Monster 能量饮料
+Happy Planet (extreme green)	Happy Planet 绿色蔬果汁
+whole earth original peanut butter (crunchy)	Whole Earth 原味颗粒花生酱
+Grove Square Caramel Cappuccino K-Cup	Grove Square 焦糖卡布奇诺胶囊
+HEB unsweetened vanilla almondmilk	HEB 无糖香草杏仁奶
+neera sirop vital natursirup	Neera 天然糖浆
+THE GROOVY FOOD agave nectar	The Groovy Food 龙舌兰糖浆
+OTG GINGER TEA 12G*15PCS	OTG 姜茶 12克*15包
+soywell soya drink	Soywell 豆奶
+Natural Tree Syrup	天然树糖浆
+Innocent orange juice with bits	Innocent 带果肉橙汁
+Innocent tropical juice	Innocent 热带混合果汁
+naked juice protein zone	Naked 蛋白质果汁
+Splenda No Calorie Sweetener	Splenda 零卡代糖
+Silk soymilk light	Silk 轻怡豆奶
+Astro BioBest Triple Berry Smoothie	Astro BioBest 三莓果昔
+Buckwheat Honey	荞麦蜂蜜
+Magic Time Mayonnaise(light)	Magic Time 轻怡蛋黄酱
+Magic Time Mustard Honey	Magic Time 蜂蜜芥末酱
+white BALSAMIC CITRUS BASIL	白香醋柑橘罗勒沙拉汁
+Parade Honey	Parade 蜂蜜
+Maxwell House International Cappuccino	麦斯威尔 国际风味卡布奇诺
+Swisse Beauty Superfood Powder	Swisse 美容超级食物粉
+Swisse Cleanse Superfood Powder	Swisse 清体超级食物粉
+Swisse Digestion Superfood Powder	Swisse 消化超级食物粉
+Swisse Relax Superfood Powder	Swisse 舒缓超级食物粉
+Swisse Vitality Superfood Powder	Swisse 活力超级食物粉
+Paradise Herbs Orac Energy Greens	Paradise Herbs 绿粉能量饮
+TRUNG NGUYEN G7 COFFEE	中原 G7 咖啡
+Columbia George Orginic Carrot Juice	Columbia George 有机胡萝卜汁
+GUT BIO Soja-Reis-Drink	Gut Bio 大豆米饮
+ITOEN Veggie Shot Juice	伊藤园 蔬菜汁
+Tim Hortons Coffee (Regular)	Tim Hortons 咖啡（常规）
+Grapetiser Red Grape Juice	Grapetiser 红葡萄汁
+NUTRI _cookies	Nutri 饼干
+up&go Up and Go Chocolate	Up&Go 巧克力饮品
+Nairn's Stem Ginger Oat Biscuits	Nairn's 姜味燕麦饼干
+bendicks Bittermint Collection	Bendicks 苦薄荷巧克力
+Jacob's Original Cream Cracker	Jacob's 原味奶油梳打饼干
+Terry's Chocolate Orange	Terry's 橙味巧克力
+Mr.Porky Pub Original Crackles Pork Crackling	Mr. Porky 原味炸猪皮
+Jugo Juice JugoJuiceSippinStrawberries	Jugo Juice 草莓果昔
+Jugo Juice JugoJuiceMiniMango	Jugo Juice 迷你芒果果昔
+Jugo Juice JugoJuiceWackyWatermelon	Jugo Juice 西瓜果昔
+Jugo Juice JugoJuiceJuniorJugo	Jugo Juice 儿童果昔
+be natural trail bars nut&fruit	Be Natural 坚果水果谷物棒
+Tamarin TAMARIND CANDY	Tamarin 罗望子糖
+Nonni's Almond Chocolate Biscotti	Nonni's 杏仁巧克力脆饼
+Four'n Twenty FOUR ' N TWENTY ANGUS BEEF&PEPPER PIE	Four'N Twenty 安格斯牛肉胡椒派
+M.Y.San MARIE BISCUITS	M.Y.San 玛丽饼干
+cvmallow oat & wheat(white chocolate )	Cvmallow 燕麦小麦饼干（白巧克力）
+HT Crunchy Macadamia Nut Bar	HT 夏威夷果脆棒
+DANG Coconut Chips Caramel sea salt	Dang 焦糖海盐椰子片
+Bhuja Original Mix	Bhuja 原味混合零食
+Bhuja Nut Mix	Bhuja 坚果混合零食
+Bhuja Cracker Mix	Bhuja 饼干混合零食
+7-ELEVEN 7-11 Chocolicious choc chip muffin	7-Eleven 巧克力豆麦芬
+Skinny Popcorn	Skinny 爆米花
+popchips barbecue potato	Popchips 烧烤味薯片
+FARMER'S SNACK Cranberries	Farmer's Snack 蔓越莓干
+SUNBEAM Australian sultanas	Sunbeam 澳洲无核葡萄干
+Manischewitz Organic Matzo	Manischewitz 有机无酵饼
+mother earth oaty sliges	Mother Earth 燕麦切片
+mother earth fruit sticks	Mother Earth 水果条
+WeightWatchers‘ WeightWatchers Fette Integrali	Weight Watchers 全麦饼干
+Coco Glace Tropical Coconut	Coco Glace 热带椰子雪糕
+Maeda-en ice cream (black sesame)	前田园 黑芝麻冰淇淋
+Rafferty's Garden fruit snack bars with banana	Rafferty's Garden 香蕉水果棒
+original Animal Crackers	原味动物饼干
+Tim Hortons Chocolate Dip Donut	Tim Hortons 巧克力甜甜圈
+ice toto(red bean)	红豆雪糕
+asso rted filled chocolate	什锦夹心巧克力
+CALEBB サッポロポテト	Caleb 札幌薯条
+krupuk udang super extra	超脆虾片
+Haldiram's murukku crunchy rice flour sticks	Haldiram's 香脆米粉条
+Twix cookie bars(caramel·milk chocolate)	特趣 焦糖牛奶巧克力饼干条
+NS Waitrose Woodland friends Milk Chocolate Butto	Waitrose 林地伙伴牛奶巧克力
+Barcelona Kettle Corn Crunch	Barcelona 脆皮焦糖爆米花
+ORION custard soft cup cake	好丽友 卡仕达软蛋糕
+cocoaland chocopie	Cocoaland 巧克力派
+cote d'or COTE D'OR melk lait	Côte d'Or 牛奶巧克力
+Tracker Crunchy Peanut Bar	Tracker 花生脆棒
+Galaxy Honeycomb Crisp	Galaxy 蜂巢脆巧克力
+Tracker Chocolate Chip Bars	Tracker 巧克力豆棒
+Ryvita Cracked Black Pepper	Ryvita 黑胡椒脆薄饼
+Ryvita Fruit Crunch Crispbread	Ryvita 水果脆面包干
+RYVITA Original	Ryvita 原味脆薄饼
+Phileas Fogg Italian Style Corn Chips	Phileas Fogg 意式玉米片
+Llamas Sweet Chilli Baked	Llamas 甜辣烘焙薯片
+Llamas Whole Wheat BBQ Baked	Llamas 全麦烧烤烘焙薯片
+McCoys Ridge Cut Bacon Sizzler	McCoy's 培根味厚切薯片
+McCoys Ridge Cut Flame Grilled Steak	McCoy's 炭烤牛排味厚切薯片
+Mr.Porky Mr Porky Pork Crackles	Mr. Porky 炸猪皮
+Fox Hazelnuts Coffee Thins	Fox's 榛果咖啡薄脆
+Go Ahead Crispy Slices Fruit	Go Ahead 水果脆片
+Border Biscuits strawberry shortbread	Border 草莓黄油酥饼
+Border glace cherry shortbread	Border 糖渍樱桃黄油酥饼
+Border Lemon Souffle Cookie	Border 柠檬舒芙蕾饼干
+Brookside Dark Chocolate Covered Raspberry	Brookside 黑巧克力覆盆子
+terfin assorted toffees	Terfin 什锦太妃糖
+Juchheim Baunkuchen	Juchheim 年轮蛋糕
+MONBANA milk cereal chocolate	Monbana 牛奶谷物巧克力饮
+Whittakeis Almond Gold	Whittaker's 杏仁金装巧克力
+VIVANI Feine Bitter Orange Chocolate	Vivani 苦橙味黑巧克力
+ME TO YOU Belgian White Chocolate	Me to You 比利时白巧克力
+B.B. Bakery Energy Bars Bagel	B.B. Bakery 贝果能量棒
+Cavalier No Added Sugar Dark Chocolate	Cavalier 无添加糖黑巧克力
+Ener-G Gluten Free English Muffin	Ener-G 无麸质英式松饼
+riz au lait	法式米布丁
+Dr Schar Gluten-free cup-cakes	Dr Schar 无麸质杯子蛋糕
+Dr Schar Milly Friends Biscuits	Dr Schar 小米奇饼干
+Dr Schar Mini Sorrisi	Dr Schar 迷你微笑饼干
+ORION Crunch Cereal Bar	好丽友 脆麦片棒
+ISLAND PRINCESS Deluxe	Island Princess 豪华什锦
+BELGIAN CHOCOLATE	比利时巧克力
+ALDI Choceur RICH DARK	Aldi Choceur 浓醇黑巧克力
+WeightWatchers‘ Double Chocolate chip cookies	Weight Watchers 双重巧克力豆饼干
+sargento pepper jack cheese stick	Sargento 辣味杰氏芝士条
+TASTYKAKE Cupcakes (Chocolate)	Tastykake 巧克力杯子蛋糕
+Two-Bite Cinnamon Rolls	Two-Bite 肉桂卷
+Nice! Rice cracker blend	Nice! 混合米饼
+Nice! Sesame sticks	Nice! 芝麻条
+Stroopie Dutch Syrup Waffles	Stroopie 荷兰糖浆华夫饼
+Just the cheese crunchy baked cheese snack	Just the Cheese 脆烤芝士零食
+Sun Chips (Garden Salsa)	Sun Chips 田园莎莎味玉米片
+World Table Asian Nut Crunch	World Table 亚洲坚果脆
+Snack Pack Fat Free Vanilla Pudding	Snack Pack 脱脂香草布丁
+Snack Pack No Sugar Added Vanilla Pudding	Snack Pack 无添加糖香草布丁
+Fiber One Chocolate Fudge Brownie	Fiber One 巧克力软糖布朗尼
+Maeda-en Mango Mochi Sherbet	前田园 芒果麻薯雪葩
+Kaiser Japanesche Minze	Kaiser 日式薄荷糖
+Skinny Cow Heavenly Crisp Candy Bar	Skinny Cow 天堂脆巧克力棒
+Endangered Species Dark Chocolate covered Almonds	Endangered Species 黑巧克力杏仁
+So-Delicious Coconut Milk Mini Fudge Bar	So Delicious 椰奶迷你软糖雪糕
+Frans Dark Chocolate Caramels	Frans 黑巧克力焦糖
+Myntz Sugarfree Mints	Myntz 无糖薄荷糖
+farmer's snack FARMER's fruit snack classcic	Farmer's Snack 经典水果零食
+Nairn's Nairns Oatcakes ROUGH	Nairn's 粗燕麦饼
+assorted BelgianChocolates	什锦比利时巧克力
+cote d’Or Milk Chocolate with Hazelnuts	Côte d'Or 榛果牛奶巧克力
+merci Finest Selection Chocolate	Merci 精选什锦巧克力
+walker sugar free mints	Walker's 无糖薄荷糖
+WOOLWORTHS Bananachips	Woolworths 香蕉片
+Craisins Sweetened Dried Cranberries	Craisins 蔓越莓干
+Stacy's StacysPitaChips	Stacy's 皮塔薯片
+MOZART EDITION	莫扎特巧克力
+paterson's oatcake	Paterson's 燕麦饼
+Mars funsize	玛氏 迷你装
+Sheilag's brownie brittle	Sheilagh's 布朗尼脆片
+Magnum Pink marc de champegn ice cream	梦龙 粉红香槟冰淇淋
+Haselnuss-Schnitte	榛果夹心蛋糕
+Extra Xylitol	Extra 木糖醇口香糖
+California Chocolate covered almond	加州巧克力杏仁
+Slim Fast Snack Bars(Peanut Butter)	SlimFast 花生酱代餐棒
+Selection Fieldberry Cereal Bars	Selection 野莓谷物棒
+asli MutiaraDodol	Asli Mutiara 椰糖糕
+dollar5’ dollar5	Dollar5 零食
+# 以下 23 条原始名里只有「品牌未知」是汉字，清洗掉占位词后才露出非中文名。
+bagel	贝果
+ХлопьяМюсли	什锦麦片
+Flatbread	烤饼
+CornKernels	玉米粒
+mâche	野苣
+SushiHotSeaweedSalad	海藻寿司沙拉
+AromaticAsiaStyleSalad	亚洲风味香草沙拉
+SteamServe	蒸煮蔬菜
+Champignons	双孢蘑菇
+HoneyMustardSauce	蜂蜜芥末酱
+KOSHERPARVEBARNEYBUTTERSMOOTH	Barney 柔滑花生酱
+holunderblüteWasser	接骨木花水
+Semi-skimmedmilk	半脱脂牛奶
+OrganicCoconutPalmSugar	有机椰子花糖
+SaladcreambySainsbury's	Sainsbury's 沙拉奶油酱
+vitamines12+ginseng	维生素 B12 人参饮料
+Soylicious	Soylicious 豆奶
+いちごゼリー	草莓果冻
+Rocklea Road	Rocklea Road 什锦巧克力
+シュウクランチ	巧克力脆饼
+Timbits	Timbits 甜甜圈球
+Rondoletti	Rondoletti 脆饼
+melona	美乐娜雪糕
