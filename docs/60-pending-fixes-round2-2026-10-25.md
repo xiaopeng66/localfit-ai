@@ -45,6 +45,56 @@
 
 ---
 
+## 0.1 施工矩阵（工作量 / 依赖 / 阻塞 / 变更面）
+
+> 用途：一眼看出**哪几项能今天做完**、哪几项会互相牵连。
+> 工作量按「理想一次性做完」估，不含返工；实际以验收判据为准，不以工时为准。
+
+| # | 项 | 工作量 | 依赖 | 变更面 | 是否阻塞别的项 |
+|---|---|---|---|---|---|
+| 6d | 卡片关联 | **大**（新交互 + 连写两次库） | — | controller + card + 新弹窗 | — |
+| 1 | 热量区间 + 三宏量 | 中 | **需先定 A/B 口径** | 仪表盘营养卡 | — |
+| 2 | 步数不可用 | 小（诊断）→ 中（分档） | **需现象描述** | steps 仓储 + 设置页 | — |
+| 3 | 图片放大 | 小 | — | `lf_chat_bubbles` | — |
+| 4 | 带图一次发送 | 小 | — | 对话页 + router | — |
+| 7 | 引用抽屉排版 | 小 | — | `food_reference_sheet` | — |
+| 8b | 结束会话没提炼 | 未知 | **需现象描述** | 取决于原因 | — |
+| 8c | chip 按内容宽 | 小（`LayoutBuilder`） | — | `lf_chat_input` | — |
+| 10 | 饮/步卡内容对齐 | 小 | **需实帧** | `dashboard_quick_stats_row` | — |
+| 11a | 两种记录入口统一 | 中 | 与 **6d** 同批较好 | 共享行组件 | 会碰同一批测试 |
+| 12 | 天数按钮居中 | 小 | **需实帧** | `lf_buttons` 或调用点 | — |
+| 13a | 管理目录挪右下 | 小 | 与 **13b** 共用浮钮组件 | menu 页 | 13b 依赖它 |
+| 13b | 训练页三按钮 | 中 | **依赖 13a 的浮钮组件** | 训练页 | — |
+| 16a | 记忆弹窗间距 | **极小** | — | 对话页 | — |
+| 16b | 候选去重 | 中 | — | 对话页 + 记忆仓储 | — |
+| 17b | 在线更新 | **大**（Manifest/FileProvider/设备验证） | **依赖 17c** | 原生工程 + settings | — |
+| 17c | 版本号不写未知 | **极小** | — | 构建脚本 | **17b 依赖它** |
+| 17d | 帮助文档 | 中 | — | settings 内容 | — |
+| 17e | 反馈通道 | 小 | 需定渠道 | settings 内容 | — |
+| 18 | 食物库品牌下一行 | 小（但**要重钉多条测试**） | 与 2026-10-08 改造反向 | `food_card` + 测试 | — |
+
+**能一次做完的「零风险批」**：16a、17c、3、4、7、8c（六项，互相独立）。
+
+---
+
+## 0.2 三处「已查明但上一版文档没写透」的事实
+
+复核时又查到的、会影响施工判断的实情：
+
+1. **「检查更新」目前是个假按钮**
+   `settings_page.dart:1383` 的 `_checkUpdate` 只弹一句
+   「当前 $_versionLabel；本应用完全本地运行，不会联网检查更新。」
+   ⇒ 17b 不是「接个 API」，而是**先把这句假话删掉、再真做**。
+
+2. **「帮助文档」是 7 组内置问答**（`_HelpContent`，弹层内自适应高度滚动），
+   不是外链 ⇒ 17d 是**改内容**，不是接新页面。
+
+3. **「反馈」明确没有外发通道**，代码注释自认
+   「当前无外发通道，所以只如实说明数据去向，不给一个点了没反应的假按钮」
+   ⇒ 17e 必须先定**渠道**（仓库 issue / 邮箱 / 都没有就继续如实说明）。
+
+---
+
 ## 1. §1 卡片关联（6d）——**本轮最重要**
 
 ### 用户原话
@@ -247,6 +297,61 @@ executor 只认识单条命令，看不到同卡其他行）：
 - 帮助建议改为**随包 Markdown**（离线可读，复用已有 `LfMarkdown` 渲染器）；
 - 反馈至少给出**可复制的环境信息**（版本 / 机型 / Android 版本）+ 一个可达渠道
   （仓库 issue 链接或邮箱）。
+
+---
+
+## 12.9 RED 断言原文（可直接抄进测试文件）
+
+> 纪律：**先写会失败的断言，再改实现**。下面是每项的断言草稿；
+> 实际写的时候按真实 API 微调，但**判据强度不许降低**。
+
+| 项 | 断言（RED 状态会是失败） |
+|---|---|
+| **6d** | `expect(find.byKey(const Key('chat-edit-dependency-confirm')), findsOneWidget)`（缺食材+同卡有创建时必须弹）<br>`expect(await foods.searchExact('鸡蛋水煮'), isNotEmpty)`（确认后食材真的建了）<br>`expect(meals.first.items.map((i) => i.foodName), contains('鸡蛋水煮'))`（餐里真的有它）<br>`expect(await foods.searchExact('鸡蛋水煮'), isEmpty)`（**拒绝**后不许建）<br>`expect(find.byType(AlertDialog), findsNothing)`（食材已存在时不许弹） |
+| **1** | `expect(find.textContaining('1,700'), findsOneWidget)`（下限上屏）<br>`expect(find.textContaining('1,900'), findsOneWidget)`（上限上屏）<br>`expect(find.textContaining('蛋白'), findsWidgets)`（三宏量在卡上） |
+| **2** | `expect(find.textContaining('设备不支持'), findsOneWidget)`（noSensor 档）<br>`expect(find.byKey(const Key('steps-open-settings')), findsOneWidget)`（denied 档给按钮） |
+| **3** | `await tester.tap(find.byKey(Key('ai-chat-image-0'))); expect(find.byKey(Key('ai-chat-image-zoom-0')), findsOneWidget);`<br>`expect(find.byType(InteractiveViewer), findsOneWidget)` |
+| **4** | `await tester.tap(find.byKey(Key('canteen-analyze'))); await settle(tester); expect(find.byType(ImageMessage), findsOneWidget, reason: '带图分析必须一次发出，不许等第二次点击');` |
+| **7** | `expect(find.textContaining('本地匹配到'), findsNothing)`（那句话说删就删）<br>两个主按钮 `tester.getRect(a).top == tester.getRect(b).top`（同一行）<br>`tester.getRect(先不填).right` 接近可用区右边（右下角） |
+| **8c** | `expect(rects.map((r) => r.width).toSet().length, greaterThan(1))`（宽度不许全相等）<br>`expect(tester.takeException(), isNull)`（320dp×2.0× 不溢出） |
+| **10** | 两卡第一行 `getRect().top` 差值 ≤1；第二行同样 |
+| **11a** | 两处行组件 `runtimeType` 相同（共享件）；行高差值 ≤1 |
+| **12** | 文字几何中心与胶囊中心偏差 ≤1dp（`getCenter` 差值） |
+| **16a** | `tester.getRect(a).right + 10 <= tester.getRect(b).left`（间距 ≥10） |
+| **16b** | 保存后再次提炼：`expect(find.text('喜欢清淡'), findsNothing)`（已存的不再列）；`expect(find.text('新候选'), findsOneWidget)`（新的仍列） |
+| **17c** | `expect(find.text('版本未知'), findsNothing)`；`expect(find.textContaining('v4'), findsOneWidget)` |
+| **17d/17e** | `expect(find.textContaining('github.com/xiaopeng66/localfit-ai'), findsOneWidget)`（帮助/反馈里有可达渠道） |
+| **18** | 品牌 `Text` 的 `getRect().top` **大于**名称 `Text` 的 `getRect().bottom`（下一行，不是同一行） |
+
+---
+
+## 12.10 进度追踪表（施工时逐行打勾）
+
+> 复制到新文档或直接在此勾选；**每完成一项必须同时更新**：判据是否红过、
+> 变异是否红过、门禁是否全绿。
+
+| # | 项 | RED 写过 | 转绿 | 变异验证 | 门禁复跑 | 证据落盘 |
+|---|---|---|---|---|---|---|
+| 6d | 卡片关联 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 1 | 热量区间 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 2 | 步数分档 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 3 | 图片放大 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 4 | 带图一次发送 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 7 | 引用抽屉 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 8b | 结束会话提炼 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 8c | chip 按内容宽 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 10 | 饮/步卡对齐 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 11a | 两入口统一 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 12 | 天数居中 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 13a | 管理目录右下 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 13b | 训练三按钮 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 16a | 记忆弹窗间距 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 16b | 候选去重 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 17b | 在线更新 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 17c | 版本号 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 17d | 帮助文档 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 17e | 反馈通道 | ☐ | ☐ | ☐ | ☐ | ☐ |
+| 18 | 品牌下一行 | ☐ | ☐ | ☐ | ☐ | ☐ |
 
 ---
 
