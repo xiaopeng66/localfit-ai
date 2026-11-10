@@ -289,8 +289,13 @@ final class ChatEditCommandRegistry {
       '`plan.entry.remove`；忘掉/忘记→`memory.forget`。'
       '体重目标→`profile.goal.update`；步数/饮水目标→`targets.update`；'
       '录菜单→`menu.snapshot.publish`。`servingGrams` 仅用户明说'
-      '「一份X克」才填；唯一例外是 `canteen.dish.nutrition`（营养估算命令'
-      '本身），可按常见食堂份量给估计克数，并在 reply 里写明「一份约Xg」。',
+      '「一份X克」才填；例外：`canteen.dish.nutrition` 可按常见食堂份量'
+      '估一份（reply 写「一份约Xg」）。',
+    );
+    buffer.writeln(
+      '17. **「加进食堂目录/窗口」≠ 记餐**：收录菜品用 `canteen.dish.create`；'
+      '连营养一起收就同卡再接 `canteen.dish.nutrition`'
+      '（新菜没 id，nutrition 用 window+name 定位）。',
     );
     return buffer.toString();
   }
@@ -944,11 +949,26 @@ List<ChatEditCommandSpec> _buildSpecs() {
       title: '记录菜品营养',
       danger: ChatEditDanger.update,
       args: [
+        // 2026-11-11（用户「让 AI 加入食堂目录」）：新菜没有 id，同一张卡
+        // 里「先建菜再写营养」时模型拿不到 dishId——允许用 window+name 定位
+        // （建菜命令按「窗口+精确菜名」去重，顺序执行时正好命中刚建的菜）。
         const ChatEditArgSpec(
           name: 'dishId',
           type: ChatEditArgType.string,
-          required: true,
-          hint: '快照里的菜品 id（[canteen-dish:…]）',
+          required: false,
+          hint: '快照菜品 id（[canteen-dish:…]）；新菜没 id 就给 window+name',
+        ),
+        const ChatEditArgSpec(
+          name: 'window',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: '窗口 id 或唯一名',
+        ),
+        const ChatEditArgSpec(
+          name: 'name',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: '菜名（与 window 定位新菜）',
         ),
         const ChatEditArgSpec(
           name: 'kcalPer100g',

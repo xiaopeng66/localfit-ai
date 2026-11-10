@@ -71,16 +71,18 @@ void main() {
       );
     });
 
-    test('协议总长 ≤ 7700 字（防止继续膨胀）', () {
+    test('协议总长 ≤ 7900 字（防止继续膨胀）', () {
       expect(
         proto.length,
-        lessThanOrEqualTo(7700),
+        lessThanOrEqualTo(7900),
         reason:
             '协议 ${proto.length} 字已偏长；再加规则请先合并旧规则。'
             '（基线实测 6596 字；2026-11-07 docs/66 为 `targets.update` 增加'
             '可选 `localDate` 参数，正常模式预算从 7500 放宽到 7600；'
             '2026-11-11 为「分析落估计份量」给 `canteen.dish.nutrition` 加 '
-            '`servingGrams` 参数并在规则 16 写明唯一例外，放宽到 7700；编译'
+            '`servingGrams` 参数并在规则 16 写明唯一例外，放宽到 7700；'
+            '同日为「让 AI 加入食堂目录」加规则 17（收录 ≠ 记餐）与 '
+            'nutrition 的 window+name 定位参数，放宽到 7900；编译'
             '模式变体是独立分支，不计入本预算）',
       );
     });

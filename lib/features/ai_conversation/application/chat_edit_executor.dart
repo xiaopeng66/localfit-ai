@@ -846,10 +846,21 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     final servingGrams = command.args['servingGrams'] as double?;
     final servingSource = _servingSourceOf(command);
 
-    if (contract == 'v2' && from != 'none' && foodId == null) {
+    if (contract == 'v2' && from == 'ai' && foodId == null) {
+      // 2026-11-11 修正：原判定把 v2+food（本地匹配决定）也一并拒了，与
+      // 文案自相矛盾。v2 真正不允许的是「建菜时让 AI 估营养」——建菜命令
+      // 没有营养参数，营养要走同卡的 `canteen.dish.nutrition`。
       return const ChatEditApplyResult.failure(
-        'v2 契约要求挂窗时给出主食物 foodId（或用 nutritionFrom=food 让本地匹配决定）；'
-        '请重新生成卡片。',
+        'v2 契约下建菜不带 AI 估算营养：要连营养一起收，同卡再加一条 '
+        '`canteen.dish.nutrition`（用 window+name 定位），或改 '
+        'nutritionFrom=food 由本地匹配决定。',
+      );
+    }
+    if (from == 'ai') {
+      // 旧实现这里静默无操作（模型以为写了营养，其实什么都没发生）。
+      return const ChatEditApplyResult.failure(
+        '建菜命令不带营养数值：营养估算请用 `canteen.dish.nutrition`'
+        '（可同卡先建菜，nutrition 用 window+name 定位新菜）。',
       );
     }
 
@@ -1032,7 +1043,35 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
   Future<ChatEditApplyResult> _canteenDishNutrition(
     ChatEditCommand command,
   ) async {
-    final dishId = _idArg(command, 'dishId');
+    // 2026-11-11（用户「让 AI 加入食堂目录」）：同一张卡「先建菜再写营养」
+    // 时新菜没有 id——允许 window+name 定位（create 按「窗口+精确菜名」
+    // 去重，顺序执行正好命中刚建的菜）。两者都不给就拒绝，不瞎猜。
+    final rawDishId = (command.args['dishId'] as String?)?.trim();
+    final windowRef = (command.args['window'] as String?)?.trim();
+    final dishName = (command.args['name'] as String?)?.trim();
+    String dishId;
+    if (rawDishId == null || rawDishId.isEmpty) {
+      if (windowRef == null ||
+          windowRef.isEmpty ||
+          dishName == null ||
+          dishName.isEmpty) {
+        _fail('要写营养的菜品没说清：给 dishId，或 window+name 各一个。');
+      }
+      final window = await _resolveWindowRef(windowRef);
+      final existing = await services.canteenRepository.findDishInWindow(
+        windowId: window.id,
+        name: dishName,
+      );
+      if (existing == null) {
+        _fail(
+          '窗口「${window.name}」里还没有「$dishName」这条供应：'
+          '同一张卡先 `canteen.dish.create` 再写营养，或对已有供应补营养。',
+        );
+      }
+      dishId = existing.id;
+    } else {
+      dishId = normalizeTargetId(rawDishId);
+    }
     final row =
         await (services.database.select(services.database.menuItems)
               ..where((item) => item.id.equals(dishId))
