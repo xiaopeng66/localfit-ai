@@ -125,6 +125,9 @@ C:/ProgramData/miniconda3/python.exe build_catalog.py \
   （exit 3，逐条列出文件）；确认当前工作区就是要发的版本时才加 `--allow-dirty`，且输出的警告要留档。
   缘由：2026-11-10 新图标只存在于工作区、没提交，v4141 从干净提交构建就把旧图标发了出去，
   用户看到「LOGO 被还原」——包内容必须能追到提交，而不是依赖「上次也是这么构建的」。
+- **发布前必须能证明版本在涨**：`tool/release_github.py` 发布前查询线上 latest，新 arm64
+  versionCode **不大于**它就拒绝（漏升版会发出一个「检查更新永远看不到」的包）；目标 tag 已存在
+  同样拒绝，覆盖必须显式 `--force` 且重传后逐个下载核对 SHA-256（不要依赖「同名同大小即跳过」）。
 
 - **每个 release 包必须装到设备/模拟器上真的点开一次**（2026-10-21 事故：vc4043/vc4044
   两轮包构建成功、`aapt2 dump badging` 也报出 launcher activity，但
