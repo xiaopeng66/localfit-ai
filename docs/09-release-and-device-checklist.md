@@ -120,6 +120,12 @@ C:/ProgramData/miniconda3/python.exe build_catalog.py \
 
 ## C. 构建与签名
 
+- **出包前必须提交干净**：`tool/build_release.dart` 现在会打印源码出处（`HEAD` + 精确标签），
+  并对「会进包路径」（`lib/`、`assets/`、`android/`、`ios/`、`pubspec*`）里的未提交改动**拒绝出包**
+  （exit 3，逐条列出文件）；确认当前工作区就是要发的版本时才加 `--allow-dirty`，且输出的警告要留档。
+  缘由：2026-11-10 新图标只存在于工作区、没提交，v4141 从干净提交构建就把旧图标发了出去，
+  用户看到「LOGO 被还原」——包内容必须能追到提交，而不是依赖「上次也是这么构建的」。
+
 - **每个 release 包必须装到设备/模拟器上真的点开一次**（2026-10-21 事故：vc4043/vc4044
   两轮包构建成功、`aapt2 dump badging` 也报出 launcher activity，但
   `android/app/build.gradle.kts` 漏了 Kotlin 插件 ⇒ `classes.dex` 里没有 MainActivity，

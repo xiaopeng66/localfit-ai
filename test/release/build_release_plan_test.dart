@@ -135,4 +135,72 @@ dependencies:
       expect(text, contains('FLUTTER_HOME'));
     });
   });
+
+  /// 2026-11-10 事故：新图标只在工作区、没提交，v4141 从干净提交构建
+  /// 就把旧图标发了出去，用户看到「LOGO 被还原」。所以出包前必须能看出
+  /// 「这棵树上还有会进包的未提交改动」。
+  group('出包前的工作区检查', () {
+    test('工作区干净时不拦', () {
+      final state = parseWorkingTreeState('');
+      expect(state.isClean, isTrue);
+      expect(state.issues, isEmpty);
+    });
+
+    test('已跟踪的 android 图标改动必须拦住', () {
+      final state = parseWorkingTreeState(
+        ' M android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png\n',
+      );
+      expect(state.isClean, isFalse);
+      expect(state.modified, [
+        'android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png',
+      ]);
+      expect(state.issues.single, startsWith('已修改：'));
+    });
+
+    test('未跟踪但会进包的文件（lib/assets/pubspec）必须拦住', () {
+      final state = parseWorkingTreeState(
+        '?? lib/features/new_thing.dart\n?? assets/help/07-new.md\n?? pubspec.lock\n',
+      );
+      expect(state.untracked, [
+        'lib/features/new_thing.dart',
+        'assets/help/07-new.md',
+        'pubspec.lock',
+      ]);
+      expect(state.issues, hasLength(3));
+    });
+
+    test('不影响安装包的路径不拦（design/docs/test/tool）', () {
+      final state = parseWorkingTreeState(
+        '?? design/logo/.render/b3-headband-mark.png\n'
+        ' M docs/09-release-and-device-checklist.md\n'
+        ' M test/release/build_release_plan_test.dart\n'
+        '?? tool/lan_release.py\n',
+      );
+      expect(state.isClean, isTrue);
+    });
+
+    test('重命名取新路径判断是否进包', () {
+      final state = parseWorkingTreeState(
+        'R  assets/help/01-old.md -> assets/help/01-data-and-privacy.md\n',
+      );
+      expect(state.modified, ['assets/help/01-data-and-privacy.md']);
+    });
+
+    test('带空格的引号路径也能识别', () {
+      final state = parseWorkingTreeState(
+        ' M "android/app/src/main/res/values/my colors.xml"\n',
+      );
+      expect(state.modified.single, contains('my colors.xml'));
+    });
+
+    test('路径归类：design/docs 不进包，android/pubspec 进包', () {
+      expect(isPackagedPath('design/logo/buddy-refine.png'), isFalse);
+      expect(isPackagedPath('docs/releases/v4142.md'), isFalse);
+      expect(
+        isPackagedPath('android/app/src/main/res/mipmap-mdpi/ic_launcher.png'),
+        isTrue,
+      );
+      expect(isPackagedPath('pubspec.yaml'), isTrue);
+    });
+  });
 }
