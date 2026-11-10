@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
-import 'package:localfit_ai/app/design/widgets/lf_top_bar.dart';
 import 'package:localfit_ai/features/nutrition/application/build_calorie_trend.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_selected_date.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_week_strip.dart';
@@ -11,10 +10,14 @@ import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_r
 /// ≤ 500 行）——组成与 A 一致：
 ///
 ///  * [NutritionRecordWeekStrip] 恒渲染（它是切换日期的主入口）；
-///  * 「复用历史餐食」入口（设计稿未画，按裁决 ② 保留逻辑，收在周条右侧的
-///    工具位；取消全局 AppBar 后它没有别处可放）；
 ///  * [NutritionRecordSelectedDate] 紧贴周条之下（A 的 16px 页间隙减去
 ///    `margin-top:-8px`，实为 8dp）。
+///
+/// 【2026-10-31 用户：「删除复用历史餐食按钮和功能」】周条右侧那枚历史
+/// 圆钮（`meal-reuse-history`）**整枚退役**——历史餐已能在记录页按日期翻到、
+/// 整卡点开合并编辑，再开一条「把某天整餐复制到今天」的旁路既多余又容易
+/// 记错账。`NutritionActions.reuseMeal` 与弹层保留给其它调用点/测试，
+/// 但记录页不再有入口。
 ///
 /// 滑动切周的手势只覆盖周条本身，不含这一行日期文案。
 class NutritionRecordWeekSection extends StatelessWidget {
@@ -24,7 +27,7 @@ class NutritionRecordWeekSection extends StatelessWidget {
     required this.selectedDate,
     required this.now,
     required this.onSelect,
-    this.onReuseHistory,
+    this.onBackToToday,
   });
 
   final CalorieTrendBars bars;
@@ -32,34 +35,25 @@ class NutritionRecordWeekSection extends StatelessWidget {
   final DateTime now;
   final ValueChanged<DateTime> onSelect;
 
-  /// 为 null 时不渲染复用入口（该入口本身是可选的页面动作）。
-  final VoidCallback? onReuseHistory;
+  /// 【N-4】非今天时给「回到今天」入口；null = 不渲染。
+  final VoidCallback? onBackToToday;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        children: [
-          Expanded(
-            child: NutritionRecordWeekStrip(
-              bars: bars,
-              selectedDate: selectedDate,
-              now: now,
-              onSelect: onSelect,
-            ),
-          ),
-          if (onReuseHistory != null)
-            LfCircleIconButton(
-              key: const Key('meal-reuse-history'),
-              tooltip: '复用历史餐食',
-              icon: Icons.history,
-              onPressed: onReuseHistory,
-            ),
-        ],
+      NutritionRecordWeekStrip(
+        bars: bars,
+        selectedDate: selectedDate,
+        now: now,
+        onSelect: onSelect,
       ),
       const SizedBox(height: LfDimens.spaceSmall),
-      NutritionRecordSelectedDate(selectedDate: selectedDate, now: now),
+      NutritionRecordSelectedDate(
+        selectedDate: selectedDate,
+        now: now,
+        onBackToToday: onBackToToday,
+      ),
     ],
   );
 }

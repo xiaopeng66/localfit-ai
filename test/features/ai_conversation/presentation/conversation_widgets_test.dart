@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_image.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/widgets/lf_chat_bubbles.dart';
 import 'package:localfit_ai/app/design/widgets/lf_chat_input.dart';
@@ -43,6 +44,29 @@ void main() {
         tester.getCenter(find.text('我午饭吃了鸡胸肉')).dx,
         greaterThan(screenCenterX(tester)),
       );
+    });
+
+    // 【2026-10-26 看图复核缺陷 8】图片消息的尾角必须与**用户文本气泡**
+    // 同一口径（右下）：设计稿写的是「右下 45° 旋转小方块」，代码注释也这么
+    // 写，实际却放在 `top: 12`——取帧里是一颗绿钻飞在图片右上角，像误画的
+    // 装饰。这里量几何（尾角中心相对图片中心），不读代码。
+    testWidgets('图片消息的尾角在右下（与文本气泡同一口径）', (tester) async {
+      await pump(
+        tester,
+        const Center(
+          child: ImageMessage(
+            image: SizedBox(key: Key('image-body'), width: 180, height: 140),
+          ),
+        ),
+      );
+      final image = tester.getRect(find.byKey(const Key('image-body')));
+      final tail = tester.getRect(find.byKey(const Key('ai-chat-image-tail')));
+      expect(
+        tail.center.dy,
+        greaterThan(image.center.dy),
+        reason: '尾角要在图片**下半部**（原来在右上，与文本气泡不一致）',
+      );
+      expect(tail.center.dx, greaterThan(image.center.dx), reason: '尾角要贴右缘');
     });
 
     // 2026-10-16 用户：「对话内容要能长按复制」——气泡自身不碰剪贴板，只把
@@ -178,39 +202,47 @@ void main() {
       expect(trailingTaps, 1);
     });
 
-    testWidgets('图片消息：180×140 缩略 + 文件名药丸 + 对勾徽章 + 说明文字', (tester) async {
+    // 【2026-10-31 用户重定稿：只留图】原始宽高比 contain（宽 ≤232、高
+    // ≤280），无文件名药丸、无对勾徽章、无放大角标；说明文字仍在图下。
+    testWidgets('图片消息只留图：contain 完整显示 + 说明文字，无覆盖物', (tester) async {
       await pump(
         tester,
         ImageMessage(
-          image: const SizedBox.expand(key: Key('fake-thumb')),
-          fileName: 'photo_20261001_120000_ab12.jpg',
+          image: const SizedBox(
+            key: Key('fake-thumb'),
+            width: 200,
+            height: 120,
+          ),
           caption: '这是午饭',
-          sent: true,
         ),
       );
 
       expect(find.byKey(const Key('fake-thumb')), findsOneWidget);
-      expect(find.text('photo_20261001_120000_ab12.jpg'), findsOneWidget);
+      expect(
+        find.text('photo_20261001_120000_ab12.jpg'),
+        findsNothing,
+        reason: '文件名药丸退役',
+      );
       expect(find.text('这是午饭'), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsOneWidget);
+      expect(find.byIcon(Icons.check), findsNothing, reason: '对勾徽章退役');
+      expect(find.byIcon(Icons.zoom_out_map), findsNothing, reason: '放大角标退役');
 
       final thumb = tester.getRect(find.byKey(const Key('fake-thumb')));
-      expect(thumb.width, 180);
-      expect(thumb.height, 140);
+      expect(thumb.width, 200, reason: '图片按自身尺寸显示（不裁剪）');
+      expect(thumb.height, 120);
       expect(thumb.right, greaterThan(screenCenterX(tester)));
     });
 
-    testWidgets('图片消息：发送中不显示对勾徽章', (tester) async {
+    testWidgets('图片消息：超宽图被限到 232dp，超高图被限到 280dp（contain 不裁剪）', (tester) async {
       await pump(
         tester,
-        ImageMessage(
-          image: const SizedBox.expand(),
-          fileName: 'a.jpg',
-          sent: false,
-        ),
+        ImageMessage(image: const SizedBox.expand(key: Key('fake-thumb'))),
       );
 
-      expect(find.byIcon(Icons.check), findsNothing);
+      final thumb = tester.getRect(find.byKey(const Key('fake-thumb')));
+      expect(thumb.width, lessThanOrEqualTo(232));
+      expect(thumb.height, lessThanOrEqualTo(280));
+      expect(thumb.right, greaterThan(screenCenterX(tester)));
     });
   });
 
@@ -274,7 +306,7 @@ void main() {
     // 2026-10-16 用户裁决：「手动记录」这枚 chip 下线，保留其余三枚并
     // **等宽占满一整行**（原先是四枚横滑）。判据随之改写为新事实。
     // 2026-10-23 用户：第一枚「拍照识别」→「确认应用」。
-    testWidgets('三枚 chip 等宽铺满整行、Key 与回传枚举', (tester) async {
+    testWidgets('三枚 chip 按文字长度不等宽、同一行居中、Key 与回传枚举', (tester) async {
       final taps = <ChatQuickChip>[];
       await pump(tester, ChatQuickChips(onChipTap: taps.add));
 
@@ -296,22 +328,37 @@ void main() {
       expect(find.text('记一餐'), findsOneWidget);
       expect(find.text('AI 创作'), findsOneWidget);
 
-      // 等宽 + 铺满：三枚各占「内容宽 − 2 个间距」的三分之一
-      // （内容宽 = 行宽 − 左右 spaceMedium）。
+      // 【2026-10-25 断言语义反转变更（8c，强度不降）】原断言是「三枚等宽
+      // 铺满整行，各占 1/3」。用户 2026-10-25 的诉求正是**不要等分**：
+      // 「调整一下三个按钮的大小，**根据文字长度来调整**」——「今天还剩多少」
+      // 6 字、「记一餐」3 字，等分时长的那枚被挤到换行。
+      //
+      // 所以这里改钉用户要的形态：**宽度随文字长度变化**（不再等宽），
+      // 且仍**同一行居中**、总宽不超可用区。等分那一版作为大字号的回落
+      // 保留（320dp × 2.0×，见 `test/app/chat_quick_chips_layout_test.dart`）。
       const keys = [
         'ai-chat-chip-remaining',
         'ai-chat-chip-log-meal',
         'ai-chat-chip-ai-create',
       ];
+      final widths = [
+        for (final key in keys) tester.getSize(find.byKey(Key(key))).width,
+      ];
+      expect(
+        widths.toSet().length,
+        greaterThan(1),
+        reason: '三枚等宽 = 8c 没做；用户要的是按文字长度调整',
+      );
+      expect(widths[0], greaterThan(widths[1]), reason: '「今天还剩多少」最长');
       final barWidth = tester
           .getSize(find.byKey(const Key('chat-quick-chips')))
           .width;
-      final expected =
-          (barWidth - 2 * LfDimens.spaceMedium - 2 * LfDimens.spaceSmall) / 3;
-      for (final key in keys) {
-        final pill = tester.getSize(find.byKey(Key(key)));
-        expect(pill.width, closeTo(expected, 0.5), reason: key);
-      }
+      final total = widths.reduce((a, b) => a + b) + 2 * LfDimens.spaceSmall;
+      expect(
+        total,
+        lessThanOrEqualTo(barWidth - 2 * LfDimens.spaceMedium + 0.5),
+        reason: '按内容宽排版也不许溢出可用区',
+      );
       // 三枚同一行：y 中心一致（不再横滑）。
       final centers = keys
           .map((k) => tester.getCenter(find.byKey(Key(k))).dy)
@@ -329,27 +376,58 @@ void main() {
       ]);
     });
 
-    testWidgets('预览条：一张图的文件名 + 移除/添加回调', (tester) async {
-      var removes = 0;
-      var adds = 0;
+    // 【R-10 改写（2026-10-29）】预览条从「单图 + 文件名 + 添加按钮」改为
+    // 「缩略图墙」：不显示文件名等详细信息、没有第二个添加入口；多图可加。
+    // 【2026-10-31 用户二轮改写】文字说明整行退役（多图一次发送的批量通道
+    // 让「一条消息发 1 张」不再成立）；缩略图可点全屏放大。
+    testWidgets('预览条：缩略图墙（无文件名、无说明文字、点缩略图放大、逐张可移除）', (tester) async {
+      final removed = <int>[];
+      final inspected = <ChatImage>[];
+      final images = [
+        for (var i = 0; i < 2; i++)
+          ChatImage(
+            path: 'C:/tmp/chat_$i.jpg',
+            fileName: 'photo_$i.jpg',
+            width: 100,
+            height: 100,
+          ),
+      ];
       await pump(
         tester,
         ImagePreviewStrip(
-          fileName: 'photo_20261001_120000_ab12.jpg',
-          thumbnail: const SizedBox.expand(),
-          onRemove: () => removes++,
-          onAdd: () => adds++,
+          images: images,
+          onRemove: removed.add,
+          onInspect: inspected.add,
+          thumbnailBuilder: (_, _) => const SizedBox.expand(),
         ),
       );
 
       expect(find.byKey(const Key('image-preview-bar')), findsOneWidget);
-      expect(find.text('已添加 1 张图片'), findsOneWidget);
-      expect(find.text('photo_20261001_120000_ab12.jpg'), findsOneWidget);
+      expect(find.byKey(const Key('image-preview-thumb-0')), findsOneWidget);
+      expect(find.byKey(const Key('image-preview-thumb-1')), findsOneWidget);
+      expect(
+        find.text('photo_0.jpg'),
+        findsNothing,
+        reason: '不再显示详细图片信息（用户：只想要好看的缩略图）',
+      );
+      expect(
+        find.byKey(const Key('add-image')),
+        findsNothing,
+        reason: '图片右边的「添加」按钮退役（与输入栏「＋」功能重复）',
+      );
+      expect(
+        find.byKey(const Key('image-preview-multi-note')),
+        findsNothing,
+        reason: '「一条消息发 1 张」说明已随多图批量发送退役（用户：不要文字描述）',
+      );
+
+      await tester.tap(find.byKey(const Key('image-preview-thumb-0')));
+      await tester.tap(find.byKey(const Key('image-preview-thumb-1')));
+      expect(inspected.map((e) => e.fileName), ['photo_0.jpg', 'photo_1.jpg']);
 
       await tester.tap(find.byKey(const Key('btn-remove-image')));
-      await tester.tap(find.byKey(const Key('add-image')));
-      expect(removes, 1);
-      expect(adds, 1);
+      await tester.tap(find.byKey(const Key('btn-remove-image-1')));
+      expect(removed, [0, 1]);
     });
 
     testWidgets('免责声明已删：ChatDisclaimer 不存在（P10 需求 35）', (tester) async {

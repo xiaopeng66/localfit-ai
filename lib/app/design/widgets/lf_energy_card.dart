@@ -42,6 +42,7 @@ class LfEnergyCard extends StatelessWidget {
     this.remainingKey,
     this.ratiosKey,
     this.statusKey,
+    this.onEditTarget,
   });
 
   final NutritionValues consumed;
@@ -68,6 +69,12 @@ class LfEnergyCard extends StatelessWidget {
 
   /// 状态 pill 的锚点（今日页 `dashboard-ring-status`）。
   final Key? statusKey;
+
+  /// 点「依据 / 尚未设定目标」那一格时做什么（null = 不可点）。
+  ///
+  /// 2026-10-26：记录页接上「手动指定营养目标」弹层；今日页不接（null），
+  /// 两处观感不变——不给点了没反应的入口。
+  final VoidCallback? onEditTarget;
 
   /// A `.energy-main{padding:18px 0}`；卡内边距 `16px 18px 18px`。
   static const double mainVerticalPadding = 18;
@@ -131,7 +138,18 @@ class LfEnergyCard extends StatelessWidget {
     final c = context.lf;
     final targets = target;
     final hasGoal = targets != null && targets.calorieMaxKcal > 0;
-    final remaining = hasGoal ? targets.calorieMaxKcal - consumed.kcal : null;
+    // 需求 1（2026-10-25 用户：「要区间的方案」）：
+    // 「还可摄入」也是**区间** —— 下限侧 `min − 已摄入`、上限侧 `max − 已摄入`。
+    // 原来只算 `max − 已摄入`（一个保守的单值），与卡头/三宏量的区间口径不一致。
+    // 两侧都夹到 0（`docs/60` §9 的写法）：负数侧不是「你可以欠着」，而是
+    // 「这一侧已经没有余量」——`还可摄入 0–492` 比 `−8–492` 诚实也读得懂。
+    final remainingLow = hasGoal
+        ? (targets.calorieMinKcal - consumed.kcal).clamp(0.0, double.infinity)
+        : null;
+    final remainingHigh = hasGoal
+        ? (targets.calorieMaxKcal - consumed.kcal).clamp(0.0, double.infinity)
+        : null;
+    final overLimit = hasGoal && targets.calorieMaxKcal - consumed.kcal < 0;
 
     final macroRows = [
       (
@@ -139,21 +157,25 @@ class LfEnergyCard extends StatelessWidget {
         label: '蛋白质',
         color: c.protein,
         current: consumed.proteinGrams.round(),
-        target: targets?.proteinMaxGrams.round() ?? 0,
+        // 未设目标 ⇒ **null**（不写「/ 0 g」：那是编出来的目标）。
+        target: targets?.proteinMaxGrams.round(),
+        targetMin: targets?.proteinMinGrams.round(),
       ),
       (
         key: const Key('nutrition-macro-carbs'),
         label: '碳水',
         color: c.carbs,
         current: consumed.carbsGrams.round(),
-        target: targets?.carbsMaxGrams.round() ?? 0,
+        target: targets?.carbsMaxGrams.round(),
+        targetMin: targets?.carbsMinGrams.round(),
       ),
       (
         key: const Key('nutrition-macro-fat'),
         label: '脂肪',
         color: c.fat,
         current: consumed.fatGrams.round(),
-        target: targets?.fatMaxGrams.round() ?? 0,
+        target: targets?.fatMaxGrams.round(),
+        targetMin: targets?.fatMinGrams.round(),
       ),
     ];
     final macros = Column(
@@ -166,6 +188,7 @@ class LfEnergyCard extends StatelessWidget {
             color: row.color,
             current: row.current,
             target: row.target,
+            targetMin: row.targetMin,
           ),
           // A `.macro-summary{gap:12px}`。
           if (row != macroRows.last)
@@ -197,8 +220,17 @@ class LfEnergyCard extends StatelessWidget {
               ),
             ),
           ),
+          // 【需求 1】卡头大号位写**目标区间**（不再显示单个上限/中点）。
+          // 用户原话：「要区间的方案，另外你的热量目标……都要根据区间来设计」。
+          _targetRangeLine(context, targets),
           _main(context, macros),
-          _foot(context, hasGoal: hasGoal, remaining: remaining),
+          _foot(
+            context,
+            hasGoal: hasGoal,
+            remainingLow: remainingLow,
+            remainingHigh: remainingHigh,
+            overLimit: overLimit,
+          ),
           const SizedBox(height: LfDimens.spaceSmallPlus),
           if (macroRatios(consumed) case final ratios?)
             MacroRatioRow(
@@ -221,12 +253,75 @@ class LfEnergyCard extends StatelessWidget {
     );
   }
 
+  /// 卡头下方的**目标区间行**（需求 1）：`1,700 – 1,900 kcal` + 依据一行。
+  ///
+  /// 【为什么要独立一行】原来「目标」只出现在卡脚（`目标 N kcal`，单值），
+  /// 与「今天还剩多少」chip 的区间口径对不上——用户看到同一件事两种说法。
+  /// 现在卡头说的是**区间本身**（大号），依据（公式与目标档）跟在它下面一行。
+  ///
+  /// 锚点仍挂在 `$keyPrefix-target` 上（docs/21 §5.1 的今日页 Key 表不变，
+  /// 只是内容从单值变成区间）。
+  Widget _targetRangeLine(BuildContext context, DailyNutritionTarget? targets) {
+    final c = context.lf;
+    final min = targets?.calorieMinKcal;
+    final max = targets?.calorieMaxKcal;
+    if (targets == null || min == null || max == null || max <= 0) {
+      // 未设目标：如实说，不编区间（§6.1「未设目标不编数字」的既有规则）。
+      return Padding(
+        padding: const EdgeInsets.only(top: LfDimens.spaceSmall),
+        child: Text(
+          '尚未设定目标',
+          key: Key('$keyPrefix-target'),
+          style: LfText.label.copyWith(color: c.mutedForeground),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: LfDimens.spaceSmall),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 大号区间（与环心「已摄入」同一档次的家常写法：数字 + 小单位）。
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${withThousandsSeparator(min.round())} – '
+                  '${withThousandsSeparator(max.round())}',
+                  key: Key('$keyPrefix-target'),
+                  // 档位取 `headline`（19px）：比正文强、比环心的大数字弱——
+                  // 它是「这份目标」的标题数字，不与「已摄入」抢主位。
+                  style: LfText.headline.copyWith(
+                    color: c.cardForeground,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: LfDimens.spaceXSmall),
+                Text(
+                  'kcal',
+                  style: LfText.caption.copyWith(color: c.mutedForeground),
+                ),
+              ],
+            ),
+          ),
+          // 【依据只出现一次】它放在卡脚左格（`-foot-basis`）——那里本来就
+          // 是「目标 N kcal」的位置。这里不再重复一遍：同一个事实写两次是
+          // 噪音（取帧复核的第一版就是两处都有，测试立刻抓到 findsNWidgets(2)）。
+        ],
+      ),
+    );
+  }
+
   /// 环 + 宏量列。A 是无断点的 `grid 120px|1fr`；放不下（320dp 或大字号）
   /// 时竖排降级——判据沿用 [fitsRow] 的设计稿预算口径（docs/27 §6）。
   Widget _main(BuildContext context, Widget macros) {
     final ring = LfCalorieRing(
       consumedKcal: consumed.kcal.round(),
       targetKcal: target?.calorieMaxKcal.round() ?? 0,
+      // 需求 1：把区间下限交给环 —— 环上画「绿带 = 目标区间」+ 指针。
+      targetMinKcal: target?.calorieMinKcal.round(),
       keyPrefix: keyPrefix,
     );
     return LayoutBuilder(
@@ -267,23 +362,52 @@ class LfEnergyCard extends StatelessWidget {
   Widget _foot(
     BuildContext context, {
     required bool hasGoal,
-    required double? remaining,
+    required double? remainingLow,
+    required double? remainingHigh,
+    required bool overLimit,
   }) {
     final c = context.lf;
-    final value = remaining;
-    final targetKcal = target?.calorieMaxKcal;
-    final goalText = Text(
-      // A `.energy-foot` 左格 = `'目标 '+format(goal)+' kcal'`，
-      // `format()` 是 `toLocaleString`，四位数起带千分位（与本页
-      // 饮水/步数/下一餐三张卡同一口径）。数值语义不变（仍取整），
-      // 只对齐 A 的书写形式。
-      hasGoal && targetKcal != null
-          ? '目标 ${withThousandsSeparator(targetKcal.round())} kcal'
-          : '尚未设定目标',
-      key: Key('$keyPrefix-target'),
-      style: LfText.label.copyWith(color: c.mutedForeground),
-    );
-    final progressText = value == null
+    final high = remainingHigh;
+    final over = overLimit;
+    // 超上限时右格报「超出」的量：`已摄入 − max`（两侧已夹到 0，所以这里
+    // 用目标上限反推真实超出量）。
+    final overBy = over
+        ? (consumed.kcal - (target?.calorieMaxKcal ?? consumed.kcal))
+        : 0.0;
+    // 【2026-10-28 用户】「这里文字换行了，不要显示左边那个说明」：脚注左格
+    // 的公式/档位说明（「Mifflin–St Jeor × 活动系数，减脂 −15%」）撤下。
+    // 「推荐要有依据」的口径由 docs/60 §9 承担（数据核实表 + 计算器单测），
+    // 卡上不再占一行。左格让给**编辑目标入口**（铅笔圆钮，仅记录页接线时
+    // 出现；今日页不接 ⇒ 脚注只剩右侧「还可摄入」一行，永不再换行）。
+    //
+    // 未设目标时的「尚未设定目标」仍保留在**卡头区间行**（`-target`），
+    // 那是「没目标」的诚实文案位。
+
+    /// 编辑目标入口（图标钮，整枚可点）。[onEditTarget] 为 null 时左格不渲染。
+    ///
+    /// 【为什么只给图标不给文字】左格的所有文字（公式 + 档位，以及
+    /// 「尚未设定目标」的重复）全部撤下；「没目标」的诚实文案留在卡头区间行
+    /// （`-target`）。图标钮 18dp 在 320dp × 2.0× 下也放得下，不再需要
+    /// 「余量够才画图标」的降级分支。
+    Widget? editTargetEntry() {
+      final onTap = onEditTarget;
+      if (onTap == null) return null;
+      return Semantics(
+        button: true,
+        label: '调整营养目标',
+        child: InkWell(
+          key: Key('$keyPrefix-edit-target'),
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Padding(
+            padding: const EdgeInsets.all(LfDimens.spaceSmall),
+            child: Icon(Icons.tune, size: 18, color: c.mutedForeground),
+          ),
+        ),
+      );
+    }
+
+    final progressText = !hasGoal || high == null
         ? Text(
             '设置目标后查看进度',
             style: LfText.label.copyWith(color: c.mutedForeground),
@@ -293,12 +417,18 @@ class LfEnergyCard extends StatelessWidget {
             TextSpan(
               style: LfText.label.copyWith(color: c.mutedForeground),
               children: [
-                TextSpan(text: value >= 0 ? '还可摄入 ' : '超出 '),
+                TextSpan(text: over ? '超出 ' : '还可摄入 '),
                 TextSpan(
-                  // A：`format(Math.abs(remaining))`（四位起千分位）。
-                  text: withThousandsSeparator(value.abs().round()),
+                  // 【需求 1】区间写法：`450–850 kcal`（超过上界时只报超出量，
+                  // 那是单个事实，不写成区间）。
+                  text: over
+                      ? withThousandsSeparator(overBy.round())
+                      : '${withThousandsSeparator(remainingLow!.round())}–'
+                            '${withThousandsSeparator(high.round())}',
                   style: LfText.caption.copyWith(
-                    color: LfColors.mintText(Theme.of(context).brightness),
+                    color: over
+                        ? c.warningText
+                        : LfColors.mintText(Theme.of(context).brightness),
                     fontWeight: FontWeight.w600,
                     fontFeatures: LfText.caption.fontFeatures,
                   ),
@@ -314,12 +444,15 @@ class LfEnergyCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // A 的 `.energy-foot` 是**两端对齐的一行**（原型无断点）。但大字
-          // 字态下这两段各自就要一整行：2.0× / 320dp 实测右段单独需要
-          // 344dp、卡内只有 252dp ⇒ 并排必溢 92px（round7 2A 实测的
-          // RenderFlex：左段被 `Expanded` 压成 ~0 宽、逐字竖排，右段仍出界）。
-          // 判据沿用本卡 `_main` 的 [fitsRow] 预算口径（docs/27 §6）：
-          // 放不下就竖排——两句事实都留，不裁字也不缩字号。
+          // A 的 `.energy-foot` 是**两端对齐的一行**（原型无断点）。2026-10-28
+          // 起左格只剩（可选的）编辑目标图标钮：无入口时脚注就是右侧一句话，
+          // 恒单行；有入口时图标在左、「还可摄入」在右（18dp 图标 + 一句
+          // 话在 320dp × 2.0× 也放得下——右段本身有 FittedBox 兜底不了，
+          // 所以放不下时图标升到上方一行，两句事实都在、不裁不缩）。
+          final entry = editTargetEntry();
+          if (entry == null) {
+            return Align(alignment: Alignment.centerLeft, child: progressText);
+          }
           if (!fitsRow(
             context,
             available: constraints.maxWidth,
@@ -328,7 +461,7 @@ class LfEnergyCard extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                goalText,
+                entry,
                 const SizedBox(height: LfDimens.spaceXSmall),
                 progressText,
               ],
@@ -336,7 +469,9 @@ class LfEnergyCard extends StatelessWidget {
           }
           return Row(
             children: [
-              Expanded(child: goalText),
+              Expanded(
+                child: Align(alignment: Alignment.centerLeft, child: entry),
+              ),
               progressText,
             ],
           );

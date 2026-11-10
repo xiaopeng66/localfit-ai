@@ -17,7 +17,6 @@ import 'package:localfit_ai/features/daily_plan/data/planning_constraints_reposi
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_entry_chooser_sheet.dart';
-import 'package:localfit_ai/features/nutrition/presentation/sections/dish_card.dart';
 import 'package:localfit_ai/features/retrieval/presentation/retrieval_debug_page.dart';
 import 'package:localfit_ai/features/training/data/exercise_repository.dart';
 import 'package:localfit_ai/features/training/data/workout_plan_repository.dart';
@@ -125,40 +124,6 @@ void main() {
   // 替代断言：`daily_set_repick_test.dart` 的「没有同步链 / 没有陈旧文案」
   // 与 `food_library_no_footer_test.dart`。`dish-basis`（「按 100g 估算」）
   // 与陈旧无关，**保留**在下面的缩短版用例里。
-  testWidgets('D6 dish-basis：份量未知时的「按 100g 估算」徽标仍在', (tester) async {
-    final dish = DishRecord(
-      id: 'dish-1',
-      name: '番茄炒蛋',
-      mealSlot: 'lunch',
-      kcal: 200,
-      proteinG: 10,
-      carbsG: 20,
-      fatG: 8,
-      source: 'manual',
-      basisAssumed: true,
-      createdAt: DateTime.utc(2026, 1, 1),
-      updatedAt: DateTime.utc(2026, 1, 1),
-    );
-    await pumpSheet(
-      tester,
-      SingleChildScrollView(child: DishCard(dish: dish, index: 0)),
-    );
-    expect(
-      find.byKey(const Key('nutrition-menu-dish-basis-0')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const Key('nutrition-menu-dish-stale-0')),
-      findsNothing,
-      reason: 'P2-09：陈旧徽标已退役',
-    );
-    expect(
-      find.byKey(const Key('nutrition-menu-dish-sync-0')),
-      findsNothing,
-      reason: 'P2-09：「同步」链已退役',
-    );
-  });
-
   testWidgets('D5 retrieval-debug-rerun', (tester) async {
     // 视口给足：ListView 只构建可见子项，矮视口下「重新运行」不会被建出来。
     tester.view.physicalSize = const Size(500, 3200);

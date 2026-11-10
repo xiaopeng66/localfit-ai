@@ -160,6 +160,13 @@ void main() {
     await shot(
       tester,
       'settings-data-light-360-1.0',
+      const Key('settings-backup-hub'),
+    );
+    await tester.tap(find.byKey(const Key('settings-backup-hub')));
+    await tester.pumpAndSettle();
+    await shot(
+      tester,
+      'settings-data-hub-light-360-1.0',
       const Key('cta-export-csv'),
     );
 

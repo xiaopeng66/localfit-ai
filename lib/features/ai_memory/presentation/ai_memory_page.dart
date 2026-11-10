@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:localfit_ai/app/design/lf_dimens.dart';
+import 'package:localfit_ai/app/design/lf_text_styles.dart';
+import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/app/design/widgets/app_error_text.dart';
 import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
 import 'package:localfit_ai/app/design/widgets/app_snack_bar.dart';
+import 'package:localfit_ai/app/design/widgets/design_card.dart';
+import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/features/ai_memory/application/memory_extraction_queue.dart';
 import 'package:localfit_ai/features/ai_memory/application/memory_hygiene.dart';
@@ -59,7 +64,6 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
   static const int _pageSize = 50;
 
   String _query = '';
-  late Future<bool> _injectionEnabled = widget.repository.injectionEnabled();
 
   /// 只在 init 时建一次。**不能在 build 里创建**：每次流发射都会触发重建，
   /// 重建又换一个新 stream ⇒ StreamBuilder 永远回到 waiting（转圈），
@@ -76,60 +80,39 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
   // ── 待确认（docs/43 B8）──────────────────────────────────────────────
   late Future<int> _pendingCount = _loadPendingCount();
 
-  /// 「结束会话自动提炼」开关（决策点 D2，2026-10-20 用户拍板「开」）：
-  /// 开启后「结束本次会话」会发起真实 AI 调用。
-  late Future<bool> _autoExtract =
-      widget.extractionQueue?.enabled() ?? Future.value(false);
-
   Future<int> _loadPendingCount() async =>
       await widget.extractionQueue?.pendingCount() ?? 0;
 
-  Future<void> _toggleAutoExtract(bool value) async {
-    final queue = widget.extractionQueue;
-    if (queue == null) return;
-    // 开启前说明一次（docs/43 B8：开启前弹说明，不是静默改行为）。
-    if (value) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('开启会话结束自动提炼？'),
-          content: const Text(
-            '开启后，点对话页顶栏的「结束本次会话」会把这段对话发给你配置的 '
-            'AI 模型做提炼（和聊天走同一条路、只发对话文本）。'
-            '候选只进「待确认」，你确认后才会写进记忆。'
-            'AI 未配置时会如实失败。',
-          ),
-          actions: [
-            LfTextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              label: '取消',
-            ),
-            LfTextButton(
-              key: const Key('ai-memory-auto-extract-confirm'),
-              onPressed: () => Navigator.of(context).pop(true),
-              label: '开启',
-            ),
-          ],
+  /// 「规则」弹层（R-8）：原顶部四行长说明挪到这里，行内只留一句话。
+  Future<void> _showRules() => AppSheet.show<void>(
+    context,
+    title: '记忆规则',
+    content: const Text(
+      '记忆只保存在本机。对话时相关的几条会随提示词发给你配置的 AI 供应商'
+      '（和对话内容走同一条路，不会发给别处）。\n\n'
+      '过敏、目标、身体资料这类信息请用对话里的约束/目标命令，不要写在这里'
+      '——那些有专门的校验与生效日期。',
+    ),
+    actions: Builder(
+      builder: (sheetContext) => Align(
+        alignment: Alignment.centerRight,
+        child: LfTextButton(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          label: '知道了',
         ),
-      );
-      if (!(confirmed ?? false)) return;
-    }
-    await queue.setEnabled(value);
-    if (!mounted) return;
-    final next = Future.value(value);
-    setState(() {
-      _autoExtract = next;
-    });
-  }
+      ),
+    ),
+  );
 
   void _refreshPending() {
     if (!mounted) return;
-    setState(() => _pendingCount = _loadPendingCount());
+    setState(() {
+      _pendingCount = _loadPendingCount();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI 记忆'),
@@ -142,6 +125,16 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
                 semanticLabel: '关闭',
               ),
         actions: [
+          // 【v2（design/round8/memory-v2.html，2026-10-30 用户批准实施）】
+          // 说明行与四行设置卡从首屏撤下，全部收进 ⚙️ 弹层；首屏只留
+          // 「统计一行 + 搜索 + 记忆列表」。搜索框常驻，不再放 🔍 图标
+          // （那会是一枚点了没有新动作的按钮）。
+          LfIconButton(
+            key: const Key('ai-memory-settings'),
+            icon: Icons.settings_outlined,
+            onPressed: _showSettings,
+            semanticLabel: '记忆设置',
+          ),
           LfIconButton(
             key: const Key('ai-memory-add'),
             icon: Icons.add,
@@ -152,82 +145,6 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              '记忆只保存在本机。对话时相关的几条会随提示词发给你配置的 AI 供应商'
-              '（和对话内容走同一条路，不会发给别处）。过敏、目标、身体资料这类'
-              '信息请用对话里的约束/目标命令，不要写在这里。',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          FutureBuilder<bool>(
-            future: _injectionEnabled,
-            builder: (context, snapshot) => SwitchListTile(
-              key: const Key('ai-memory-injection-toggle'),
-              value: snapshot.data ?? true,
-              title: const Text('对话时使用记忆'),
-              subtitle: const Text('关掉后记忆仍保留，只是不再随对话发送'),
-              onChanged: snapshot.hasData
-                  ? (value) async {
-                      await widget.repository.setInjectionEnabled(value);
-                      if (!mounted) return;
-                      setState(() {
-                        _injectionEnabled = Future.value(value);
-                      });
-                    }
-                  : null,
-            ),
-          ),
-          if (widget.extractionQueue != null) ...[
-            // 「结束会话自动提炼」（决策点 D2）：默认关；开启前弹说明。
-            FutureBuilder<bool>(
-              future: _autoExtract,
-              builder: (context, snapshot) => SwitchListTile(
-                key: const Key('ai-memory-auto-extract-toggle'),
-                value: snapshot.data ?? false,
-                title: const Text('结束会话时自动提炼'),
-                subtitle: const Text('开启后「结束本次会话」会调用 AI 提炼候选；确认才写入'),
-                onChanged: snapshot.hasData
-                    ? (value) => _toggleAutoExtract(value)
-                    : null,
-              ),
-            ),
-            FutureBuilder<int>(
-              future: _pendingCount,
-              builder: (context, snapshot) => ListTile(
-                key: const Key('ai-memory-pending'),
-                leading: const Icon(Icons.pending_actions_outlined),
-                title: Text('待确认 ${snapshot.data ?? 0} 条'),
-                subtitle: const Text('会话结束提炼的候选；保存才写入'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _showPending,
-              ),
-            ),
-          ],
-          if (widget.hygiene != null)
-            ListTile(
-              key: const Key('ai-memory-hygiene'),
-              leading: const Icon(Icons.auto_fix_high_outlined),
-              title: const Text('整理建议'),
-              subtitle: const Text('近义重复与长期未用；只建议，不自动改'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _showHygiene,
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextField(
-              key: const Key('ai-memory-search'),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: '搜索记忆',
-                isDense: true,
-              ),
-              onChanged: _onQueryChanged,
-            ),
-          ),
           Expanded(
             child: StreamBuilder<List<AiMemory>>(
               stream: _memories,
@@ -245,17 +162,18 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
                   final memories = _filter(all);
                   return Column(
                     children: [
-                      _usageLine(all.length),
-                      Expanded(child: _list(memories, all.length)),
+                      _statsRow(all.length, total: null),
+                      _searchField(),
+                      Expanded(child: _list(memories)),
                     ],
                   );
                 }
                 _maybeLoadPage(all);
                 return Column(
                   children: [
-                    _usageLine(all.length),
-                    _totalLine(),
-                    Expanded(child: _pagedList(all.length)),
+                    _statsRow(all.length, total: _total),
+                    _searchField(),
+                    Expanded(child: _pagedList()),
                   ],
                 );
               },
@@ -265,7 +183,10 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
+              child: Wrap(
+                spacing: LfDimens.spaceSmall,
+                runSpacing: LfDimens.spaceXSmall,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   LfTextButton(
                     key: const Key('ai-memory-asof'),
@@ -279,13 +200,8 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
                     icon: Icons.copy_all,
                     label: '复制全部',
                   ),
-                  const Spacer(),
-                  LfDangerButton(
-                    key: const Key('ai-memory-clear-all'),
-                    onPressed: _clearAll,
-                    icon: Icons.delete_sweep_outlined,
-                    label: '清空记忆',
-                  ),
+                  // 【v2】「清空记忆」从常驻底栏挪进 ⚙️ 设置弹层：
+                  // 破坏性动作离开首屏、远离误触；行为与二次确认不变。
                 ],
               ),
             ),
@@ -293,6 +209,55 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
         ],
       ),
     );
+  }
+
+  /// 搜索框（v2：胶囊形、常驻列表头）。
+  Widget _searchField() {
+    final c = context.lf;
+    final radius = BorderRadius.circular(LfDimens.radiusFull);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      child: TextField(
+        key: const Key('ai-memory-search'),
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search),
+          hintText: '搜索记忆',
+          isDense: true,
+          filled: true,
+          fillColor: c.card,
+          border: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: c.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: c.border),
+          ),
+        ),
+        onChanged: _onQueryChanged,
+      ),
+    );
+  }
+
+  /// ⚙️ 记忆设置弹层（v2）：两枚开关 + 待确认 + 整理建议 + 规则 + 复制 +
+  /// 清空。行内不再带长副标题——开关语义自明，说明按需出现在各自的弹层。
+  Future<void> _showSettings() async {
+    await AppSheet.show<void>(
+      context,
+      title: '记忆设置',
+      content: _MemorySettingsSheet(
+        repository: widget.repository,
+        extractionQueue: widget.extractionQueue,
+        hygieneAvailable: widget.hygiene != null,
+        loadPendingCount: _loadPendingCount,
+        onRules: _showRules,
+        onPending: _showPending,
+        onHygiene: _showHygiene,
+        onCopyAll: _copyAll,
+        onClearAll: _clearAll,
+      ),
+    );
+    _refreshPending();
   }
 
   void _onQueryChanged(String value) {
@@ -313,21 +278,44 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
               memory,
         ];
 
-  /// 「已用 N / 2000（软顶）」+ 超软顶提示（docs/43 B5）。
-  Widget _usageLine(int active) {
+  /// 列表头统计行（v2）：条目/额度；待确认单独一张整宽入口（0 条自动隐藏）。
+  ///
+  /// 【2026-11-02 用户：待确认入口和弹窗都很丑】原来它是一枚挤在
+  /// `总条数 / 已用额度` 后面的小胶囊：3 个元素争一行，320×2.0 时要折行，
+  /// 而且胶囊比列表卡轻得多，看不出「这里有一批东西等你决定」。现在拆成
+  /// 统计行（纯数字）+ 整宽入口卡（图标 / 标题 / 一句后果 / chevron），
+  /// 入口本身就是可点的卡，不再靠一枚小标签抢注意力。
+  Widget _statsRow(int active, {required int? total}) {
     final theme = Theme.of(context);
     final over = active > kAiMemorySoftCap;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '已用 $active / $kAiMemorySoftCap（软顶）',
-            key: const Key('ai-memory-usage'),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          // 【R-8 实帧修正（320×2.0）】两端文案加起来超宽会溢出 78px——
+          // Wrap 折行（usage 挪到下一行），不裁不缩。
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: LfDimens.spaceSmall,
+            runSpacing: LfDimens.spaceXSmall,
+            children: [
+              if (total != null)
+                Text(
+                  '共 $total 条',
+                  key: const Key('ai-memory-total'),
+                  style: muted,
+                ),
+              Text(
+                '已用 $active / $kAiMemorySoftCap',
+                key: const Key('ai-memory-usage'),
+                style: muted,
+              ),
+            ],
           ),
           if (over)
             Text(
@@ -337,25 +325,79 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
                 color: theme.colorScheme.error,
               ),
             ),
+          if (widget.extractionQueue != null)
+            FutureBuilder<int>(
+              future: _pendingCount,
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                if (count <= 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: LfDimens.spaceSmall),
+                  child: _pendingEntry(count),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
-  Widget _totalLine() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        '共 $_total 条',
-        key: const Key('ai-memory-total'),
-        style: Theme.of(context).textTheme.bodySmall
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+  /// 待确认入口（整宽卡）：把「有几条 / 确认后才写入 / 点进去处理」一次讲清。
+  Widget _pendingEntry(int count) {
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
+    return DesignCard(
+      key: const Key('ai-memory-pending'),
+      onTap: _showPending,
+      semanticLabel: '待确认 $count 条记忆',
+      padding: const EdgeInsets.symmetric(
+        horizontal: LfDimens.spaceMedium,
+        vertical: LfDimens.spaceSmallPlus,
       ),
-    ),
-  );
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: LfColors.mint(brightness).tone(100),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.inbox_outlined,
+              size: LfDimens.iconMd,
+              color: LfColors.mintText(brightness),
+            ),
+          ),
+          const SizedBox(width: LfDimens.spaceSmallPlus),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '待确认 $count 条',
+                  style: LfText.bodyStrong.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '确认后才会写入记忆',
+                  style: LfText.caption.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+        ],
+      ),
+    );
+  }
 
-  Widget _list(List<AiMemory> memories, int active) {
+  Widget _list(List<AiMemory> memories) {
     if (memories.isEmpty) {
       return Center(
         child: Padding(
@@ -373,40 +415,42 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
         ),
       );
     }
-    return ListView.separated(
+    final rows = _query.isEmpty ? _groupedRows(memories) : _flatRows(memories);
+    return ListView.builder(
       key: const Key('ai-memory-list'),
-      padding: const EdgeInsets.only(bottom: 8),
-      itemCount: memories.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) => _row(memories[index]),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      itemCount: rows.length,
+      itemBuilder: (context, index) => rows[index],
     );
   }
 
-  Widget _pagedList(int active) {
+  Widget _pagedList() {
     if (_page.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     final showMore = _page.length < _total;
-    return ListView.separated(
-      key: const Key('ai-memory-list'),
-      padding: const EdgeInsets.only(bottom: 8),
-      itemCount: _page.length + (showMore ? 1 : 0),
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        if (index >= _page.length) {
-          return Padding(
-            padding: const EdgeInsets.all(12),
-            child: Center(
-              child: LfTextButton(
-                key: const Key('ai-memory-load-more'),
-                label: _loadingMore ? '加载中…' : '加载更多',
-                onPressed: _loadingMore ? null : _loadMore,
-              ),
+    final rows = <Widget>[
+      ...(_query.isEmpty ? _groupedRows(_page) : _flatRows(_page)),
+    ];
+    if (showMore) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Center(
+            child: LfTextButton(
+              key: const Key('ai-memory-load-more'),
+              label: _loadingMore ? '加载中…' : '加载更多',
+              onPressed: _loadingMore ? null : _loadMore,
             ),
-          );
-        }
-        return _row(_page[index]);
-      },
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      key: const Key('ai-memory-list'),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      itemCount: rows.length,
+      itemBuilder: (context, index) => rows[index],
     );
   }
 
@@ -449,38 +493,139 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
     });
   }
 
+  /// 平铺行（搜索态）：结果之间只留间距。
+  List<Widget> _flatRows(List<AiMemory> memories) => [
+    for (var i = 0; i < memories.length; i++) ...[
+      if (i > 0) const SizedBox(height: LfDimens.spaceSmall),
+      _row(memories[i]),
+    ],
+  ];
+
+  /// 分组行（v2）：置顶组最上，其余按领域（enum 声明序）；组内保持流序
+  /// （置顶优先、更新时间降序）。搜索时退化为 [_flatRows]。
+  List<Widget> _groupedRows(List<AiMemory> memories) {
+    final pinned = [
+      for (final memory in memories)
+        if (memory.pinned) memory,
+    ];
+    final groups = <AiMemoryDomain, List<AiMemory>>{};
+    for (final memory in memories) {
+      if (memory.pinned) continue;
+      groups.putIfAbsent(memory.domain, () => []).add(memory);
+    }
+    final rows = <Widget>[];
+    void addGroup(String label, List<AiMemory> items) {
+      if (items.isEmpty) return;
+      if (rows.isNotEmpty) {
+        rows.add(const SizedBox(height: LfDimens.spaceSmall));
+      }
+      rows.add(_MemoryGroupHeader(label: label, count: items.length));
+      for (final memory in items) {
+        rows.add(const SizedBox(height: 6));
+        rows.add(_row(memory));
+      }
+    }
+
+    addGroup('置顶', pinned);
+    for (final domain in AiMemoryDomain.values) {
+      addGroup(domain.label, groups[domain] ?? const []);
+    }
+    return rows;
+  }
+
+  /// 单条记忆卡（v2）：类型色标 + 置顶针 + ⋮ 菜单；正文 + 一行来源。
+  /// 全部 key / 行为不变（编辑 / 置顶 / 转为忌口 / 删除都在 ⋮ 里）。
   Widget _row(AiMemory memory) {
-    final theme = Theme.of(context);
-    return ListTile(
+    final c = context.lf;
+    return DesignCard(
       key: Key('ai-memory-row-${memory.id}'),
-      leading: Icon(
-        memory.pinned ? Icons.push_pin : Icons.memory,
-        color: memory.pinned
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurfaceVariant,
-      ),
-      title: Text(memory.text),
-      subtitle: Text(
-        '${memory.kind.label} · ${memory.domain.label} · '
-        '${memory.sourceLabel} · ${_date(memory.updatedAt)}'
-        // 时间语义（G23）：只给已闭合的条目加一句——开放中的
-        // 「某日起」是噪声，改口后的失效日期才是事实。
-        '${memory.isClosed ? ' · 有效期 ${memory.validityLabel}' : ''}',
-      ),
-      trailing: PopupMenuButton<String>(
-        onSelected: (action) => _onAction(action, memory),
-        itemBuilder: (context) => [
-          const PopupMenuItem(value: 'edit', child: Text('编辑')),
-          PopupMenuItem(
-            value: 'pin',
-            child: Text(memory.pinned ? '取消置顶' : '置顶'),
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _MemoryKindTag(kind: memory.kind),
+              if (memory.pinned) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.push_pin,
+                  size: 12,
+                  color: LfColors.mintText(Theme.of(context).brightness),
+                ),
+              ],
+              const Spacer(),
+              PopupMenuButton<String>(
+                onSelected: (action) => _onAction(action, memory),
+                icon: Icon(Icons.more_vert, size: 18, color: c.mutedForeground),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('编辑')),
+                  PopupMenuItem(
+                    value: 'pin',
+                    child: Text(memory.pinned ? '取消置顶' : '置顶'),
+                  ),
+                  if (widget.constraintsRepository != null)
+                    const PopupMenuItem(
+                      value: 'promote',
+                      child: Text('转为忌口/偏好'),
+                    ),
+                  const PopupMenuItem(value: 'delete', child: Text('删除')),
+                ],
+              ),
+            ],
           ),
-          if (widget.constraintsRepository != null)
-            const PopupMenuItem(value: 'promote', child: Text('转为忌口/偏好')),
-          const PopupMenuItem(value: 'delete', child: Text('删除')),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _highlightedText(memory.text),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '${memory.domain.label} · ${memory.sourceLabel} · '
+              '${_date(memory.updatedAt)}'
+              // 时间语义（G23）：只给已闭合的条目加一句——开放中的
+              // 「某日起」是噪声，改口后的失效日期才是事实。
+              '${memory.isClosed ? ' · 有效期 ${memory.validityLabel}' : ''}',
+              style: LfText.micro.copyWith(color: c.mutedForeground),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// 搜索命中高亮（v2）：命中片段垫一层 `brandSoft` 底色。
+  Widget _highlightedText(String text) {
+    final c = context.lf;
+    final base = LfText.body.copyWith(color: c.foreground);
+    if (_query.isEmpty || !text.contains(_query)) {
+      return Text(text, style: base);
+    }
+    final spans = <TextSpan>[];
+    var start = 0;
+    while (start < text.length) {
+      final index = text.indexOf(_query, start);
+      if (index < 0) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
+      }
+      spans.add(
+        TextSpan(
+          text: _query,
+          style: TextStyle(
+            backgroundColor: LfColors.brandSoft(Theme.of(context).brightness),
+          ),
+        ),
+      );
+      start = index + _query.length;
+    }
+    return Text.rich(TextSpan(children: spans), style: base);
   }
 
   String _date(DateTime value) {
@@ -784,24 +929,29 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
             key: const Key('ai-memory-pending-sheet'),
             width: double.infinity,
             child: remaining.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('没有待确认的记忆。'),
-                  )
+                ? _pendingEmptyState(sheetContext)
                 : SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: LfDimens.spaceSmall),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         for (var i = 0; i < remaining.length; i++)
-                          _pendingRow(
-                            sheetContext: sheetContext,
-                            setSheetState: setSheetState,
-                            queue: queue,
-                            item: remaining[i],
-                            index: i,
-                            onRemoved: () {
-                              setSheetState(() => remaining.removeAt(i));
-                            },
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: i == remaining.length - 1
+                                  ? 0
+                                  : LfDimens.spaceSmall,
+                            ),
+                            child: _pendingRow(
+                              sheetContext: sheetContext,
+                              setSheetState: setSheetState,
+                              queue: queue,
+                              item: remaining[i],
+                              index: i,
+                              onRemoved: () {
+                                setSheetState(() => remaining.removeAt(i));
+                              },
+                            ),
                           ),
                       ],
                     ),
@@ -813,6 +963,40 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
     _refreshPending();
   }
 
+  /// 候选清空后的收尾态：不用一句裸露的「没有」，给一个完成符号。
+  Widget _pendingEmptyState(BuildContext sheetContext) {
+    final c = sheetContext.lf;
+    final brightness = Theme.of(sheetContext).brightness;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceLarge),
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: LfColors.mint(brightness).tone(100),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.done_all, color: LfColors.mintText(brightness)),
+          ),
+          const SizedBox(height: LfDimens.spaceSmall),
+          Text(
+            '没有待确认的记忆。',
+            style: LfText.body.copyWith(color: c.cardForeground),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 一条候选卡（v3）：标签 / 原文 / 就地错误 / 「忽略 · 保存」。
+  ///
+  /// 【2026-11-02 用户：弹窗布局很丑】旧版是裸文本 + 小字元信息 + 两个
+  /// 左对齐文字按钮，条目之间没有边界；多条候选会糊成一段。现在一条候选
+  /// 一张卡：类型/领域做徽标，原文是主体，操作固定在右下，错误留在卡内
+  /// （弹层挡住页面时，SnackBar 在底部看不见）。
   Widget _pendingRow({
     required BuildContext sheetContext,
     required StateSetter setSheetState,
@@ -823,51 +1007,71 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
   }) {
     String? error;
     return StatefulBuilder(
-      builder: (rowContext, setRowState) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item.candidate.text),
-            Text(
-              '${item.candidate.kind.label} · ${item.candidate.domain.label}',
-              style: Theme.of(rowContext).textTheme.bodySmall,
-            ),
-            if (error != null)
-              Text(
-                error!,
-                key: Key('ai-memory-pending-error-$index'),
-                style: TextStyle(color: Theme.of(rowContext).colorScheme.error),
+      builder: (rowContext, setRowState) {
+        final c = rowContext.lf;
+        return MutedBlock(
+          key: Key('ai-memory-pending-card-$index'),
+          padding: const EdgeInsets.all(LfDimens.spaceMedium),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: LfDimens.spaceXSmall,
+                runSpacing: LfDimens.spaceXSmall,
+                children: [
+                  LfBadge.mint(item.candidate.kind.label),
+                  LfBadge.neutral(item.candidate.domain.label),
+                ],
               ),
-            Row(
-              children: [
-                LfTextButton(
-                  key: Key('ai-memory-pending-save-$index'),
-                  label: '保存',
-                  onPressed: () async {
-                    try {
-                      await queue.confirm(item);
-                      onRemoved();
-                    } on AiMemoryException catch (exception) {
-                      setRowState(() => error = exception.message);
-                    } on AiMemoryMergeSuggested catch (exception) {
-                      setRowState(() => error = exception.message);
-                    }
-                  },
-                ),
-                LfTextButton(
-                  key: Key('ai-memory-pending-ignore-$index'),
-                  label: '忽略',
-                  onPressed: () async {
-                    await queue.ignore(item);
-                    onRemoved();
-                  },
+              const SizedBox(height: LfDimens.spaceSmall),
+              Text(
+                item.candidate.text,
+                style: LfText.body.copyWith(color: c.cardForeground),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: LfDimens.spaceSmall),
+                Text(
+                  error!,
+                  key: Key('ai-memory-pending-error-$index'),
+                  style: LfText.bodySmall.copyWith(color: c.errorText),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: LfDimens.spaceSmall),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  LfTextButton(
+                    key: Key('ai-memory-pending-ignore-$index'),
+                    label: '忽略',
+                    onPressed: () async {
+                      await queue.ignore(item);
+                      onRemoved();
+                    },
+                  ),
+                  const SizedBox(width: LfDimens.spaceXSmall),
+                  LfPillButton(
+                    key: Key('ai-memory-pending-save-$index'),
+                    label: '保存',
+                    icon: Icons.check,
+                    tone: LfPillTone.solid,
+                    height: LfDimens.minTouchTarget,
+                    onPressed: () async {
+                      try {
+                        await queue.confirm(item);
+                        onRemoved();
+                      } on AiMemoryException catch (exception) {
+                        setRowState(() => error = exception.message);
+                      } on AiMemoryMergeSuggested catch (exception) {
+                        setRowState(() => error = exception.message);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -949,6 +1153,11 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
                   onChanged: (value) =>
                       setDialogState(() => kind = value ?? kind),
                 ),
+                // 16a（2026-10-25 用户：记忆弹窗里这两件贴在一起）：类型与领域
+                // 原来**零间距**直接相邻（`kind.bottom == domain.top`），两个
+                // 描边方框连成一块，读起来像一个控件的两半。插一个
+                // `spaceSmallPlus`(10) 让它们各自成立。
+                const SizedBox(height: LfDimens.spaceSmallPlus),
                 DropdownButtonFormField<AiMemoryDomain>(
                   key: const Key('ai-memory-editor-domain'),
                   initialValue: domain,
@@ -1031,5 +1240,258 @@ class _AiMemoryPageState extends State<AiMemoryPage> {
     // RV4-P3-05：这是全仓唯一绕开统一出口的裸 `SnackBar`（不走主题、不带图标、
     // 不参与「替换式合并」）。改走 `AppSnackBar` 后底色/圆角/时长与其它提示一致。
     AppSnackBar.show(context, message, icon: AppSnackBar.infoIcon);
+  }
+}
+
+/// 分组小标题（v2）：类型色点 + 领域名 + 条数。
+class _MemoryGroupHeader extends StatelessWidget {
+  const _MemoryGroupHeader({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    final brightness = Theme.of(context).brightness;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: LfColors.mint(brightness).tone(500),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: LfText.caption.copyWith(
+              color: c.mutedForeground,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '· $count',
+            style: LfText.micro.copyWith(color: c.mutedForeground),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 记忆类型色标（v2）：偏好 mint / 习惯 蓝 / 事实 灰 / 近况 琥珀。
+///
+/// 取色全部来自既有 token（brandSoft/mintText、info、muted/mutedForeground、
+/// carbs100/warningText），不新增色值。
+class _MemoryKindTag extends StatelessWidget {
+  const _MemoryKindTag({required this.kind});
+
+  final AiMemoryKind kind;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    final brightness = Theme.of(context).brightness;
+    final (bg, fg) = switch (kind) {
+      AiMemoryKind.preference => (
+        LfColors.brandSoft(brightness),
+        LfColors.mintText(brightness),
+      ),
+      AiMemoryKind.habit => (c.info.withValues(alpha: 0.14), c.cardForeground),
+      AiMemoryKind.fact => (c.muted, c.mutedForeground),
+      AiMemoryKind.context => (c.carbs100, c.warningText),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        kind.label,
+        style: LfText.micro.copyWith(color: fg, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// ⚙️ 记忆设置弹层体（v2）：开关 + 待确认 + 整理建议 + 规则 + 复制 + 清空。
+///
+/// 开关在弹层内自己持有 Future 状态（页面只负责在弹层关闭后刷新待确认数）；
+/// 其余行先关弹层再执行动作（各自的弹层从页面 context 弹出，避免叠两层弹层）。
+class _MemorySettingsSheet extends StatefulWidget {
+  const _MemorySettingsSheet({
+    required this.repository,
+    required this.extractionQueue,
+    required this.hygieneAvailable,
+    required this.loadPendingCount,
+    required this.onRules,
+    required this.onPending,
+    required this.onHygiene,
+    required this.onCopyAll,
+    required this.onClearAll,
+  });
+
+  final AiMemoryRepository repository;
+  final MemoryExtractionQueue? extractionQueue;
+  final bool hygieneAvailable;
+  final Future<int> Function() loadPendingCount;
+  final VoidCallback onRules;
+  final VoidCallback onPending;
+  final VoidCallback onHygiene;
+  final VoidCallback onCopyAll;
+  final VoidCallback onClearAll;
+
+  @override
+  State<_MemorySettingsSheet> createState() => _MemorySettingsSheetState();
+}
+
+class _MemorySettingsSheetState extends State<_MemorySettingsSheet> {
+  late Future<bool> _injection = widget.repository.injectionEnabled();
+  late Future<bool> _autoExtract =
+      widget.extractionQueue?.enabled() ?? Future.value(false);
+  late final Future<int> _pending = widget.loadPendingCount();
+
+  Future<void> _toggleInjection(bool value) async {
+    await widget.repository.setInjectionEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _injection = Future.value(value);
+    });
+  }
+
+  /// 「结束会话自动提炼」（决策点 D2）：开启前说明一次，不静默改行为。
+  Future<void> _toggleAutoExtract(bool value) async {
+    final queue = widget.extractionQueue;
+    if (queue == null) return;
+    if (value) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('开启会话结束自动提炼？'),
+          content: const Text(
+            '开启后，点对话页顶栏的「结束本次会话」会把这段对话发给你配置的 '
+            'AI 模型做提炼（和聊天走同一条路、只发对话文本）。'
+            '候选只进「待确认」，你确认后才会写进记忆。'
+            'AI 未配置时会如实失败。',
+          ),
+          actions: [
+            LfTextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              label: '取消',
+            ),
+            LfTextButton(
+              key: const Key('ai-memory-auto-extract-confirm'),
+              onPressed: () => Navigator.of(context).pop(true),
+              label: '开启',
+            ),
+          ],
+        ),
+      );
+      if (!(confirmed ?? false)) return;
+    }
+    await queue.setEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _autoExtract = Future.value(value);
+    });
+  }
+
+  /// 先关本弹层，下一帧再执行动作（动作自己的弹层不会叠在设置弹层上）。
+  void _runAfterClose(VoidCallback action) {
+    Navigator.of(context).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) => action());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    return SizedBox(
+      key: const Key('ai-memory-settings-sheet'),
+      width: double.infinity,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FutureBuilder<bool>(
+            future: _injection,
+            builder: (context, snapshot) => SwitchListTile(
+              key: const Key('ai-memory-injection-toggle'),
+              contentPadding: EdgeInsets.zero,
+              value: snapshot.data ?? true,
+              title: const Text('对话时使用记忆'),
+              onChanged: snapshot.hasData ? _toggleInjection : null,
+            ),
+          ),
+          if (widget.extractionQueue != null) ...[
+            FutureBuilder<bool>(
+              future: _autoExtract,
+              builder: (context, snapshot) => SwitchListTile(
+                key: const Key('ai-memory-auto-extract-toggle'),
+                contentPadding: EdgeInsets.zero,
+                value: snapshot.data ?? false,
+                title: const Text('结束会话时自动提炼'),
+                onChanged: snapshot.hasData ? _toggleAutoExtract : null,
+              ),
+            ),
+            FutureBuilder<int>(
+              future: _pending,
+              builder: (context, snapshot) => ListTile(
+                key: const Key('ai-memory-pending-row'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('待确认候选'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${snapshot.data ?? 0}',
+                      style: LfText.caption.copyWith(color: c.mutedForeground),
+                    ),
+                    const Icon(Icons.chevron_right, size: 18),
+                  ],
+                ),
+                onTap: () => _runAfterClose(widget.onPending),
+              ),
+            ),
+          ],
+          if (widget.hygieneAvailable)
+            ListTile(
+              key: const Key('ai-memory-hygiene'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('整理建议'),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => _runAfterClose(widget.onHygiene),
+            ),
+          ListTile(
+            key: const Key('ai-memory-rules'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('查看规则'),
+            trailing: const Icon(Icons.chevron_right, size: 18),
+            onTap: () => _runAfterClose(widget.onRules),
+          ),
+          ListTile(
+            key: const Key('ai-memory-copy-all-sheet'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('复制全部文本'),
+            trailing: const Icon(Icons.chevron_right, size: 18),
+            onTap: () => _runAfterClose(widget.onCopyAll),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: LfDangerButton(
+              key: const Key('ai-memory-clear-all'),
+              label: '清空全部记忆',
+              icon: Icons.delete_sweep_outlined,
+              onPressed: () => _runAfterClose(widget.onClearAll),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

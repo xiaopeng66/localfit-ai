@@ -15,7 +15,7 @@ void main() {
     expect(find.text('AI'), findsOneWidget);
     expect(find.text('训练'), findsOneWidget);
     expect(find.text('我的'), findsOneWidget);
-    expect(find.text('热量、营养目标和今日训练将在这里汇总。'), findsOneWidget);
+    expect(find.text('热量、营养与训练汇总。'), findsOneWidget);
 
     await tester.tap(find.text('饮食'));
     await tester.pumpAndSettle();

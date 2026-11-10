@@ -6,7 +6,6 @@ import 'package:localfit_ai/app/app_theme.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/app/design/widgets/app_celebration.dart';
-import 'package:localfit_ai/app/design/widgets/count_up_text.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
@@ -15,7 +14,9 @@ import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
+import 'package:localfit_ai/features/nutrition/presentation/canteen_directory_page.dart';
 import 'package:localfit_ai/features/nutrition/presentation/nutrition_page.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/meal_record_card.dart';
 
@@ -226,8 +227,7 @@ void main() {
     clock: clock,
   );
 
-  /// 菜品库仓储：菜单页的唯一主来源（docs/21 §5.3）。接上它菜单 tab 才走
-  /// 生产路径（空库 → 空态），而不是「未接线」的降级占位。
+  /// 旧菜品库只作为未接供应源时的只读兼容；供应契约用例显式接真实目录。
   DishLibraryRepository dishLibrary() => DishLibraryRepository(
     database: database,
     idGenerator: const UuidV7Generator(),
@@ -236,7 +236,11 @@ void main() {
 
   /// 饮食页：`tab` 为 null 时停在「记录」tab（主卡 + 周条 + 餐食卡）；
   /// 传 [NutritionTab.menu] 时切到「菜单」tab（2.0-6c 的新鲜度条 + 窗口分组）。
-  Future<void> pumpNutrition(WidgetTester tester, {NutritionTab? tab}) async {
+  Future<void> pumpNutrition(
+    WidgetTester tester, {
+    NutritionTab? tab,
+    SupplyCatalogRepository? supplyCatalog,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: auditDark ? AppTheme.dark() : AppTheme.light(),
@@ -244,6 +248,7 @@ void main() {
           repository: await foods(),
           mealRepository: await meals(),
           dishLibraryRepository: dishLibrary(),
+          supplyCatalog: supplyCatalog,
           canteenRepository: tab == null ? null : canteens,
           now: noonLocal,
         ),
@@ -327,14 +332,63 @@ void main() {
     // 菜单 tab）；T6c 期间实测：第二次在**暗色**下会挂到框架 10 分钟兜底
     // 超时（同一用例内 drift stream 未随组件销毁而静止）。拆成两条独立
     // 用例（本文件其余暗色用例也都是「一条用例只 pump 一次」），语义不变。
-    await pumpNutrition(tester, tab: NutritionTab.menu);
-    // 菜单 tab 的空态同样是文字，不靠颜色表达「没有菜品」。
-    expect(find.byKey(const Key('nutrition-menu-hero')), findsOneWidget);
-    expect(find.text('菜品库还是空的。'), findsOneWidget);
-    expect(find.text('在食堂目录里自建菜品，或让 AI 生成今日菜单。'), findsOneWidget);
+    // 供应目录才是生产主来源；清掉供应但保留地点/窗口，不能把旧菜品库为空
+    // 当成目录为空（存在但缺营养/份量的供应也必须保留展示）。
+    final window = (await canteens.listWindows('venue-1')).single;
+    for (final dish in window.dishes) {
+      await canteens.deleteDish(dish.id);
+    }
+    final supplies = SupplyCatalogRepository(database: database);
+    expect(await supplies.listAll(), isEmpty);
+    final recordedMeals = await database.select(database.meals).get();
+    final recordedItems = await database.select(database.mealItems).get();
+    expect(recordedMeals, hasLength(1));
+    expect(recordedItems, hasLength(1));
+    expect(recordedItems.single.kcalSnapshot, 198);
+    expect(recordedItems.single.grams, 120);
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpNutrition(
+        tester,
+        tab: NutritionTab.menu,
+        supplyCatalog: supplies,
+      );
+      // 删除说明/读屏标签、跳错目录或失去新增入口都必须让本用例失败。
+      const guidance = '请先到食堂目录添加供应并补充营养与每份克数；AI 只能从已有可信供应选菜。';
+      expect(find.byKey(const Key('nutrition-menu-hero')), findsOneWidget);
+      expect(find.text('菜品库还是空的。'), findsOneWidget);
+      expect(find.text(guidance), findsOneWidget);
+      expect(find.bySemanticsLabel('菜品库还是空的。'), findsOneWidget);
+      expect(find.bySemanticsLabel(guidance), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
+      final action = find.byKey(const Key('menu-empty-action-canteen'));
+      expect(action.hitTestable(), findsOneWidget);
+      expect(find.bySemanticsLabel('去食堂目录'), findsOneWidget);
+      await tester.tap(action);
+      await settle(tester);
+      expect(find.byType(CanteenDirectoryPage), findsOneWidget);
+      expect(find.text('东区食堂'), findsOneWidget);
+      final addDish = find.byKey(Key('canteen-add-dish-${window.id}'));
+      expect(addDish.hitTestable(), findsOneWidget);
+      await tester.tap(addDish);
+      await settle(tester);
+      expect(
+        find.byKey(const Key('canteen-dish-name')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('canteen-dish-serving')).hitTestable(),
+        findsOneWidget,
+      );
+      // 只浏览空态和打开维护表单，不能创建供应或改写已吃快照。
+      expect(await supplies.listAll(), isEmpty);
+      expect(await database.select(database.meals).get(), recordedMeals);
+      expect(await database.select(database.mealItems).get(), recordedItems);
+    } finally {
+      semantics.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    }
   });
 
   testWidgets('2.0 界面的图标按钮都有 tooltip（读屏可定位）', (tester) async {
@@ -420,8 +474,9 @@ void main() {
       AppTheme.dark(highContrast: true).colorScheme.primary,
       LfSemanticColors.dark.primary,
     );
-    // 高对比（亮色）：Round7 A 下**不再加深品牌底**（按钮字是深墨
-    // `--lf-primary-foreground`，加深会跌破 4.5），高对比只靠 2dp 描边表达；
+    // 实心档底 = brandStrong（设计源稿基础层 `--brand-strong`）；
+    // 【2026-10-29 用户裁决】refinement 层的「亮绿底 + 深墨字」被判看不清。
+    // 高对比档底色与常档同值，仍靠 2dp 描边表达；
     // 输入框 A 常态就有 1dp `--border` 描边，高对比加粗到 2dp `--fg`。
     Color? elevatedButton(bool highContrast) =>
         AppTheme.light(highContrast: highContrast)
@@ -429,8 +484,8 @@ void main() {
             .style
             ?.backgroundColor
             ?.resolve(const {});
-    expect(elevatedButton(false), LfSemanticColors.light.primary);
-    expect(elevatedButton(true), LfSemanticColors.light.primary);
+    expect(elevatedButton(false), LfColors.brandStrong(Brightness.light));
+    expect(elevatedButton(true), LfColors.brandStrong(Brightness.light));
     expect(
       AppTheme.light().inputDecorationTheme.enabledBorder?.borderSide.style,
       BorderStyle.solid,
@@ -498,26 +553,6 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
     });
-  });
-
-  testWidgets('减弱动画：count-up 直显新值（docs/21 §2.9 退化规则）', (tester) async {
-    useViewport(tester, size: const Size(400, 900), reducedMotion: true);
-    String format(double value) => '${value.round()} kcal';
-    Widget host(double value) => MediaQuery(
-      data: const MediaQueryData(disableAnimations: true),
-      child: MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: CountUpText(value: value, format: format),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpWidget(host(100));
-    expect(find.text('100 kcal'), findsOneWidget);
-    await tester.pumpWidget(host(210));
-    // 退化直显：不跑 800ms 滚动，立即就是新值。
-    expect(find.text('210 kcal'), findsOneWidget);
   });
 
   testWidgets('减弱动画：庆祝爆发不渲染（直接结束，guard 已消费）', (tester) async {

@@ -26,11 +26,23 @@ class LfCalorieRing extends StatelessWidget {
     super.key,
     required this.consumedKcal,
     required this.targetKcal,
+    this.targetMinKcal,
     this.keyPrefix,
   });
 
   final int consumedKcal;
   final int targetKcal;
+
+  /// 目标区间**下限**（需求 1，2026-10-25）。非 null 且 > 0 时环画**区间带 +
+  /// 指针**（带 = 目标区间、指针 = 当前位置），不再是单值进度弧。
+  ///
+  /// 刻度口径（2026-10-31 用户三轮定稿，原话：「一个圆的后边部分是一个浅色
+  /// 的区间，然后已摄入是深色的进度，超出以后就变色警告」）：整圈 = `0 → 上限`
+  /// 的线性刻度；浅色宽带 = 区间在**环的后段的真实位置**（`min/max → 1.0`）；
+  /// 进度弧 = **深色**（brandStrong）；超过上限整弧转暖色。无区间时同刻度，
+  /// 满环 = 达标。
+  final int? targetMinKcal;
+
   final String? keyPrefix;
 
   @override
@@ -38,8 +50,16 @@ class LfCalorieRing extends StatelessWidget {
     final c = context.lf;
     final track = context.lfc.ringTrack;
     final target = targetKcal > 0 ? targetKcal : 0;
+    final bandMin = targetMinKcal;
+    final over = target > 0 && consumedKcal > target;
+    // 区间的「带」只在有上下限且上限 > 0 时成立。
+    final hasBand = target > 0 && bandMin != null && bandMin > 0;
     final ratio = target > 0 ? (consumedKcal / target).clamp(0.0, 1.0) : 0.0;
     final percent = target > 0 ? ((consumedKcal / target) * 100).round() : 0;
+    final bandStart = hasBand ? (bandMin / target).clamp(0.0, 1.0) : null;
+    final bandEnd = hasBand ? 1.0 : null;
+    // 超上界 ⇒ 带变暖色（浅绿 = 区间位置，暖 = 已破上限）。
+    final bandColor = hasBand ? (over ? c.warning : c.primary) : null;
     return SizedBox(
       key: const Key('lf-calorie-ring'),
       width: LfDimens.calorieRingSize,
@@ -51,10 +71,21 @@ class LfCalorieRing extends StatelessWidget {
             size: const Size.square(LfDimens.calorieRingSize),
             painter: LfRingPainter(
               track: track,
-              progress: c.primary,
+              // 【2026-10-31 用户定稿】进度弧 = 深色（brandStrong），超上限转暖。
+              progress: over
+                  ? c.warning
+                  : LfColors.brandStrong(Theme.of(context).brightness),
               ratio: ratio,
               radius: LfDimens.calorieRingRadius,
               stroke: LfDimens.calorieRingStroke,
+              // 需求 1：有区间 ⇒ 浅色带画在环后段真实位置（与环同宽）。
+              bandStart: bandStart,
+              bandEnd: bandEnd,
+              bandColor: bandColor,
+              // 【2026-10-31 用户：浅带与环同宽 + 不要多余的点】指针（圆钮）
+              // 整件退役——深色弧的圆头线帽本身就是尖端标记，带与弧同宽后
+              // 圆钮只会突兀地鼓出环外。
+              pointerRatio: null,
             ),
           ),
           // 三段文字对外是一个语义节点（旧半圆件的可访问性契约在取代件上
@@ -71,7 +102,13 @@ class LfCalorieRing extends StatelessWidget {
           // 宽的一行会横跨到轨道描边上（撑满框宽但压住了环）。
           Semantics(
             container: true,
-            label: targetKcal > 0 ? '完成度 $percent%' : '无热量目标',
+            label: targetKcal > 0
+                ? (hasBand
+                      ? '目标区间 ${withThousandsSeparator(bandMin)}'
+                            ' 到 ${withThousandsSeparator(targetKcal)} kcal，'
+                            '完成度 $percent%'
+                      : '完成度 $percent%')
+                : '无热量目标',
             value: '${withThousandsSeparator(consumedKcal)} kcal',
             child: ExcludeSemantics(
               child: ConstrainedBox(
@@ -101,13 +138,19 @@ class LfCalorieRing extends StatelessWidget {
                       ),
                       if (targetKcal > 0)
                         Text(
-                          '$percent%',
+                          // 需求 1：超上界时第三行如实说「超上限 X」
+                          // （`超了` 这件事比「完成度 118%」更该被一眼看到）。
+                          over
+                              ? '超上限 ${withThousandsSeparator((consumedKcal - target).round())}'
+                              : '$percent%',
                           key: keyPrefix == null
                               ? null
                               : Key('$keyPrefix-percent'),
                           style: LfText.label.copyWith(
-                            color: LfColors.mint(Theme.of(context).brightness)
-                                .tone(600),
+                            color: over
+                                ? c.warningText
+                                : LfColors.mint(Theme.of(context).brightness)
+                                      .tone(600),
                           ),
                         ),
                     ],

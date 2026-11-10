@@ -54,6 +54,28 @@ void main() {
     ChatEditCommandRegistry(),
   )!;
 
+  ChatEditTurn turnWithTwoGroups() => parseChatEditTurn(
+    jsonEncode({
+      'reply': '准备记录一餐和饮水',
+      'edits': [
+        {
+          'action': 'meal.create',
+          'args': {
+            'slot': '午餐',
+            'items': [
+              {'food': '米饭', 'grams': 100.0},
+            ],
+          },
+        },
+        {
+          'action': 'water.add',
+          'args': {'amountMl': 300},
+        },
+      ],
+    }),
+    ChatEditCommandRegistry(),
+  )!;
+
   Widget host(ChatEditCard card) => MaterialApp(
     theme: AppTheme.light(),
     home: Scaffold(body: card),
@@ -110,7 +132,25 @@ void main() {
     }
   });
 
-  testWidgets('组级「应用本组」仍只提交本组（行级能力经由它保留）', (tester) async {
+  testWidgets('单组不画「应用本组」，只保留卡底「全部应用」', (tester) async {
+    tester.view.physicalSize = const Size(400, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      host(card(turn: turnWithTwoEdits(), onApplyRows: (_) {})),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('chat-edit-group-apply-0-other')),
+      findsNothing,
+      reason: '只有一组时卡底「全部应用」已经覆盖该组，不再重复画「应用本组」',
+    );
+    expect(find.byKey(const Key('chat-edit-apply-0')), findsOneWidget);
+  });
+
+  testWidgets('多组时「应用本组」只提交本组', (tester) async {
     tester.view.physicalSize = const Size(400, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -118,22 +158,15 @@ void main() {
     var received = <int>{};
     await tester.pumpWidget(
       host(
-        card(turn: turnWithTwoEdits(), onApplyRows: (rows) => received = rows),
+        card(turn: turnWithTwoGroups(), onApplyRows: (rows) => received = rows),
       ),
     );
     await tester.pumpAndSettle();
 
-    // 这两条是 `water.add` ⇒ 归到「其他修改」组（kind = other）。
-    await tester.tap(find.byKey(const Key('chat-edit-group-apply-0-other')));
+    await tester.tap(find.byKey(const Key('chat-edit-group-apply-0-meal')));
     await tester.pumpAndSettle();
 
-    expect(
-      received,
-      {0, 1},
-      reason:
-          '行级能力没删：`applyEdits(rowIndexes:)` 仍在用，组级按钮走的就是它。'
-          '这里钉住「组级提交的是本组全部待应用行」。',
-    );
+    expect(received, {0}, reason: '组级按钮只提交本组待应用行；餐组是第 0 条，饮水组是第 1 条');
   });
 
   testWidgets('忙碌时不给可点的行级按钮（避免并发写）', (tester) async {

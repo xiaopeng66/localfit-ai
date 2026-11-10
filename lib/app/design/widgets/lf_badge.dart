@@ -102,12 +102,19 @@ class LfBadge extends StatelessWidget {
         // （「Nichirei日冷」、2.0× 更甚），`Flexible` 给到有界宽度后省略号才
         // 生效；宽度无界时（Row 的 `mainAxisSize.min` 之外）Flexible 自动退化
         // 成按内容定宽，与不带它时一致。
+        //
+        // 【2026-10-29（用户：饮水卡「达标 n%」显示不全）】省略号兜底在状态
+        // 徽标上是**错**的——「达标 …」比完整数字更误导。外面再套一层
+        // `FittedBox(scaleDown)`：有界挤压时整枚徽标文字**等比缩小**而不是
+        // 打省略号；无界/够宽时与原来逐像素一致（scaleDown 只在放不下时缩）。
         Flexible(
-          child: Text(
-            text,
-            style: LfText.label.copyWith(color: fg),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              style: LfText.label.copyWith(color: fg),
+              maxLines: 1,
+            ),
           ),
         ),
       ],

@@ -121,14 +121,21 @@ void main() {
       );
     });
 
-    testWidgets('子条目标题是「食物 · 克数」，不是命令名「记一餐」', (tester) async {
+    testWidgets('子条目标题只是食物名，克数在第二行餐次后面', (tester) async {
       await pump(tester, mealTurn());
       final title = tester
           .widget<Text>(find.byKey(const Key('chat-edit-subitem-title-0-0-0')))
           .data!;
-      expect(title, contains('米饭'), reason: '设计稿行标题是食物名');
-      expect(title, contains('150'), reason: '设计稿行标题带克数（米饭 · 150 g）');
+      expect(title, '米饭', reason: '标题只放食物名，长名字才不会被克数挤掉');
+      expect(title, isNot(contains('·')), reason: '克数/分隔点不该再占标题宽度');
       expect(title, isNot(contains('记一餐')), reason: '命令名不该出现在行标题上——那是组头的职责');
+
+      final summary = tester
+          .widget<Text>(
+            find.byKey(const Key('chat-edit-subitem-summary-0-0-0')),
+          )
+          .data!;
+      expect(summary, '午餐 · 150 g', reason: '克数换到第二行、跟在餐次后面（用户 2026-11-06 复核）');
     });
 
     testWidgets('子条目编号 1/2 逐个递增', (tester) async {
@@ -183,8 +190,10 @@ void main() {
       );
       expect(
         find.byKey(const Key('chat-edit-group-apply-0-meal')),
-        findsOneWidget,
+        findsNothing,
+        reason: '只有一组时组级按钮与卡底「全部应用」重复，组级不画',
       );
+      expect(find.byKey(const Key('chat-edit-apply-0')), findsOneWidget);
     });
   });
 
@@ -272,16 +281,17 @@ void main() {
       expect(find.byKey(const Key('chat-edit-row-0-0')), findsOneWidget);
       expect(
         find.byKey(const Key('chat-edit-group-apply-0-meal')),
-        findsOneWidget,
+        findsNothing,
+        reason: '单组卡由卡底「全部应用」承担，不再重复组级按钮',
       );
       expect(find.byKey(const Key('chat-edit-apply-0')), findsOneWidget);
       expect(find.byKey(const Key('chat-edit-dismiss-0')), findsOneWidget);
     });
 
-    testWidgets('按钮层级：组级 + 卡底实心（行级不再有按钮）', (tester) async {
+    testWidgets('按钮层级：单组只有卡底实心（行级/组级不再有按钮）', (tester) async {
       await pump(tester, mealTurn());
-      // 组级：软底（文字「应用本组」）。
-      expect(find.text('应用本组'), findsOneWidget);
+      // 单组不再画组级「应用本组」。
+      expect(find.text('应用本组'), findsNothing);
       // 卡底：实心（文字「全部应用」）。
       expect(find.text('全部应用'), findsOneWidget);
       // 卡底必须是唯一实心主按钮。

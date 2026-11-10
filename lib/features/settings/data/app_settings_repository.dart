@@ -12,6 +12,9 @@ final class AppSettingsRepository {
   static const autoBackupEnabledKey = 'auto_backup_enabled';
   static const lastBackupAtKey = 'last_backup_at_ms';
 
+  /// 局域网更新源（空/不存在 = 只走 GitHub）。
+  static const lanUpdateBaseUrlKey = 'lan_update_base_url';
+
   Future<String?> getString(String key) async {
     final row = await (database.select(
       database.appSettings,

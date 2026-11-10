@@ -200,6 +200,9 @@ void main() {
         clock: FixedAppClock(DateTime.utc(2026, 10, 24, 2)),
       );
 
+      // 【2026-10-26 前置】首读只立基线不落行：先同步两次拿到真实数据行。
+      await repository.syncToday('2026-10-24');
+      await repository.syncToday('2026-10-24');
       await tester.pumpWidget(
         host(
           StepsStatCard(

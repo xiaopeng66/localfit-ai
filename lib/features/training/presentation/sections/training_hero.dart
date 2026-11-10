@@ -33,7 +33,7 @@ import 'package:localfit_ai/features/training/domain/workout_plan.dart';
 class TrainingHero extends StatelessWidget {
   const TrainingHero({
     super.key,
-    required this.weekIndex,
+    required this.weekRangeText,
     required this.finishedCount,
     required this.totalDuration,
     required this.totalKcal,
@@ -42,8 +42,11 @@ class TrainingHero extends StatelessWidget {
     this.restWeekdays = const <int>[],
   });
 
-  /// 「第 N 周」= 从首个 session 起算的周序号（§7.1 派生）。null = 无训练历史。
-  final int? weekIndex;
+  /// 本周真实日期区间（如「10/27 – 11/2」）。
+  /// 【2026-10-29（R-6，用户：不要写「第一周」，要针对真实日期统计）】
+  /// 「第 N 周」退役——相对周序看不出统计窗口；区间恒渲染（它描述的是
+  /// 「本周」这个统计窗口本身，与有没有训练历史无关）。
+  final String weekRangeText;
 
   /// 本周已完成训练次数 / 总时长 / 消耗 kcal。
   final int finishedCount;
@@ -89,13 +92,19 @@ class TrainingHero extends StatelessWidget {
                     style: LfText.title.copyWith(color: c.cardForeground),
                   ),
                 ),
-                // 「第38周」是演示值（§6.1）。无训练历史时不渲染这一行。
-                if (weekIndex != null)
-                  Text(
-                    '第$weekIndex周',
-                    key: const Key('training-hero-week'),
-                    style: LfText.caption.copyWith(color: c.mutedForeground),
+                // 【R-6 + R-1 同款兜底】区间比「第N周」长（2.0× / 360dp
+                // 实测溢出 19px）：Flexible + FittedBox 等比缩小，不裁不溢。
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      weekRangeText,
+                      key: const Key('training-hero-week'),
+                      style: LfText.caption.copyWith(color: c.mutedForeground),
+                      maxLines: 1,
+                    ),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: LfDimens.spaceMedium),
@@ -439,40 +448,98 @@ class TrainingActiveBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              const _PulseDot(),
-              const SizedBox(width: LfDimens.spaceSmall),
-              Text(
-                '进行中',
-                style: LfText.caption.copyWith(
-                  color: c.primaryForeground,
-                  fontWeight: FontWeight.w500,
+              // 【v2（design/round8/training-banner-v2.html，2026-10-30 用户
+              // 批准实施）】「进行中」收进白色胶囊：深绿底上白描边一眼可辨，
+              // 不再是深浅几乎相同的两行小字。
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: LfColors.onMedia.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(LfDimens.radiusFull),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const _PulseDot(),
+                    const SizedBox(width: 6),
+                    Text(
+                      '进行中',
+                      style: LfText.micro.copyWith(
+                        color: LfColors.onMedia,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const Spacer(),
-              Text(
-                '已记录 $completedSets 组',
-                style: LfText.caption.copyWith(
-                  color: c.primaryForeground.withValues(alpha: 0.8),
+              // 有计划分母时右上写「还剩 N 组」（v2）；自由训练不给分母，
+              // 这里就不出现——不编一个「还剩」。
+              if (plannedSets != null && plannedSets! > 0)
+                Text(
+                  '还剩 ${(plannedSets! - completedSets).clamp(0, plannedSets!)} 组',
+                  style: LfText.caption.copyWith(
+                    color: LfColors.onMedia.withValues(alpha: 0.85),
+                  ),
+                )
+              else
+                Text(
+                  '已记录 $completedSets 组',
+                  style: LfText.caption.copyWith(
+                    color: LfColors.onMedia.withValues(alpha: 0.85),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: LfDimens.spaceSmall),
           Text(
             sessionName,
             key: const Key('training-active-name'),
-            style: LfText.titleLarge.copyWith(color: c.primaryForeground),
+            style: LfText.titleLarge.copyWith(color: LfColors.onMedia),
+          ),
+          // ── N / M 组大数字对（v2）──────────────────────────────────
+          // 旧版只有右上角一句「已记录 N 组」小字；v2 把它升级成主读数，
+          // 与热量卡「值 + 分母」同一读法。分母缺失（自由训练 / 计划已删）
+          // 时只写「已记录 N 组」，不编分母。
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '$completedSets',
+                key: const Key('training-active-sets'),
+                style: LfText.displayXLarge.copyWith(
+                  color: LfColors.onMedia,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                plannedSets != null && plannedSets! > 0
+                    ? '/ ${plannedSets!} 组'
+                    : '组已记录',
+                style: LfText.caption.copyWith(
+                  color: LfColors.onMedia.withValues(alpha: 0.85),
+                ),
+              ),
+            ],
           ),
           if (progress != null) ...[
-            const SizedBox(height: LfDimens.spaceMedium),
+            const SizedBox(height: LfDimens.spaceSmall),
             ClipRRect(
               borderRadius: BorderRadius.circular(LfDimens.radiusFull),
               child: LinearProgressIndicator(
                 key: const Key('training-active-progress'),
                 value: progress,
                 minHeight: 6,
-                backgroundColor: c.primaryForeground.withValues(alpha: 0.2),
-                valueColor: AlwaysStoppedAnimation<Color>(c.primaryForeground),
+                backgroundColor: LfColors.onMedia.withValues(alpha: 0.25),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  LfColors.onMedia,
+                ),
               ),
             ),
           ],
@@ -481,23 +548,22 @@ class TrainingActiveBanner extends StatelessWidget {
             spacing: LfDimens.spaceSmall,
             runSpacing: LfDimens.spaceSmall,
             children: [
-              // 【刻意保留手写反色档】这两颗压在**品牌实色 hero** 上：主题给的
-              // 实心档是 mint-600（与 hero 底同色系，会糊成一片），文字档是
-              // 品牌字色（在近黑底上不可读）。§3.8 没有「反色档」，所以这里
-              // 保留显式反色（白底 + mint-700 字 / 白字 + 15% 白底），是
-              // 与 `_AlbumBadge` 同类的「压在图上」例外，不是未收敛的散件。
+              // 【刻意保留手写反色档】这两颗压在**品牌深绿 hero** 上：主题给
+              // 的实心档与 hero 底同色系会糊成一片；§3.8 的「压在图上」例外
+              // 与本件同源（与 `_AlbumBadge` 同一取舍）。
               FilledButton.icon(
                 key: const Key('cta-continue-session'),
                 onPressed: onResume,
                 style: FilledButton.styleFrom(
-                  backgroundColor: c.primaryForeground,
-                  foregroundColor: LfColors.mint(brightness).tone(700),
+                  backgroundColor: LfColors.onMedia,
+                  foregroundColor: LfColors.brandStrong(brightness),
                   padding: const EdgeInsets.symmetric(
                     horizontal: LfDimens.spaceLarge,
                     vertical: LfDimens.spaceSmall,
                   ),
                   textStyle: LfText.caption,
                   minimumSize: const Size(0, LfDimens.minTouchTarget),
+                  shape: const StadiumBorder(),
                 ),
                 icon: const Icon(Icons.play_arrow, size: 14),
                 label: const Text('继续训练'),
@@ -506,14 +572,15 @@ class TrainingActiveBanner extends StatelessWidget {
                 key: const Key('training-session-detail'),
                 onPressed: onOpenDetail,
                 style: TextButton.styleFrom(
-                  foregroundColor: c.primaryForeground,
-                  backgroundColor: c.primaryForeground.withValues(alpha: 0.15),
+                  foregroundColor: LfColors.onMedia,
+                  backgroundColor: LfColors.onMedia.withValues(alpha: 0.18),
                   padding: const EdgeInsets.symmetric(
                     horizontal: LfDimens.spaceLarge,
                     vertical: LfDimens.spaceSmall,
                   ),
                   textStyle: LfText.caption,
                   minimumSize: const Size(0, LfDimens.minTouchTarget),
+                  shape: const StadiumBorder(),
                 ),
                 iconAlignment: IconAlignment.end,
                 icon: const Icon(Icons.chevron_right, size: 14),
@@ -561,7 +628,6 @@ class _PulseDotState extends State<_PulseDot>
 
   @override
   Widget build(BuildContext context) {
-    final c = context.lf;
     // reducedMotion（docs/21 §5.8.3）：关掉动画时保留实心点（信息不丢，
     // 只是不动）。
     final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
@@ -569,8 +635,8 @@ class _PulseDotState extends State<_PulseDot>
       return Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(
-          color: c.primaryForeground,
+        decoration: const BoxDecoration(
+          color: LfColors.onMedia,
           shape: BoxShape.circle,
         ),
       );
@@ -581,8 +647,8 @@ class _PulseDotState extends State<_PulseDot>
       child: Container(
         width: 8,
         height: 8,
-        decoration: BoxDecoration(
-          color: c.primaryForeground,
+        decoration: const BoxDecoration(
+          color: LfColors.onMedia,
           shape: BoxShape.circle,
         ),
       ),
@@ -814,9 +880,9 @@ class TrainingPlanCard extends StatelessWidget {
 /// `.plan-days` + `.plan-today`）：七枚 31dp 圆签 + 一行今日状态。
 ///
 /// 三档取色按 A 的 `.day-chip`（`styles.css:351-353`）：计划日 = 品牌浅底 +
-/// 强调字；今天 = **品牌实心底** + 主按钮前景（A 写的是 `--brand-strong`
-/// 实底——本仓的「实心品牌」角色是 `primary`/`primaryForeground`，见
-/// `LfPrimaryButton`，不在这里硬写色值）；其余 = 轨道底 + 次文。
+/// 强调字；今天 = **品牌实心底** + 反色字（`brandStrong`/`onBrandStrong`，
+/// 与 `LfPrimaryButton` 同档——【2026-10-29】旧档 primary + #10271D 深字
+/// 属「绿底深字看不清」类）；其余 = 轨道底 + 次文。
 ///
 /// 圆签用 `minWidth/minHeight` 而不是死高 31：大字档下字符本身会长，
 /// 固定盒会把「一」挤成溢出（A 无此档位）。
@@ -860,7 +926,7 @@ class _PlanWeekdaysRow extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: n == todayWeekday
-                        ? c.primary
+                        ? LfColors.brandStrong(Theme.of(context).brightness)
                         : planWeekdays.contains(n)
                         ? brandSoft
                         : c.muted,
@@ -870,7 +936,7 @@ class _PlanWeekdaysRow extends StatelessWidget {
                     workoutWeekdayLabel(n),
                     style: LfText.micro.copyWith(
                       color: n == todayWeekday
-                          ? c.primaryForeground
+                          ? LfColors.onBrandStrong(Theme.of(context).brightness)
                           : planWeekdays.contains(n)
                           ? LfColors.mintText(Theme.of(context).brightness)
                           : c.mutedForeground,
@@ -1015,7 +1081,7 @@ class _PlannedExerciseRow extends StatelessWidget {
 class TrainingWeekStatsCard extends StatelessWidget {
   const TrainingWeekStatsCard({
     super.key,
-    required this.weekIndex,
+    required this.weekRangeText,
     required this.finishedCount,
     required this.totalDuration,
     required this.totalKcal,
@@ -1024,7 +1090,7 @@ class TrainingWeekStatsCard extends StatelessWidget {
     required this.onOpenRecords,
   });
 
-  final int? weekIndex;
+  final String weekRangeText;
   final int finishedCount;
   final Duration totalDuration;
   final double? totalKcal;
@@ -1058,10 +1124,17 @@ class TrainingWeekStatsCard extends StatelessWidget {
                   style: LfText.title.copyWith(color: c.cardForeground),
                 ),
               ),
-              if (weekIndex != null)
-                Text(
-                  '第$weekIndex周',
-                  style: LfText.micro.copyWith(color: c.mutedForeground),
+              // 【R-6】区间恒渲染（描述本周统计窗口，与历史无关）。
+              if (weekRangeText.isNotEmpty)
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      weekRangeText,
+                      style: LfText.micro.copyWith(color: c.mutedForeground),
+                      maxLines: 1,
+                    ),
+                  ),
                 ),
             ],
           ),

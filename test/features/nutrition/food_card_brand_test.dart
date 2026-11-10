@@ -57,7 +57,49 @@ void main() {
       expect(find.textContaining('叮咚'), findsOneWidget);
     });
 
-    testWidgets('品牌内联在同一行：行高不变（56 ± 0.5）', (tester) async {
+    /// 【需求 18（2026-10-25 用户）】品牌要放**名称的下一行**。
+    ///
+    /// 2026-10-08 的「单行三件」把品牌做成行内 ` · 品牌`（R8 也是那么修的），
+    /// 用户 2026-10-25 要求反过来：品牌单独一行，名称那一行只放名称。
+    /// 本组断言随之反转（R8 的「内联」不再成立），但**行高契约不丢**：
+    /// 名称 + 品牌两行文字仍装得进 40dp 图标高度（14×1.35 + 11×1.4 ≈ 34），
+    /// 所以 56 的行高与 `SliverPrototypeExtentList` 的已知行高保护不变。
+    testWidgets('品牌在名称的下一行（不是同一行）', (tester) async {
+      await tester.pumpWidget(
+        host(
+          SizedBox(
+            width: 360,
+            child: FoodCard(
+              key: const Key('card-next'),
+              id: 'nx',
+              name: '米饭',
+              brand: '千丰香米',
+              category: FoodCategory.staple,
+              kcalPer100g: 338,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final name = tester.getRect(find.byKey(const Key('food-card-name-nx')));
+      final brand = tester.getRect(find.byKey(const Key('food-card-brand-nx')));
+      expect(
+        brand.top,
+        greaterThanOrEqualTo(name.bottom - 0.5),
+        reason:
+            '品牌必须在名称**下一行**（name.bottom=${name.bottom} / brand.top=${brand.top}）',
+      );
+      expect(brand.left, closeTo(name.left, 1.0), reason: '两行左缘对齐（同一起始列，不是缩进）');
+      // 不再是行内 ` · 品牌` 那种带前导分隔点的写法。
+      expect(
+        tester.widget<Text>(find.byKey(const Key('food-card-brand-nx'))).data,
+        '千丰香米',
+        reason: '独立成行后不该再带 ` · ` 前缀（那是行内形态的分隔符）',
+      );
+    });
+
+    testWidgets('品牌换行后行高仍恒为 56（有/无品牌一致）', (tester) async {
       await tester.pumpWidget(
         host(
           SizedBox(

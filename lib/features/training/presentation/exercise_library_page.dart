@@ -223,6 +223,7 @@ final class _ExerciseLibraryPageState extends State<ExerciseLibraryPage> {
               results: _results,
               queryKey: '$_committedQuery|${_muscleFilter?.name ?? ''}',
               onExerciseTap: _openExerciseDetail,
+              onCreateExercise: _openCreateExerciseDialog,
             ),
           ),
         ],
@@ -265,11 +266,15 @@ final class _ExerciseLibraryGrid extends StatelessWidget {
     required this.results,
     required this.queryKey,
     required this.onExerciseTap,
+    this.onCreateExercise,
   });
 
   final Future<List<ExerciseRecord>> results;
   final String queryKey;
   final void Function(ExerciseRecord) onExerciseTap;
+
+  /// E-1：空态的「新建自定义动作」（与右上角 ➕ 同一条流程）。null = 不画。
+  final VoidCallback? onCreateExercise;
 
   @override
   Widget build(BuildContext context) {
@@ -284,10 +289,19 @@ final class _ExerciseLibraryGrid extends StatelessWidget {
           );
         }
         if (records == null || records.isEmpty) {
-          return const LfEmptyState(
+          // E-1（docs/64）：空态给一个能做的事——搜不到 ≠ 不能建。
+          return LfEmptyState(
             icon: Icons.search_off,
             title: '没有匹配的本地动作。',
             message: '换个关键词，或新建一个自定义动作。',
+            action: onCreateExercise == null
+                ? null
+                : LfTextButton(
+                    key: const Key('exercise-library-empty-action'),
+                    icon: Icons.add,
+                    label: '新建自定义动作',
+                    onPressed: onCreateExercise,
+                  ),
           );
         }
         // 动作库也挂常显滑条（docs/28 §8.3）：约 300 条一屏看不完，

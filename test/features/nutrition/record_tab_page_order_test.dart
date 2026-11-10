@@ -153,8 +153,6 @@ void main() {
             selectedDate: DateTime(2026, 9, 9),
             now: now,
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             onAddToSlot: (_) {},
             loadTrend: (days, endDate) async =>
                 const TrendCalculator().calculate(

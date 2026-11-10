@@ -107,6 +107,47 @@ void main() {
     expect(find.text('已保存 1 条记忆。'), findsOneWidget);
   });
 
+  // 需求 16b（2026-10-25 用户：已添加的候选仍会出现）：保存过的候选，
+  // 再次提炼时**不再列出来**；新的仍要列；相近但不同的也仍要列
+  // （那是「要不要更新旧记忆」的有效提示，不能一起滤掉）。
+  testWidgets('16b：已保存的候选再次提炼时不再出现（新的仍出现）', (tester) async {
+    await seedHistory();
+    // 先存一条「不吃香菜」——就像用户上一轮点过保存。
+    await memoryRepository.remember(text: '不吃香菜');
+    service.reply =
+        '{"reply":"找到 2 条","candidates":['
+        '{"text":"不吃香菜","kind":"preference","domain":"nutrition"},'
+        '{"text":"周三晚上练腿","kind":"habit","domain":"training"}]}';
+    await pumpPage(tester);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('ai-chat-end-session')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('不吃香菜'),
+      findsNothing,
+      reason: '已存过的候选不该再列一遍（用户：「已添加的候选仍会出现」）',
+    );
+    expect(find.text('周三晚上练腿'), findsOneWidget, reason: '新的候选仍要列');
+  });
+
+  testWidgets('16b：候选全已存在时如实说明，不弹空弹层', (tester) async {
+    await seedHistory();
+    await memoryRepository.remember(text: '不吃香菜');
+    service.reply =
+        '{"reply":"找到 1 条","candidates":['
+        '{"text":"不吃香菜","kind":"preference","domain":"nutrition"}]}';
+    await pumpPage(tester);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('ai-chat-end-session')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('ai-memory-candidate-save')), findsNothing);
+    expect(find.textContaining('都已经在记忆里'), findsOneWidget);
+  });
+
   testWidgets('提炼：模型说没有 → 只有提示，不弹候选', (tester) async {
     await seedHistory();
     service.reply = '{"reply":"这段对话没有值得长期记住的内容。","candidates":[]}';

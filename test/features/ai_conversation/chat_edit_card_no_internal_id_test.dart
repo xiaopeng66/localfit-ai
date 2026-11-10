@@ -114,7 +114,7 @@ void main() {
   });
 
   group('正常文案不被误伤', () {
-    testWidgets('记一餐的子条目仍是「食物 · 克数」', (tester) async {
+    testWidgets('记一餐的子条目仍有食物名和克数', (tester) async {
       final subtitle = await subtitleOf(
         tester,
         cmd('meal.create', {

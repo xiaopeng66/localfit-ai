@@ -150,6 +150,26 @@ class Foods extends Table {
   // categoryGroup/categorySub 两列已由 schema 30 DROP——分类是唯一指标
   // （category 10 枚举），导入期翻译见 FoodCategory._libraryGroups。
 
+  // ── schema 31（docs/67，纯加法）───────────────────────────────────────
+  /// 当前**生效**的营养修订 id（`food_nutrition_revisions.id`）。
+  ///
+  /// 四项营养列是这条修订的查询投影，不是第二个事实：任何营养修改必须在
+  /// 同一事务里「追加修订 → 切换本指针 → 同步四项投影」。空 = 还没有完整
+  /// 生效修订（历史不完整条目），此时该食物不可参与严格营养计算。
+  ///
+  /// **不加外键**：修订与食物互相引用会形成环，删除顺序交给服务层。
+  TextColumn get currentRevisionId => text().nullable()();
+
+  /// 变体父条目：同做法不同份量共享一条主食物；做法/配方真的不同才建变体。
+  /// 空 = 独立条目。**只记录关系，不继承营养**。
+  TextColumn get variantOfFoodId => text().nullable()();
+
+  /// 做法/生熟说明（"偏油""生重""熟重"）。只用于区分身份与检索，不参与计算。
+  TextColumn get cookingNote => text().nullable()();
+
+  /// 归档时间：归档后不再出现在新挂窗/推荐里，但历史餐与既有供应照旧可读。
+  DateTimeColumn get archivedAt => dateTime().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -194,6 +214,40 @@ class FoodNutritionRevisions extends Table {
   DateTimeColumn get validFrom => dateTime().nullable()();
   DateTimeColumn get validTo => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
+
+  // ── schema 31（docs/67 §3.2，纯加法）──────────────────────────────────
+  /// 这一修订**原始录入口径**：`per100g` | `perServing`。
+  ///
+  /// 四项数值永远是每 100g；本列只记录"这些数是从什么口径换算来的"，
+  /// 让「每份 400 千卡 ÷ 250g」这类历史换算可解释，不能只留换算结果。
+  TextColumn get nutritionBasis =>
+      text().withDefault(const Constant('per100g'))();
+
+  /// 原始口径是 perServing 时，换算所用的每份克数。
+  RealColumn get basisServingGrams => real().nullable()();
+
+  /// 换算用的每份克数本身是假设值（历史回填 100g）时为 true。
+  BoolColumn get basisAssumed => boolean().withDefault(const Constant(false))();
+
+  /// 来源：`user_input` | `food_library` | `ai_estimate` | `label` |
+  /// `legacy_migration` | `import` | `manual`。来源不是准确性保证。
+  TextColumn get origin => text().withDefault(const Constant('manual'))();
+
+  /// 是否为 AI/人工估算（不是称重或标签事实）。
+  BoolColumn get isEstimated => boolean().withDefault(const Constant(false))();
+
+  /// 单位明确的微量营养（每 100g）。旧值只有单位可确认时才换算；未知留空，
+  /// **不填零**。
+  RealColumn get fiberPer100g => real().nullable()();
+  RealColumn get sodiumMgPer100g => real().nullable()();
+  RealColumn get vitaminDMcgPer100g => real().nullable()();
+
+  /// 原始录入值（JSON）：换算前的四项/微量原值、原口径与说明。
+  /// 只做保全与查看，不参与计算。
+  TextColumn get rawValuesJson => text().nullable()();
+
+  /// 归一规则版本（如 `legacy-nutrition-v1`）；非归一写入为 null。
+  TextColumn get conversionVersion => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -403,6 +457,21 @@ class MealItems extends Table {
   /// foods.id / dish_library.id / menu_items.id；无来源时 null。
   TextColumn get sourceId => text().nullable()();
 
+  // ── schema 31（docs/67 §4.3，纯加法）─────────────────────────────────
+  /// 本次记餐的食堂供应 id（`menu_items.id`）。空 = 不是按供应记的。
+  /// **不加外键**：供删除后历史餐仍要能显示原快照。
+  TextColumn get supplyId => text().nullable()();
+
+  /// 当时使用的营养修订 id（`food_nutrition_revisions.id`）。
+  /// 之后主修订变化**不重算**本行；本列只用于解释"当时按什么算的"。
+  TextColumn get nutritionRevisionId => text().nullable()();
+
+  /// 本次份数（可空）。`克数 = 份数 × 该供应每份克数`。
+  RealColumn get servings => real().nullable()();
+
+  /// 当时的每份克数依据（供应的份量；按份记餐时非空）。
+  RealColumn get servingGrams => real().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -538,6 +607,23 @@ class MenuItems extends Table {
   /// 配料 JSON：`[{name, source, confidence}]`，source = user|ai|dictionary。
   /// **过敏原不单独存，由食材推导**（docs/40 §2.5）。
   TextColumn get ingredientsJson => text().withDefault(const Constant('[]'))();
+
+  // ── schema 31（docs/67 §3.3，纯加法）──────────────────────────────────
+  /// 权威主食物引用（`foods.id`）。空 = 待分析供应（可先保存，不要求假营养）。
+  ///
+  /// 链接后当前营养一律从主食物的生效修订派生，本表**不再存一份可编辑的
+  /// 每份热量/宏量副本**。删除限制：主食物仍被引用时不能硬删（归档）。
+  TextColumn get foodId => text().nullable().references(Foods, #id)();
+
+  /// 每份克数的可信度：`known` | `estimated` | `unknown`。
+  /// 只存了一个数字不等于可信——历史行回填为 `unknown`（见迁移）。
+  TextColumn get servingGramsStatus =>
+      text().withDefault(const Constant('unknown'))();
+
+  /// 每份克数来源：`weighed` | `user_input` | `label` | `ai_estimate` |
+  /// `legacy_unverified` | `legacy_unknown`。
+  TextColumn get servingGramsSource =>
+      text().withDefault(const Constant('legacy_unknown'))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -809,6 +895,75 @@ class DishLibrary extends Table {
 
   /// 用户改过营养/份量：同步时只提示、不覆盖。
   BoolColumn get userEdited => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// 旧实体 → 统一主库的**迁移台账**（docs/67 §3.4）。
+///
+/// 这不是第四个营养库：它只记录"这条旧记录去哪了、为什么没换算、原始值
+/// 长什么样"。`(legacyKind, legacyId)` 唯一，重跑迁移不会给同一旧键造出
+/// 第二条主食物；旧数据被改过（指纹变化）时也不能靠"已迁移"标记跳过冲突。
+///
+/// `legacyKind`：`dish_library` | `menu_item` | `menu_evidence`。
+/// `outcome`：`converted` | `reused` | `needs_completion` | `conflict`。
+@TableIndex(
+  name: 'idx_legacy_entity_mappings_key',
+  columns: {#legacyKind, #legacyId},
+  unique: true,
+)
+@TableIndex(name: 'idx_legacy_entity_mappings_food_id', columns: {#foodId})
+@DataClassName('LegacyEntityMappingRow')
+class LegacyEntityMappings extends Table {
+  TextColumn get id => text()();
+  TextColumn get legacyKind => text()();
+  TextColumn get legacyId => text()();
+
+  /// 旧行内容指纹（归一化前的稳定 JSON 的 FNV-1a 十六进制）。
+  /// 指纹变了 = 旧数据被改过，必须重新裁决，不能沿用旧结论。
+  TextColumn get sourceFingerprint => text()();
+
+  /// 归一规则版本（`LegacyNutritionRules.version`）。
+  TextColumn get conversionVersion => text()();
+
+  /// 换算出的主食物 id（可空：待补全/冲突时没有）。
+  TextColumn get foodId => text().nullable()();
+
+  /// 关联的食堂供应 id（`menu_items.id`，可空）。
+  TextColumn get menuItemId => text().nullable()();
+
+  /// `converted` | `reused` | `needs_completion` | `conflict`。
+  TextColumn get outcome => text()();
+
+  /// 机器可读原因码（`assumed_serving` / `missing_fields` / `range_only` /
+  /// `dangling_source` / `duplicate_confirmed_match` / `explicit_conflict`…）。
+  TextColumn get reasonCode => text().nullable()();
+
+  /// 给用户看的待补全原因。
+  TextColumn get reasonText => text().nullable()();
+
+  /// 旧值原始口径：`perServing` | `per100g` | `unknown`。
+  TextColumn get originalBasis => text()();
+
+  /// 旧值原始份量克数（可为 null＝未知）。
+  RealColumn get originalServingGrams => real().nullable()();
+
+  /// 旧值份量是不是假设值（schema 28 回填的 100g）。
+  BoolColumn get basisAssumed => boolean().withDefault(const Constant(false))();
+
+  /// 旧来源标记（manual / ai_estimate / food_library / user_input…）。
+  TextColumn get originalSource => text().nullable()();
+
+  /// 旧行是否被用户改过。
+  BoolColumn get userEdited => boolean().withDefault(const Constant(false))();
+
+  /// 原始资料保全 JSON：原四项/微量值、点评、图片路径、来源文本等。
+  /// 必须能在界面上被读到，只落库不展示不算保全完成。
+  TextColumn get preservedJson => text()();
+
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

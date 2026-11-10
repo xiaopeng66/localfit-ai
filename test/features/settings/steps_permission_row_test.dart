@@ -250,10 +250,16 @@ void main() {
         find.byKey(const Key('steps-permission-sheet-body')),
         findsOneWidget,
       );
-      // 弹层正文必须同时说清「在哪取消」与「取消后会怎样」。
-      expect(find.textContaining('在系统设置里关闭「身体活动」权限'), findsOneWidget);
-      expect(find.textContaining('步数卡显示「未授权」'), findsOneWidget);
-      expect(find.textContaining('其余功能不受影响'), findsOneWidget);
+      // 【v2（design/round8/steps-sheet-v2.html）】用户要求「不要写那么多
+      // 说明」：原来那段「在哪取消 / 取消后会怎样」的整段撤下，压成
+      // 状态一句话 + 一行提示；「去系统设置」按钮本身是唯一出口。
+      expect(find.textContaining('未授权'), findsWidgets);
+      expect(find.textContaining('授权后自动开始读取'), findsWidgets);
+      expect(
+        find.byKey(const Key('cta-open-app-settings')),
+        findsOneWidget,
+        reason: '「去系统设置」仍是撤销授权的唯一出口',
+      );
       expect(openSettingsCalls, 0, reason: '只是打开说明弹层，还没到跳转那一步');
 
       await closeDatabase(tester);
@@ -294,11 +300,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('steps-enabled-switch')), findsOneWidget);
+      // 【v2】长注释视觉撤下；「开关 ≠ 撤销系统权限」这条事实保留在
+      // `steps-enabled-note` 的**语义标签**上（读屏能听到完整表述）。
       expect(find.byKey(const Key('steps-enabled-note')), findsOneWidget);
       expect(
-        find.textContaining('系统里的「身体活动」权限仍要在系统设置里单独撤销'),
-        findsOneWidget,
-        reason: '开关 ≠ 撤销系统权限，这句必须写清楚',
+        tester
+            .widget<Semantics>(find.byKey(const Key('steps-enabled-note')))
+            .properties
+            .label,
+        contains('系统里的「身体活动」权限仍要在系统设置里单独撤销'),
+        reason: '开关 ≠ 撤销系统权限，这句必须写清楚（v2 起在语义层）',
       );
       expect(await repo.readEnabled(), isTrue, reason: '默认开启');
 
@@ -319,7 +330,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('settings-steps-permission')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('取消'));
+      // 【v2】弹层不再放「取消」（点遮罩/系统返回即关，与全 App 弹层一致）：
+      // 用返回键模拟用户关闭，验证不跳转、弹层消失。
+      await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
 
       expect(openSettingsCalls, 0);

@@ -138,10 +138,22 @@ void main() {
       tester
           .widget<Text>(find.byKey(const Key('nutrition-record-energy-target')))
           .data,
-      '目标 1,800 kcal',
+      // 【2026-10-25（需求 1）】卡头那行现在是**区间**（大号位）：本用例的
+      // 目标是 1,500–1,800，所以卡头如实写这两个数（原来只写上限 1,800）。
+      // 千分位与页面同一口径。
+      '1,500 – 1,800',
     );
-    expect(find.text('还可摄入 1,350 kcal', findRichText: true), findsOneWidget);
-    // 450/1800 = 0.25：弧长拿未截断的原比例（画不画得满是画家的事）。
+    // 剩余额度是**区间**（需求 1）：1,800−450 与 1,800−450 两条边界。
+    // 已摄入 450 ⇒ 剩余 = 1,500−450 ～ 1,800−450。
+    expect(
+      find.text('还可摄入 1,050–1,350 kcal', findRichText: true),
+      findsOneWidget,
+      reason: '剩余额度也是区间（需求 1）',
+    );
+    // 【2026-10-31 用户三轮定稿（推翻 0.85 余量方案）】刻度回归线性：
+    // ratio = 摄入/上限 = 450/1800 = 0.25；带在环的后段真实位置，
+    // 进度弧深色（brandStrong）——几何契约由 lf_calorie_ring_test 钉住，
+    // 这里钉同一口径在页面接线上没有丢。
     expect(ring(tester).ratio, closeTo(0.25, 1e-9));
   });
 

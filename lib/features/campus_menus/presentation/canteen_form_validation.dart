@@ -25,10 +25,17 @@ String? validateWindowForm(Map<String, String> values) {
   return null;
 }
 
-/// 菜品表单校验：**只剩名称**（2026-10-16 用户删掉价格，字段与规则同批撤）。
+/// 菜品表单校验：名称必填；「一份多少克」可选，填了必须是 0–2000 的数。
 String? validateDishForm(Map<String, String> values) {
   if ((values['canteen-dish-name'] ?? '').trim().isEmpty) {
     return '请填写菜品名称。';
+  }
+  final rawServing = (values['canteen-dish-serving'] ?? '').trim();
+  if (rawServing.isNotEmpty) {
+    final grams = double.tryParse(rawServing);
+    if (grams == null || !grams.isFinite || grams <= 0 || grams > 2000) {
+      return '一份的克数要填 0–2000 之间的数字；不填就按 100g 估算。';
+    }
   }
   return null;
 }

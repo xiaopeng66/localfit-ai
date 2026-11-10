@@ -11,6 +11,14 @@ import 'support/round7_render.dart';
 ///
 /// 4 帧：AI 配置弹层 浅/深 360-1.0 + 浅 320-2.0×、未配置态的 AI 行（浅 360-1.0）。
 void main() {
+  setUp(() {
+    final previousFatal = WidgetController.hitTestWarningShouldBeFatal;
+    WidgetController.hitTestWarningShouldBeFatal = true;
+    addTearDown(() {
+      WidgetController.hitTestWarningShouldBeFatal = previousFatal;
+    });
+  });
+
   Future<void> pumpSettings(
     WidgetTester tester, {
     required bool dark,
@@ -53,6 +61,10 @@ void main() {
   }
 
   testWidgets('AI 配置弹层（浅/深 360 + 浅 320-2.0×）+ 未配置行（4 帧）', (tester) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
     await tester.runAsync(loadRound7Fonts);
 
     // 未配置态的页面段（AI 行显示「未配置」）
@@ -94,7 +106,11 @@ void main() {
       await tester.ensureVisible(
         find.byKey(const Key('settings-ai-model-row')),
       );
-      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pumpAndSettle(const Duration(milliseconds: 60));
+      final backgroundScroll = tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position;
+      final backgroundOffset = backgroundScroll.pixels;
       await tester.tap(find.byKey(const Key('settings-ai-model-row')));
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 60));
@@ -104,21 +120,47 @@ void main() {
         findsOneWidget,
         reason: '$name：AI 配置弹层（API Key 字段）',
       );
+      expect(find.byType(BottomSheet), findsOneWidget);
+      final sheetScrollable = find.ancestor(
+        of: find.byKey(const Key('ai-api-key')),
+        matching: find.byType(Scrollable),
+      );
+      expect(sheetScrollable, findsOneWidget);
+      final sheetScroll = tester
+          .state<ScrollableState>(sheetScrollable)
+          .position;
+      final initialSheetOffset = sheetScroll.pixels;
+      expect(initialSheetOffset, 0, reason: '$name：先检查表单顶部');
       await captureRound7(tester, name);
-      // 弹层内容比一屏长：再拍一帧滚到底的保存行。
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(milliseconds: 60));
+      // 保存行固定在滚动体之外；它存在不能证明表单底部已进入视口。
+      await tester.drag(sheetScrollable, const Offset(0, -400));
+      await tester.pumpAndSettle(const Duration(milliseconds: 60));
+      expect(
+        sheetScroll.pixels,
+        closeTo(sheetScroll.maxScrollExtent, 0.5),
+        reason: '$name：必须把真实弹层内容滚到底',
+      );
+      if (sheetScroll.maxScrollExtent > 0) {
+        expect(sheetScroll.pixels, greaterThan(initialSheetOffset));
       }
-      if (find.byKey(const Key('ai-config-sheet-save')).evaluate().isNotEmpty) {
-        await captureRound7(tester, '$name-bottom');
-      }
+      expect(
+        backgroundScroll.pixels,
+        backgroundOffset,
+        reason: '$name：滚动弹层不能移动后台设置列表',
+      );
+      final bottomNote = find.textContaining('配置仅保存在本机');
+      expect(bottomNote.hitTestable(), findsOneWidget);
+      final bodyRect = tester.getRect(sheetScrollable);
+      final noteRect = tester.getRect(bottomNote);
+      expect(noteRect.top, greaterThanOrEqualTo(bodyRect.top));
+      expect(noteRect.bottom, lessThanOrEqualTo(bodyRect.bottom + 0.5));
+      expect(
+        find.byKey(const Key('ai-config-sheet-save')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull, reason: '$name：底部帧无布局异常');
+      await captureRound7(tester, '$name-bottom');
     }
-
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
-    tester.view.resetPadding();
-    tester.view.resetViewPadding();
   });
 }
 

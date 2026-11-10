@@ -82,12 +82,11 @@ class _FoodReferenceSheetState extends State<FoodReferenceSheet> {
           style: LfText.headline.copyWith(color: c.cardForeground),
         ),
         const SizedBox(height: LfDimens.spaceSmall),
-        Text(
-          // 把「为什么不自动填」一句话说清（docs/40 §3.1 的理由）。
-          '本地匹配到食物库条目。点选要用哪一条（品牌会显示），再点「引用食物库营养」；食堂做法可能不同，也可以走 AI 分析或先不填。',
-          style: LfText.caption.copyWith(color: c.mutedForeground),
-        ),
-        const SizedBox(height: LfDimens.spaceMedium),
+        // 【需求 7（2026-10-25 用户）】标题与卡片之间那句「本地匹配到食物库条目。
+        // 点选要用哪一条（品牌会显示）…」**整句删除**。用户的原话是删掉它；
+        // 它想说的三件事在下文都各有落点：点选（候选行可点）、品牌（行内
+        // 显示）、「不静默填」（底部那句「点哪条就用它的每 100g 数据」）。
+        // 保留同一信息的第二份说法只会让弹层更挤——所以不换一种措辞放回来。
         Flexible(
           child: SingleChildScrollView(
             // `RV4-P2-12`（R6）：候选卡之间必须有间距。原来 `Column` 直排 +
@@ -109,42 +108,57 @@ class _FoodReferenceSheetState extends State<FoodReferenceSheet> {
             ),
           ),
         ),
-        const SizedBox(height: LfDimens.spaceSmall),
-        LfPrimaryButton(
-          key: const Key('food-reference-adopt'),
-          label: '引用食物库营养',
-          onPressed: () => Navigator.of(context).pop(
-            FoodReferenceDecision(
-              choice: FoodReferenceChoice.adopt,
-              candidate: _picked,
-            ),
-          ),
-        ),
-        const SizedBox(height: LfDimens.spaceSmall),
-        // `RV4-P2-12`（R7）：两枚次级动作**并排**（原来上下堆叠占两行）。
-        // 320dp + 2.0× 下两个 `Expanded` 会挤字，所以用 `Wrap` 兜底折行。
-        Wrap(
-          spacing: LfDimens.spaceSmall,
-          runSpacing: LfDimens.spaceXSmall,
+        const SizedBox(height: LfDimens.spaceMedium),
+        // 【需求 7（2026-10-25 用户）】两枚主行动**同一行、同一样式档**。
+        //
+        // 原来是「引用的实心主按钮独占一行 + 让 AI 分析的文字按钮挤在下面
+        // 另一行」——两个都是「这次要怎么定这道菜的营养」的正当选择，把其中
+        // 一个画成次要按钮是在**替用户排序**（用户原话：「两个主按钮同一行、
+        // 样式一致」）。`Flexible`（不是 `Expanded`）让 320dp × 2.0× 下按内容
+        // 收缩、由 `LfPrimaryButton.fitLabel` 兜底缩字，不溢出。
+        Row(
           children: [
-            LfTextButton(
-              key: const Key('food-reference-analyze'),
-              icon: Icons.auto_awesome_outlined,
-              label: '让 AI 重新分析',
-              onPressed: () => Navigator.of(context).pop(
-                const FoodReferenceDecision(
-                  choice: FoodReferenceChoice.analyze,
+            Flexible(
+              child: LfPrimaryButton(
+                key: const Key('food-reference-adopt'),
+                label: '引用食物库营养',
+                fitLabel: true,
+                onPressed: () => Navigator.of(context).pop(
+                  FoodReferenceDecision(
+                    choice: FoodReferenceChoice.adopt,
+                    candidate: _picked,
+                  ),
                 ),
               ),
             ),
-            LfTextButton(
-              key: const Key('food-reference-skip'),
-              label: '先不填',
-              onPressed: () => Navigator.of(context).pop(
-                const FoodReferenceDecision(choice: FoodReferenceChoice.skip),
+            const SizedBox(width: LfDimens.spaceSmall),
+            Flexible(
+              child: LfPrimaryButton(
+                key: const Key('food-reference-analyze'),
+                label: '让 AI 重新分析',
+                icon: Icons.auto_awesome_outlined,
+                fitLabel: true,
+                onPressed: () => Navigator.of(context).pop(
+                  const FoodReferenceDecision(
+                    choice: FoodReferenceChoice.analyze,
+                  ),
+                ),
               ),
             ),
           ],
+        ),
+        // 【需求 7】「先不填」= 不做选择，是**出口**不是第三个选项，用户点名
+        // 要它落在**右下角**（与全仓弹层的「取消」同一位置语义）。
+        const SizedBox(height: LfDimens.spaceXSmall),
+        Align(
+          alignment: Alignment.centerRight,
+          child: LfTextButton(
+            key: const Key('food-reference-skip'),
+            label: '先不填',
+            onPressed: () => Navigator.of(context).pop(
+              const FoodReferenceDecision(choice: FoodReferenceChoice.skip),
+            ),
+          ),
         ),
         const SizedBox(height: LfDimens.spaceSmall),
         // `RV4-P2-12`（R7）：来源/证据双徽标**删掉**——弹层在「决策前」，

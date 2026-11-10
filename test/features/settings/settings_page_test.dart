@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
+import 'package:localfit_ai/app/app_version.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/features/nutrition/data/catalog_bootstrap.dart';
@@ -19,7 +22,10 @@ import 'package:localfit_ai/features/settings/domain/ai_provider_protocol.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_settings.dart';
 import 'package:localfit_ai/features/settings/domain/ai_reasoning_mode.dart';
 import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
+import 'package:localfit_ai/features/settings/application/app_update_service.dart';
 import 'package:localfit_ai/features/settings/presentation/settings_page.dart';
+
+import '../../support/update_download_fixture.dart';
 
 void main() {
   /// 新版「我的」页比旧版高（身份卡 + 健康数据 + 成就 + 4 个分组）：
@@ -217,8 +223,10 @@ void main() {
     );
     expect(
       clear.style?.foregroundColor?.resolve(<WidgetState>{}),
-      LfSemanticColors.light.error,
-      reason: '破坏性动作用 error 字色的文字按钮（B7）',
+      // 2026-11-09：B7 字色改为文字档 errorText——填充档 error 当 14px
+      // 正文在白卡上只有 3.68:1（压 muted 3.29:1），低于 AA 4.5:1。
+      LfSemanticColors.light.errorText,
+      reason: '破坏性动作用 errorText 字色的文字按钮（B7）',
     );
   });
 
@@ -235,7 +243,7 @@ void main() {
     await tester.tap(find.byKey(const Key('settings-ai-model-row')));
     await tester.pumpAndSettle();
     // 说明文案是多行（隐私 + 协议路径说明），按包含式断言。
-    expect(find.textContaining('配置仅保存在本机。保存配置不会上传照片或调用供应商。'), findsOneWidget);
+    expect(find.textContaining('配置仅保存在本机；端点格式见'), findsOneWidget);
     // 协议选择器在弹层里（docs/24 §2）：默认 Chat Completions＝旧行为。
     expect(find.byKey(const Key('ai-protocol')), findsOneWidget);
     await tester.tap(find.text('取消'));
@@ -354,14 +362,15 @@ void main() {
     // 它说没。本页已有的「所有数据仅保存在这台设备」+ 数据来源清单才是
     // 本仓的诚实说法。这条 findsNothing 是它的哨兵。
     expect(find.text('本地优先'), findsNothing);
-    // A 的 `.page-end`：品牌句（原来只有版本行）。
+    // 2026-11-02：页脚只留版本；品牌句与重复警告撤下。
     await tester.scrollUntilVisible(
-      find.text('让每一次记录，回到你自己。'),
+      find.textContaining('LocalFit AI v'),
       400,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('让每一次记录，回到你自己。'), findsOneWidget);
+    expect(find.textContaining('LocalFit AI v'), findsOneWidget);
+    expect(find.text('让每一次记录，回到你自己。'), findsNothing);
   });
 
   // 【测试退役，2026-10-24 用户裁决】原「lists third-party food data sources
@@ -547,10 +556,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// 关于分组（docs/21 §5.6 📱）：版本号按注入值如实显示，没注入就说未知。
+  /// 关于分组（docs/21 §5.6 📱）：版本号按注入值如实显示。
   /// 「帮助文档 / 反馈」两个入口必须真能打开弹层——只渲染一个点了没反应的
   /// 按钮，就是这条规范最常见的假完成形态。
-  testWidgets('关于分组：版本未知时不编号，帮助与反馈可打开', (tester) async {
+  ///
+  /// 【2026-10-25 断言语义变更（17c，强度不降）】原断言是「未注入时显示
+  /// 『版本未知』」。用户实测看到那句「版本未知」，追根因是我构建 APK 时漏传
+  /// `--dart-define=APP_VERSION=`。改法不是把话写好看，而是让「没有版本」这个
+  /// 状态**不再存在**：版本回落到随包常量（`lib/app/app_version.dart`，它与
+  /// pubspec 的 `+构建号` 由 `test/release/app_version_test.dart` 钉住）。
+  /// 于是原来那条「不得编造版本字符串」的断言被**替换**为更强的两条：不许出现
+  /// 「版本未知」+ 必须有一个真实 v 号上屏。
+  testWidgets('关于分组：版本号永远有值（未注入时用随包版本），帮助与反馈可打开', (tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(
       MaterialApp(
@@ -561,9 +578,16 @@ void main() {
     await scrollToKey(tester, const Key('settings-version-row'));
 
     expect(find.text('关于'), findsOneWidget);
-    expect(find.text('版本未知'), findsOneWidget);
-    // 没有版本号时不得编造一个版本字符串。
-    expect(find.textContaining('LocalFit AI '), findsNothing);
+    expect(
+      find.text('版本未知'),
+      findsNothing,
+      reason: '17c：这句是「构建漏传 define」的产物，不该再出现在界面上',
+    );
+    expect(
+      find.text('v$kAppVersionFallback'),
+      findsOneWidget,
+      reason: '未注入时回落到随包版本号——真实构建号，不是编的',
+    );
 
     await tester.ensureVisible(find.byKey(const Key('about-help')));
     await tester.tap(find.byKey(const Key('about-help')));
@@ -587,13 +611,404 @@ void main() {
     expect(find.text('当前版本不联网'), findsNothing);
   });
 
+  // 需求 17b（docs/60 §12.2）：检查更新**真做事**（原来是假按钮，只弹一句
+  // 「不会联网检查更新」）。这里用注入的服务 + 打桩 HTTP 驱动整条链：
+  // 查最新版 → 有新版就弹一层说明 + 「下载并安装」。
+  testWidgets('17b：有新版时检查更新弹「发现新版本」并给下载按钮', (tester) async {
+    useTallViewport(tester);
+    const channel = MethodChannel('localfit/platform');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'deviceInfo') {
+            return <Object?, Object?>{
+              'model': 'Test Device',
+              'androidVersion': '15',
+              'sdkInt': 35,
+              'versionCode': 6073,
+              'abi': 'x86_64',
+            };
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) => handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            statusCode: 200,
+            data: {
+              'tag_name': 'v6074',
+              'assets': [
+                {
+                  'name': 'LocalFitAI-vc6074-x86_64-emulator.apk',
+                  'browser_download_url': 'https://example.com/a.apk',
+                  'size': 41000000,
+                },
+              ],
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          settingsStore: _FakeAiProviderSettingsStore(),
+          appUpdateService: AppUpdateService(dio: dio),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-check-update')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-check-update')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('update-available-sheet')), findsOneWidget);
+    expect(find.textContaining('v6074'), findsWidgets);
+    expect(
+      find.byKey(const Key('update-download-install')),
+      findsOneWidget,
+      reason: '要有真的会下载的按钮（不是一句说明就完）',
+    );
+  });
+
+  testWidgets('快速连点检查更新只发一次请求、只开一层更新确认', (tester) async {
+    useTallViewport(tester);
+    final download = UpdateDownloadFixture();
+    addTearDown(download.dispose);
+    final waiting = <(RequestOptions, RequestInterceptorHandler)>[];
+    download.dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) => waiting.add((options, handler)),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          settingsStore: _FakeAiProviderSettingsStore(),
+          appUpdateService: download.service,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final check = find.byKey(const Key('settings-check-update'));
+    await tester.scrollUntilVisible(
+      check,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(check);
+    await tester.tap(check);
+    await tester.pump();
+    await pumpDownloadUntil(tester, () => waiting.isNotEmpty);
+    final requestCount = waiting.length;
+    for (final (options, handler) in waiting) {
+      handler.resolve(
+        Response<dynamic>(
+          requestOptions: options,
+          statusCode: 200,
+          data: {
+            'tag_name': 'v4074',
+            'assets': [
+              {
+                'name': UpdateDownloadFixture.asset.name,
+                'browser_download_url': UpdateDownloadFixture.asset.downloadUrl,
+                'size': 4 * 1024 * 1024,
+              },
+            ],
+          },
+        ),
+      );
+    }
+    await tester.pumpAndSettle();
+    expect(requestCount, 1, reason: '检查期间连点不能叠下载流程、争写同一个 APK');
+    expect(
+      find.byKey(const Key('update-available-sheet'), skipOffstage: false),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('以后再说'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('update-available-sheet')), findsNothing);
+  });
+
+  for (final outcome in ['cancelled', 'started', 'needPermission', 'failed']) {
+    testWidgets('检查更新完整入口：进度可见并如实呈现 $outcome', (tester) async {
+      useTallViewport(tester);
+      final download = UpdateDownloadFixture()..installOutcome = outcome;
+      addTearDown(download.dispose);
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 80)),
+        );
+      });
+      download.dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            if (options.uri.toString() != AppUpdateService.releasesLatestUrl) {
+              handler.next(options);
+              return;
+            }
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'tag_name': 'v4074',
+                  'assets': [
+                    {
+                      'name': UpdateDownloadFixture.asset.name,
+                      'browser_download_url':
+                          UpdateDownloadFixture.asset.downloadUrl,
+                      'size': 4 * 1024 * 1024,
+                    },
+                  ],
+                },
+              ),
+            );
+          },
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SettingsPage(
+            settingsStore: _FakeAiProviderSettingsStore(),
+            appUpdateService: download.service,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('settings-check-update')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byKey(const Key('settings-check-update')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('update-download-install')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      download.sendBytes(1024 * 1024);
+      await pumpDownloadUntil(
+        tester,
+        () => find.text('25%').evaluate().isNotEmpty,
+      );
+      expect(find.byKey(const Key('update-download-progress')), findsOneWidget);
+      expect(find.text('已下载 1.0 MB / 共 4.0 MB'), findsOneWidget);
+
+      if (outcome == 'cancelled') {
+        await tester.tap(find.byKey(const Key('update-download-cancel')));
+        await pumpDownloadUntil(tester, () => download.downloadFilesCleared);
+        expect(download.installedPaths, isEmpty);
+      } else {
+        download.sendBytes(3 * 1024 * 1024);
+        download.finish();
+        await pumpDownloadUntil(
+          tester,
+          () => download.installedPaths.isNotEmpty,
+        );
+      }
+      await pumpDownloadUntil(
+        tester,
+        () => find.byKey(const Key('update-download-sheet')).evaluate().isEmpty,
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      final message = switch (outcome) {
+        'cancelled' => '已取消下载',
+        'started' => '下载完成，已交给系统安装',
+        'needPermission' => '允许本应用安装',
+        _ => '系统没能打开安装界面',
+      };
+      expect(find.textContaining(message), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  // 需求 17d（docs/60 §12.3）：帮助文档改成**随包 Markdown**（离线可读、
+  // 复用既有 `LfMarkdown` 渲染器）。
+  testWidgets('17d：帮助文档来自随包 Markdown（不是硬编码问答）', (tester) async {
+    useTallViewport(tester);
+    // 注入正文加载器：`rootBundle` 是 CachingAssetBundle（跨用例互相污染），
+    // 本仓既有做法是注入闭包（见 `bundled_user_food_importer_test.dart`）。
+    // 真实资产的内容由下面那条 `读完随包资产` 的纯 Dart 用例保证。
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          settingsStore: _FakeAiProviderSettingsStore(),
+          helpContentLoader: () async => _fakeHelpMarkdown,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await scrollToKey(tester, const Key('settings-version-row'));
+    await tester.ensureVisible(find.byKey(const Key('about-help')));
+    await tester.tap(find.byKey(const Key('about-help')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('help-markdown')),
+      findsOneWidget,
+      reason: '帮助正文由 Markdown 渲染器渲染（复用既有 LfMarkdown）',
+    );
+    // 内容确实上屏了（几节标题都在）。
+    for (final heading in const [
+      '数据存在哪里？',
+      'AI 会直接改我的数据吗？',
+      '怎么记一餐？',
+      '热量目标是怎么算出来的？',
+      '想反馈问题？',
+    ]) {
+      expect(
+        find.textContaining(heading),
+        findsWidgets,
+        reason: '帮助正文里应包含这一节：$heading',
+      );
+    }
+    // 诚实口径仍在（不许为了换渲染器把与行为矛盾的隐私断言放回来）。
+    expect(find.textContaining('不会把照片、体重或饮食记录上传到任何服务器'), findsNothing);
+    expect(find.textContaining('不主动使用 AI 功能就不会有内容离开这台设备'), findsOneWidget);
+  });
+
+  // 需求 17e（docs/60 §12.3，用户「按你的建议来」）：反馈弹层要有**真能用的
+  // 通道**——GitHub issue 直达链接 + 一键复制环境信息；同时保留「没有内置
+  // 上报通道」这句事实说明（不许为了好看把实话说没了）。
+  testWidgets('17e：反馈弹层有 issue 链接 + 复制环境信息，且保留事实说明', (tester) async {
+    useTallViewport(tester);
+    // 平台通道打桩：开链接成功、设备信息可读（不碰真机）。
+    const channel = MethodChannel('localfit/platform');
+    final calls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          if (call.method == 'openUrl') return true;
+          if (call.method == 'deviceInfo') {
+            return <Object?, Object?>{
+              'model': 'Test Device',
+              'androidVersion': '15',
+              'sdkInt': 35,
+            };
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    // 剪贴板打桩（读回复制了什么）。
+    final clipboard = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') clipboard.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          settingsStore: _FakeAiProviderSettingsStore(),
+          appVersion: '4074',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await scrollToKey(tester, const Key('settings-version-row'));
+    await tester.ensureVisible(find.byKey(const Key('about-feedback')));
+    await tester.tap(find.byKey(const Key('about-feedback')));
+    await tester.pumpAndSettle();
+
+    // 事实说明还在（用户没让删）。
+    expect(find.text('没有内置上报通道'), findsOneWidget);
+    // 可达渠道：链接文本与可点按钮都在。
+    expect(
+      find.textContaining('github.com/xiaopeng66/localfit-ai/issues/new'),
+      findsWidgets,
+      reason: '要给可核对的链接，不是藏在「点我」后面',
+    );
+    await tester.tap(find.byKey(const Key('feedback-open-issue')));
+    await tester.pumpAndSettle();
+    expect(calls, contains('openUrl'), reason: '点链接必须真的调平台开浏览器（零新依赖，自建通道）');
+
+    // 复制环境信息：版本 / 机型 / Android / 页面四件。
+    await tester.tap(find.byKey(const Key('feedback-copy-env')));
+    await tester.pumpAndSettle();
+    expect(clipboard, hasLength(1));
+    final text = (clipboard.single.arguments as Map)['text'] as String;
+    expect(text, contains('v4074'));
+    expect(text, contains('Test Device'));
+    expect(text, contains('Android 15'));
+    expect(text, contains('反馈'));
+  });
+
+  testWidgets('17e：打不开浏览器时如实说明并把链接复制好（点了必须有反应）', (tester) async {
+    useTallViewport(tester);
+    const channel = MethodChannel('localfit/platform');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          // 平台说「开不了」。
+          if (call.method == 'openUrl') return false;
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    final clipboard = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') clipboard.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(settingsStore: _FakeAiProviderSettingsStore()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await scrollToKey(tester, const Key('settings-version-row'));
+    await tester.ensureVisible(find.byKey(const Key('about-feedback')));
+    await tester.tap(find.byKey(const Key('about-feedback')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('feedback-open-issue')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('链接已复制'),
+      findsOneWidget,
+      reason: '开不了浏览器时要如实说明并给退路（不许点了没反应）',
+    );
+    expect(clipboard, hasLength(1));
+    expect(
+      (clipboard.single.arguments as Map)['text'],
+      contains('github.com/xiaopeng66/localfit-ai/issues/new'),
+    );
+  });
+
   testWidgets('关于弹层：本地运行声明不夹英文词、不越界承诺', (tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(
       MaterialApp(
         home: SettingsPage(
           settingsStore: _FakeAiProviderSettingsStore(),
-          appVersion: '0.1.0+1',
+          appVersion: '4074',
         ),
       ),
     );
@@ -602,26 +1017,28 @@ void main() {
     await tester.tap(find.byKey(const Key('settings-version-row')));
     await tester.pumpAndSettle();
 
-    // 2026-10-08：这段文案此前夹着一个英文单词（「AI 功能只在 you 主动配置
-    // 并调用时…」），中文正文里混英文是用户直接看得见的缺陷（BUG-E）。
-    expect(find.textContaining('AI 功能只在你主动配置并调用时'), findsOneWidget);
+    // 2026-11-02：长隐私说明收进帮助文档，弹层只留一句事实标签；
+    // 仍然不许夹英文词（原 BUG-E）。
+    expect(find.text('数据仅保存在本机；AI 只在你主动调用时联网。'), findsOneWidget);
     expect(find.textContaining('you'), findsNothing);
   });
 
-  testWidgets('关于分组：注入版本号时显示注入值', (tester) async {
+  /// 注入值是**构建脚本算出的 versionCode**（17c / 17b 口径：在线更新比 versionCode，
+  /// 不比语义版本）。所以这条断言用 4074 这种真实形状，而不是 `0.1.0+1`。
+  testWidgets('关于分组：注入版本号时显示注入值（原样透传，不改写）', (tester) async {
     useTallViewport(tester);
     await tester.pumpWidget(
       MaterialApp(
         home: SettingsPage(
           settingsStore: _FakeAiProviderSettingsStore(),
-          appVersion: '0.1.0+1',
+          appVersion: '4074',
         ),
       ),
     );
     await tester.pumpAndSettle();
     await scrollToKey(tester, const Key('settings-version-row'));
-    expect(find.text('v0.1.0+1'), findsOneWidget);
-    expect(find.text('LocalFit AI v0.1.0+1'), findsOneWidget);
+    expect(find.text('v4074'), findsOneWidget);
+    expect(find.text('LocalFit AI v4074'), findsOneWidget);
     expect(find.text('版本未知'), findsNothing);
   });
 
@@ -965,8 +1382,92 @@ void main() {
     );
   });
 
-  testWidgets('检查更新：完全本地应用如实说明，不假装检查过', (tester) async {
-    await tester.pumpWidget(_app(_FakeAiProviderSettingsStore()));
+  testWidgets('局域网更新地址可保存与清除（2114）', (tester) async {
+    useTallViewport(tester);
+    final database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    final settingsRepo = AppSettingsRepository(database: database);
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(appSettingsRepository: settingsRepo)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-lan-update')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settings-lan-update')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('lan-update-sheet')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('lan-update-url')),
+      'http://10.26.8.28:8080/',
+    );
+    await tester.tap(find.byKey(const Key('lan-update-save')));
+    await tester.pumpAndSettle();
+    expect(
+      await settingsRepo.getString(AppSettingsRepository.lanUpdateBaseUrlKey),
+      'http://10.26.8.28:8080/',
+    );
+
+    await tester.tap(find.byKey(const Key('settings-lan-update')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('lan-update-clear')));
+    await tester.pumpAndSettle();
+    expect(
+      await settingsRepo.getString(AppSettingsRepository.lanUpdateBaseUrlKey),
+      isNull,
+    );
+  });
+
+  /// 【2026-10-25 断言语义反转（需求 17b，强度不降）】原断言是「点检查更新
+  /// 只说一句『本应用完全本地运行，**不会联网检查更新**』」——那是**当时的
+  /// 实情**（那条路确实没接），但用户要的是「点击检查更新并安装」。现在真去
+  /// 查 GitHub Releases，所以那句「不会联网检查更新」**成了假话**，必须删掉。
+  ///
+  /// 判据改写为：查不动时**如实说连不上**（而不是继续声称「不联网」）。
+  testWidgets('检查更新：真的去查；查不动时如实说，不再声称「不联网」', (tester) async {
+    const channel = MethodChannel('localfit/platform');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'deviceInfo') {
+            return <Object?, Object?>{
+              'model': 'Test Device',
+              'androidVersion': '15',
+              'sdkInt': 35,
+              'versionCode': 6076,
+              'abi': 'x86_64',
+            };
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    // 注入一个「连不上」的更新服务（不在 widget 测试里发真网络请求）。
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) => handler.reject(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+            error: 'no network in test',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          settingsStore: _FakeAiProviderSettingsStore(),
+          appUpdateService: AppUpdateService(dio: dio),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('settings-check-update')),
@@ -976,7 +1477,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings-check-update')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('不会联网检查更新'), findsOneWidget);
+    expect(
+      find.textContaining('连不上更新服务器'),
+      findsOneWidget,
+      reason: '查不动就如实说连不上（不许继续声称「不会联网检查更新」）',
+    );
+    expect(
+      find.textContaining('不会联网检查更新'),
+      findsNothing,
+      reason: '那句话现在是假的：这条路真的会联网',
+    );
   });
 
   testWidgets('320dp 窄屏：我的页整页不溢出（几何探针）', (tester) async {
@@ -1072,6 +1582,31 @@ Widget _app(
     onOpenAiMemory: onOpenAiMemory,
   ),
 );
+
+/// 帮助正文的测试替身（与随包资产的**结构**一致：几个二级标题 + 段落）。
+///
+/// 内容真实性由 `17d（资产）` 那两条纯 Dart 用例保证——这里只钉「渲染器接上了」。
+const String _fakeHelpMarkdown = '''
+## 数据存在哪里？
+
+全部条目存在这台设备的加密数据库里。不主动使用 AI 功能就不会有内容离开这台设备。
+
+## AI 会直接改我的数据吗？
+
+不会。AI 只生成草稿，确认过才写入本地事实。
+
+## 怎么记一餐？
+
+在「饮食」页点右下加号，先选按食材或按菜品。
+
+## 热量目标是怎么算出来的？
+
+Mifflin–St Jeor 公式算基础代谢，再按目标调整，给出区间。
+
+## 想反馈问题？
+
+「我的 → 关于 → 反馈」里有仓库链接与复制环境信息。
+''';
 
 final class _FakeAiProviderSettingsStore implements AiProviderSettingsStore {
   _FakeAiProviderSettingsStore({AiProviderSettings? settings})

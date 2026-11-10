@@ -91,6 +91,26 @@ abstract final class LfColors {
       ? const Color(0xFFECFBF5)
       : const Color(0xFF203C30);
 
+  /// 实心品牌面（主按钮 / FAB / 选中胶囊 / 导航凸起 / 对话气泡）的**底色**。
+  ///
+  /// 【2026-10-29 用户裁决，推翻 refinement 层】`refinement.css:3` 把
+  /// `.btn.primary` 改成了「`--brand` 亮绿底 + `#10271D` 深墨字」——两轮实机
+  /// 反馈「绿色按钮配黑字，根本看不清」（自由训练横幅、食堂菜操作弹层）。
+  /// 数值上 #10271D 对 #2FBE8F 有 ~6.7:1，但同色相（绿字压绿底）在实心小块
+  /// 上观感发糊。回到基础层 `styles.css:148`
+  /// `.btn.primary{background:var(--brand-strong);color:var(--card)}` 的口径：
+  /// 亮色深绿 `#187653` + 白字（5.6:1），暗色浅薄荷 `mint-400` + 卡片深字
+  /// （8.9:1）。`--brand`（[primary]）只保留给圆点/细线/进度填充等**非文字**
+  /// 面——与设计源稿的分工一致。
+  static Color brandStrong(Brightness brightness) => mintText(brightness);
+
+  /// 压在 [brandStrong] 上的文字/图标色（= 设计源稿 `var(--card)`）：
+  /// 亮白 / 暗卡片底 `#171E1A`。
+  static Color onBrandStrong(Brightness brightness) =>
+      brightness == Brightness.light
+      ? const Color(0xFFFFFFFF)
+      : const Color(0xFF171E1A);
+
   // ── 分类数据色（docs/21 §2.1.3：编码永不改变或调换）────────────────────
   static const proteinLight = Color(0xFFFF8A65);
   static const protein100Light = Color(0xFFFFE5DC);
@@ -116,6 +136,19 @@ abstract final class LfColors {
     Color(0xFFE8C9A0),
     Color(0xFFC4956C),
   ];
+
+  // ── 看图层（需求 3，2026-10-25：聊天图片点击放大）───────────────────────
+  //
+  // 【为什么两个主题同值】全屏看图时屏幕上该**只有照片**：任何带主题色偏的
+  // 背景都会改变照片观感（用户看的是菜照，不是界面）。所以这一层故意不随
+  // 亮/暗主题走——与 [LfComponentColors.waterIcon]「A 把它定成不随主题走的
+  // 字面量」同一取舍，这里显式 token 化，不让业务页面就地写 `Color(0xFF…)`。
+
+  /// 看图遮罩：纯黑（全屏查看层的底，也是 `showDialog` 的 `barrierColor`）。
+  static const Color scrimSolid = Color(0xFF000000);
+
+  /// 媒体上的文字/图标：纯白（照片上的角标与关闭键永远白字）。
+  static const Color onMedia = Color(0xFFFFFFFF);
 }
 
 /// 语义表面层（docs/21 §2.1.6「组件取色的唯一入口」+ §2.1.4 状态色 +
@@ -260,7 +293,10 @@ final class LfSemanticColors extends ThemeExtension<LfSemanticColors> {
     warningText: Color(0xFFFFB74D),
     error: Color(0xFFEF5350),
     errorForeground: Color(0xFFFFFFFF),
-    errorText: Color(0xFFEF5350),
+    // 文字档：暗色下 error(#EF5350) 压 muted 底只有 4.35:1（2026-11-09
+    // 全量审查实测），差一点点达不到 AA 4.5。提到 #F26A63 后：压 muted
+    // 5.06、压 card 5.67、压 background 6.21，且色相不变（仍是同一红）。
+    errorText: Color(0xFFF26A63),
     info: Color(0xFF64B5F6),
     infoForeground: Color(0xFF0F1412),
     evidenceA: Color(0xFF1F2823),
@@ -752,22 +788,31 @@ abstract final class LfGradients {
     ],
   );
 
-  /// 用户消息气泡 / AI 主按钮：mint-400 → mint-500（135°）。
+  /// 用户消息气泡：深绿渐变（135°）。
+  ///
+  /// 【2026-10-29 用户裁决】旧档 `mint-400 → mint-500`（亮薄荷）配白字
+  /// （`LfColors.onMedia`）只有 1.8–2.4:1，是「绿面看不清」这一类里最严重的
+  /// 一例（白字压亮绿）。改为 `#187653 → #166B4D`：白字 5.6–6.5:1，
+  /// 两套主题同一张气泡（暗色页面上深绿仍然分得开）。
   static LinearGradient userBubble(Brightness brightness) => LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [
-      LfColors.mint(brightness).tone(400),
-      LfColors.mint(brightness).tone(500),
-    ],
+    colors: const [Color(0xFF187653), Color(0xFF166B4D)],
   );
 
   /// 进行中训练横幅：primary → mint-600（135°）。
+  /// 进行中训练横幅：深绿渐变（135°），**两套主题同一条**。
+  ///
+  /// 【2026-10-29 用户裁决】旧档 `primary → mint-600`（中亮绿）配
+  /// `primaryForeground`（#10271D 深墨绿）是用户两轮点名的「看不见了都」；
+  /// 副文字再叠 0.8 透明度后小字只有 3.8:1。改为 `#187653 → #114A36` +
+  /// 纯白文字（6.5–10.2:1）。横幅是 hero 类独立一条（§2.5），不随主题换底
+  /// ——与实心按钮的 brandStrong 同源，但取两套主题都成立的深端。
   static LinearGradient activeBanner(Color primary, Brightness brightness) =>
       LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [primary, LfColors.mint(brightness).tone(600)],
+        colors: const [Color(0xFF187653), Color(0xFF114A36)],
       );
 
   /// 图片占位（暖）：AI 工作页功能卡专用。

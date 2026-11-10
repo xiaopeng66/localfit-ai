@@ -4,6 +4,7 @@ import 'package:localfit_ai/app/app_theme.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_registry.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_repair.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 import 'package:localfit_ai/features/ai_conversation/presentation/chat_edit_card.dart';
@@ -149,7 +150,7 @@ void main() {
       );
     });
 
-    testWidgets('记餐行仍是「食物 · 克数」（不套食材版式）', (tester) async {
+    testWidgets('记餐行仍是紧凑文字行（不套食材版式）', (tester) async {
       await pump(
         tester,
         turnWith(
@@ -169,8 +170,13 @@ void main() {
       final title = tester
           .widget<Text>(find.byKey(const Key('chat-edit-subitem-title-0-0-0')))
           .data!;
-      expect(title, contains('米饭'));
-      expect(title, contains('150'));
+      expect(title, '米饭', reason: '标题只放食物名');
+      final summary = tester
+          .widget<Text>(
+            find.byKey(const Key('chat-edit-subitem-summary-0-0-0')),
+          )
+          .data!;
+      expect(summary, '午餐 · 150 g', reason: '克数在第二行餐次后面');
     });
 
     testWidgets('窄屏 320dp × 2.0 不溢出', (tester) async {
@@ -208,5 +214,42 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+  });
+
+  // 2026-11-09 全量审查：修复胶囊（「新建食材「X」」）原来的命中盒就是内容
+  // 本身（≈29dp 高、2.0× 约 41dp），低于 44dp 触达下限。现在内边距移进
+  // InkWell，命中盒达标、视觉胶囊不变。
+  testWidgets('失败行的修复胶囊：命中盒高 ≥44dp', (tester) async {
+    final turn = ChatEditTurn(
+      reply: '这餐还差一个食材。',
+      rows: [
+        ChatEditTurnItem(
+          index: 0,
+          raw: const {},
+          command: cmd('meal.create', {
+            'slot': '晚餐',
+            'items': [
+              {'food': '鸡蛋水煮', 'grams': 50.0},
+            ],
+          }),
+          status: ChatEditRowStatus.failed,
+          resultMessage: '食物库里没有「鸡蛋水煮」；可以先创建它。',
+          repair: ChatEditRepair.createFood(name: '鸡蛋水煮'),
+        ),
+      ],
+    );
+    await pump(tester, turn);
+    final chip = find.byKey(const Key('chat-edit-repair-0-0'));
+    expect(chip, findsOneWidget);
+    expect(
+      tester.getSize(chip).height,
+      greaterThanOrEqualTo(44.0),
+      reason: '触达下限 44dp（视觉胶囊仍按自身 padding 画）',
+    );
+    // 视觉胶囊本身没有被拉高：它比命中盒矮，说明留白是透明的。
+    final capsule = tester.getSize(
+      find.descendant(of: chip, matching: find.byType(Container)).first,
+    );
+    expect(capsule.height, lessThan(tester.getSize(chip).height));
   });
 }

@@ -32,7 +32,7 @@
 | 轨迹 `--track` | `#EFF3F1` | `#26332C` |
 | 描边 `--border` | `#DDE5E1` | `#2A342F` |
 
-几何与组件角色（A 有效值，覆盖旧稿对应项）：标准卡 R16、动作卡特例 R14、按钮/输入 R12、弹层顶角 R24、弹层把手 32×4；主按钮最小高 44、`--brand` 底、**深墨字 `#10271D`**、无渐变无彩色阴影；卡片阴影浅色 `0 1px 3px #1A201D05`、深色无阴影且留 `--border` 描边；输入常态 `--bg` 底 + 1dp `--border` 描边、聚焦 2dp `--brand-strong`；底栏栏体恒 64、中央凸起 = 46 圆 + 5dp `--card` 描边（56 盒）、`--brand` 实心底 + 深色 sparkles、选中态（含中央槽）`--brand-strong` + w600。
+几何与组件角色（A 有效值，覆盖旧稿对应项）：标准卡 R16、动作卡特例 R14、按钮/输入 R12、弹层顶角 R24、弹层把手 32×4；主按钮最小高 44、**`--brand-strong` 深绿底 + 白字（2026-10-29 用户裁决，见 §3.8 硬规则）**、无渐变无彩色阴影；卡片阴影浅色 `0 1px 3px #1A201D05`、深色无阴影且留 `--border` 描边；输入常态 `--bg` 底 + 1dp `--border` 描边、聚焦 2dp `--brand-strong`；底栏栏体恒 64、中央凸起 = 46 圆 + 5dp `--card` 描边（56 盒）、`--brand` 实心底 + 深色 sparkles、选中态（含中央槽）`--brand-strong` + w600。
 
 ### 0.3 接管规则
 
@@ -490,7 +490,7 @@
 | `WeightBarChart` | **新建（2026-10-08 R2 取代 `WeightLineChart`）** | 手绘**柱状图**（`CustomPainter` 只画网格，柱是 widget 树，**不用 fl_chart**）。**左侧 y 轴三档刻度 + 顶部 `kg` 单位**：轴范围 = 数据真实 min/max 各外扩 25%（`axisPadRatio`），单点时固定 ±0.5kg（`singlePointHalfSpanKg`）；**不从 0 起**（体重从 0 画会把小幅漂移压成平线，与热量柱图的 0 基线口径**故意不同**，注释写清）。柱：周视图**恒定七格**（周一…周日，无记录日为空槽——不画柱、标签显示且更淡，空槽不参与轴 min/max，docs/31 S1 需求 41）、月视图一箱一根（**本月**自适应分箱均值——口径是本月不是近 30 天，docs/31 S1 需求 42），圆角顶 6，`mint-500`，末柱（最新）`mint-600`。网格 = 与刻度对齐的 3 条水平虚线（dash 3 / gap 4）。横轴标签在柱下方（周一…日 / `8/8`）；**标签盒允许跨格**（`OverflowBox` 上限 `LfDimens.weightChartAxisLabelMaxWidth = 56`）——月视图一格只有绘图区/当月天数 （360dp 下约 10dp），给格宽会把「9/14」压成「9」（2026-10-16 月视图帧实看抓到；用户早前看到的「一堆 1」也是同一处截断：10/15/20/25 被压成首字符）。`ChartSemantics` 一行摘要。**柱宽上限 22dp**（`maxBarWidth`，docs/31 S1 需求 40 由 40 收窄；格内水平内边距 3→8，相邻柱净空隙 16dp）——`Expanded` 只负责把柱**分到**格子，柱自身由 `Align(bottomCenter)` + `FractionallySizedBox`(高度) + `ConstrainedBox(maxWidth 40)`(宽度) 三层合成：**`Align` 不能用 `Center`**，`Center` 会让柱竖向上浮（2026-10-08 R8 设备走查实测：单条记录时那一根柱曾撑满整个绘图区 256dp，改成 `Center` 后又变成浮空 65dp 高的方块）|
 | `WeightLineChart` / `MiniSparkline` / `TrendTile` | **已删除（2026-10-08 R2）** | 三者随需求 2「数据做成柱状图，左边要有坐标」「下边的本周趋势三个小卡片不要了，不需要统计体脂率和肌肉量了」整件删除，`lib/` 内零调用点。体脂率/肌肉量**数据层已随 schema 22 整族删除**（2026-10-09 docs/31 S2：`Measurements` 两列 + 弹层字段 + AI 参数 + 旧 `.lfb` 恢复即丢） |
 | `BarChart` | **新建** | 7 柱日趋势（饮食·记录页）+ 容量图（训练页）。柱宽按容器均分，圆角顶。达标日与未达标日取色不同；训练页休息日柱高为 0 且用 muted 色 |
-| `WeekStrip` | **新建** | 7 列，每列（星期字 + 日期数字圆）。今天 = 实心 mint 圆白字；异常日 = warning 色；其余 = 无底 |
+| `WeekStrip` | **新建** | 7 列，每列（星期字 + 日期数字圆）。今天 = `brandStrong` 实心圆 + `onBrandStrong` 字；异常日 = warning 色；其余 = 无底 |
 | `ProgressBar` | 改造 | 已有 `progress_bar.dart`。新设计统一 `h-1.5` 全圆角；进度条必须 `ExcludeSemantics`（信息由相邻文字承载） |
 | `ChartSemantics` | 保留 | 图表必须有文字等价物（`docs/07` 无障碍条款） |
 
@@ -604,22 +604,32 @@
 
 | 组件 | 状态 | 形态 | 尺寸 | 颜色 | 阴影 | 用途 | HTML 出处 |
 |---|---|---|---|---|---|---|---|
-| `LfPrimaryButton` (B1) | **新建** | 实心圆角矩形 | 16 圆角 / h40（`py-2.5`）/ 14 w600 | 底 `--lf-primary` + 字 `--lf-primary-foreground` | 无 | 表单与弹层主行动 | §2.3 radius-lg「按钮」 |
+| `LfPrimaryButton` (B1) | **新建** | 实心圆角矩形 | 16 圆角 / h40（`py-2.5`）/ 14 w600 | 底 `brandStrong` + 字 `onBrandStrong`（2026-10-29 用户裁决，见下硬规则） | 无 | 表单与弹层主行动 | §2.3 radius-lg「按钮」 |
 | `LfPrimaryButton.emphasized` (B1e) | 同上变体 | 渐变圆角矩形 | 16 圆角 / h40 / 14 w600 | `linear-gradient(135deg, mint-400, mint-500)` + `primary-foreground` | `0 4px 16px -4px primary@35%` | AI 类主 CTA（"立即查看专属理想方案"） | `AI 工作.html:449`（`cta-write-plan`） |
-| `LfConfirmButton` (B2) | **新建** | 实心**全圆角** | full / h48（`py-3.5`）/ 14 w600 | 底 `--lf-primary` + 字 `primary-foreground` | `0 4px 20px -4px primary@40%` | 固定底栏确认、弹层底部确认 | `拍照识餐.html:513`（`cta-confirm-scan`） |
+| `LfConfirmButton` (B2) | **新建** | 实心**全圆角** | full / h48（`py-3.5`）/ 14 w600 | 底 `brandStrong` + 字 `onBrandStrong` | 无（A `.btn.confirm` 只改高度） | 固定底栏确认、弹层底部确认 | `拍照识餐.html:513`（`cta-confirm-scan`） |
 | `LfPillButton` (B3) | **新建** | 胶囊，`tone` **四态** | full / h32（`py-1.5`）/ 12 w500 | `solid` = primary 底 + 白字；`muted` = muted 底 + mutedForeground 字；`soft` = mint-50 底 + primary 字（带边框时 mint-200）**（轻强调动作，不是选中态）**；**`selected`（2026-10-24 新增，`RV4-P1-07`/D7）** = 亮 `mint-200 #A8EBCF` 底 + `mint-900 #114A36` 字（底 vs 卡面 1.36 / 字对比 7.51）、暗 `mint-300 #2A3A32` 底 + `mint-400 #4ED9A6` 字（1.41 / 6.74） | 无 | 内联动作、筛选、快捷值、"加入早餐"；`selected` 用于**选择语义**（训练天数/目标关键词） | `饮食 · 记录.html:346-350`（tab 胶囊）、`拍照识餐.html:341`（`cta-edit-items`） |
 | `LfCircleIconButton` (B4) | 改造（已存在） | 圆形图标钮，`variant` 三态 | 视觉 36（`w-9 h-9`）/ 触达 44 | `muted` = muted 底 + foreground 图标；`primary` = primary 底 + primaryForeground 图标；`overlay` = card@90% 底 + foreground 图标 | 无（**`btn-voice-send` 明确无阴影**） | 返回、上传、麦克风、发送、录音取消/发送、照片上的"重拍" | `AI 工作.html:592-641`、`拍照识餐.html:311/315/327` |
 | `LfDashedButton` (B5) | **新建** | 虚线胶囊 | full / h28（`px-2.5 py-1.5`）/ 10 w500 | transparent 底 + mint-300 虚线边 + primary 字 | 无 | "添加"类（添加图片、添加菜品） | `AI 工作.html:583` |
 | `LfTextButton` (B6) | **新建** | 纯文字 | 内边距随文本 / 14 w500 | 透明底 + primary 字 | 无 | **空态行动**、取消、查看全部 | 旧稿 `今日.html:481-484`（`cta-view-menu`/`cta-quick-log` 两个已被 Round7 A 退役的捷径）；A 起（阶段 2A）落到餐次卡「查看全部」`cta-view-all-meals` 与各处空态行动 |
 | `LfDangerButton` (B7) | **新建** | 纯文字（破坏性） | 同 B6 / 14 w500 | 透明底 + `--lf-state-error` 字 | 无 | 清除数据、删除计划（**必须配二次确认浮层**） | `我的.html:524`（`cta-clear-data` 行式） |
-| `LfSmallButton` (B8) | **新建** | 实心小矩形 | **12 圆角** / h36（`px-4 py-2`）/ 12 w500 | primary 底 + primaryForeground 字 | 无 | 设置组内"保存配置" | `我的.html:425`（`cta-save-ai-config`） |
+| `LfSmallButton` (B8) | **新建** | 实心小矩形 | **12 圆角** / h36（`px-4 py-2`）/ 12 w500 | `brandStrong` 底 + `onBrandStrong` 字 | 无 | 设置组内"保存配置" | `我的.html:425`（`cta-save-ai-config`） |
 | `LfLinkButton` (B11) | **新建**（Round7 阶段 3 · 3-2c） | 纯文字链接（可带副行） | min **44×44** / 12 w500；可选副行 10 w400（lh 1.6）；可选 16dp 前置图标（间距 5） | 透明底 + `--brand-strong` 字（暗色 mint-400，取 `LfColors.mintText`） | 无 | 食物库页尾两链（「导入食物数据」带副行 /「食物管理」）；A 里页面上最轻的一档，但热区不许缩水 | A `styles.css:135`（`.link-button`）+ `refinement.css:18`（min-width 44）+ `polish.css:26-29`（wrap gap / 副行列排 lh 1.6） |
 
 **按钮硬规则**：
 - 触达 **≥44dp**（视觉 36 的图标钮靠 44 触达盒达成，见 §3.6 `LfCircleIconButton` 既有实现）；
   仅有 tooltip 不够，必须有 `Semantics(button: true)` 语义标签。
-- 主按钮的"实心档位"随主题走：亮 `mint-600` / 高对比 `mint-700` / 暗 `primary(mint-400)`
-  ——与既有 `elevatedButtonTheme` 同源，不得另起一套。
+- 主按钮的"实心档位"随主题走：**亮 `brandStrong`（`--brand-strong #187653` 深绿）+
+  `onBrandStrong` 白字 / 暗 `mint-400` + 卡片深字 `#171E1A`**——与
+  `elevatedButtonTheme` 同源，不得另起一套。
+  【2026-10-29 用户裁决，推翻 refinement 层的「`--brand` 亮绿底 + `#10271D`
+  深墨字」】用户两轮实机反馈「绿色按钮配黑字，根本看不清」（训练横幅、食堂
+  菜操作弹层）。数值上 #10271D 对 #2FBE8F 有 ~6.7:1，但同色相（绿字压绿底）
+  在实心小块上观感发糊。回到基础层 `styles.css:148`
+  `.btn.primary{background:var(--brand-strong);color:var(--card)}` 的口径：
+  亮色白字 5.6:1、暗色深字 8.9:1。`--brand`（`primary`）只保留给圆点 / 细线 /
+  进度填充等**非文字**面。同批统一的面还包括：FAB、导航中央凸起、输入栏发送、
+  选中胶囊/日签/日期圆、对话用户气泡（渐变改深绿两端）、训练进行中横幅
+  （深绿渐变 + 白字）。数值门禁：`test/app/design/solid_surface_contrast_test.dart`。
 - 空态一律用 B6 文字按钮（2026-10-03 用户裁决），不用实心或淡底，避免与页面主行动抢视觉。
 - 破坏性操作必须"文字型 + 二次确认"，设计稿没有实心 error 按钮。
 - **B11 是「链接语言」而不是「更弱的 B6」**（Round7 阶段 3 · 3-2c 单列一型）：12 w500 +
@@ -885,8 +895,8 @@
 ```
 今日 ─ cta-view-all-meals ──→ 饮食·记录（餐次卡「查看全部」，A `nutrition-records`）
      ├ cta-log-meal ────────→ （2026-10-22 退场：块按钮「记录饮食」删除，
-     │                          D9 通道改由 cta-log-dinner / 饮食页 FAB 承担）
-     ├ cta-log-dinner ──────→ 餐食编辑（下一餐卡，槽位 = 晚餐，D9 意图通道）
+     │                          D9 通道改由 cta-log-next-meal / 饮食页 FAB 承担）
+     ├ cta-log-next-meal ───→ 餐食编辑（下一餐卡，槽位 = 按时刻算（见下），D9 意图通道）
      ├ cta-ai-workbench ────→ AI 工作（AI 创作行）
      ├ 底栏「饮食」─────────→ 饮食·记录 / 菜单 / 食物库（D4：今日页不再有菜单捷径）
      └ avatar ─────────────→ 我的（设计稿未声明，按惯例）
@@ -946,7 +956,9 @@ ListView (pagePadding 16, bottom = navBarReservedSpace)
 │   │   └ MacroBar × 3（蛋白/碳水/脂肪）5px 点 + 标签 12 muted +
 │   │                               值 15 + 「/ N g」11 muted + 5px 轨（跨两列）
 │   ├ energy-foot                    上边框 1px track / padding-top 11 / 11px
-│   │   ├ 左「目标 N kcal」          （无目标 → 「尚未设定目标」）
+│   │   ├ 左「调整营养目标」图标钮    （仅记录页接线；2026-10-28 用户：「不要显示
+│   │   │                              左边那个说明」——公式/档位说明撤下，未设
+│   │   │                              目标的「尚未设定目标」在卡头区间行）
 │   │   └ 右「还可摄入 N kcal」/「超出 N kcal」（无目标 → 「设置目标后查看进度」）
 │   └ macro-ratios 10px              整卡宽一行（A 从右列移到 main 之下）
 ├ WeightChartCard（体重卡）          A `.weight-card`：padding 10/16/14；
@@ -974,9 +986,10 @@ ListView (pagePadding 16, bottom = navBarReservedSpace)
 │                                    「目标 N 步」+「还差 N 步」；关闭态正文指路「在设置页
 │                                    「步数与身体活动」里重新开启」
 ├ NextMealCard（下一餐）             A `.next-meal`；新卡（旧 bento 已按 docs/22
-│   ├ 标题「下一餐，留给晚餐」+ pill   裁决② 收进二级）
-│   ├ 预算行 22 + 轨 + facts         facts 18 间距 / 11px：N 笔已记 · 目标 N
-│   └ 「记录晚餐」块按钮             outline brand（D9 意图通道）
+│   ├ 标题「下一餐 · <餐次>」+ pill  裁决② 收进二级）；餐次按系统时刻动态：
+│   │                                 0–9 早餐 / 9–14 午餐 / 14–20 晚餐 / 20–24 加餐
+│   ├ 预算行 22 + 轨                  （2026-10-31 用户：「删除下方 N 笔已记和目标 N」）
+│   └ 「记录<餐次>」块按钮            outline brand（D9 意图通道；`cta-log-next-meal`）
 ├ MealsCard（餐次卡）                A `.meals-card`
 │   ├ section-title "今天吃了什么" + 「查看全部」（→ 记录页）
 │   ├ N × meal-row                   36 symbol + 槽位 12/600 + 时间 11 +
@@ -1021,9 +1034,9 @@ ListView (pagePadding 16, bottom = navBarReservedSpace)
 | 体重卡 周 / 月切换（统一轨道 `LfSegmentedToggle`，`dashboard-weight-range-week` / `-month`） | 切换分段，换柱图数据口径（2026-10-10 docs/31 S1 需求 39：两颗独立胶囊 → 统一轨道 + 内嵌白滑块，视觉压到 28dp——R3 嫌的是尺寸不是形态） |
 | 体重测点（`weight-bar-chart-bar-<i>`） | 点击柱条开浮窗（值 + 日期），**再点同一条收起**；滚动页面也收起（A `weight-point` 的 toggle 语义） |
 | 体重图空态「记录第一条」（`dashboard-weight-record`） | 打开同一个体重录入弹层 |
-| 下一餐卡「记录晚餐」（`cta-log-dinner`） | 经 D9 意图通道打开餐食编辑（槽位 = 晚餐），落到既有 `MealEditorDialog` |
+| 下一餐卡「记录<餐次>」（`cta-log-next-meal`） | 经 D9 意图通道打开餐食编辑；槽位 = 按系统时刻算的下一餐（0–9 早餐 / 9–14 午餐 / 14–20 晚餐 / 20–24 加餐，`nextMealSlotFor`），落到既有 `MealEditorDialog` |
 | 餐次卡「查看全部」（`cta-view-all-meals`） | 跳 `/nutrition-records`（记录页）。**A 的今日页餐次卡没有菜单入口**（D4） |
-| 餐次卡「记录饮食」（`cta-log-meal`，**2026-10-22 退场**） | D9 通道改由 `cta-log-dinner` 与饮食页 FAB 承担 |
+| 餐次卡「记录饮食」（`cta-log-meal`，**2026-10-22 退场**） | D9 通道改由 `cta-log-next-meal` 与饮食页 FAB 承担 |
 | 餐次卡行（`dashboard-meal-row-<slot>-<i>`） | 点击已记录项 → 该餐详情弹层（原「点击计划项 → 加入/记录该餐」已随计划态移除） |
 | 饮水卡 | 点击 → 加水弹层（2026-10-16：卡内「+ 250 ml」按钮下线，整卡仍是入口） |
 | 步数卡 | 未授权：**只留右上角「未授权」徽标**（与已授权态逐像素同构，占位文本不进语义树），点卡片申请权限；无传感器：「这台设备没有计步传感器」（docs/31 需求 48，P9 接线） |
@@ -1033,9 +1046,9 @@ ListView (pagePadding 16, bottom = navBarReservedSpace)
 
 | 场景 | 呈现 |
 |---|---|
-| 无任何记录 | 圆环 0 / 目标、宏量全 0；餐次卡显示「从第一餐开始 / 从食物库选择，记录实际吃下的食物。」+ 「记录饮食」；**source-summary 不渲染**（D5，零餐 ≠ 零值记录） |
+| 无任何记录 | 圆环 0 / 目标、宏量全 0；餐次卡只显示空态标题「从第一餐开始」（2026-10-31 起无说明句、无「记一餐」按钮）；**source-summary 不渲染**（D5，零餐 ≠ 零值记录） |
 | 无体重数据（**真的 0 条记录**） | 柱图区显示「本周/本月还没有记录」+ 「记录第一条」入口。**1 条记录不再算空态**：柱图天然支持单柱（2026-10-08 R2 修复了旧口径「2–7 条月视图只出 1 点 ⇒ 谎报没有记录」） |
-| 无目标 | 热量卡 foot 左写「尚未设定目标」、右写「设置目标后查看进度」；环内不画百分比第三行（没有分母就没有百分比，D6）；**剩余额度行不在**（它是派生量） |
+| 无目标 | 卡头区间行写「尚未设定目标」（foot 不再重复）、右写「设置目标后查看进度」；环内不画百分比第三行（没有分母就没有百分比，D6）；**剩余额度行不在**（它是派生量）。2026-10-28 起 foot 左格说明文字撤下（用户：换行难看），只剩可选的调整目标图标钮 |
 | 步数未授权 / 无传感器 | 只留徽标 + 同构骨架（文案不进语义树），与「0 步」互不混同（docs/31 需求 48） |
 
 > 2026-10-16（第二轮用户实测）：今日页两卡改为「标题 / 数值 / 进度条」三行同构并**去掉
@@ -1069,7 +1082,7 @@ ListView (pagePadding 16, bottom = navBarReservedSpace)
 > ⑤ 食堂菜品**价格整条退役**（表单/目录行/推荐卡/CSV/AI 命令/提示词/DB 列）：见
 > `docs/03 §4` 末注、`docs/23 §2`、`docs/36 §3` S8-b；`canteen-dish-price` 不再存在。
 
-**测试 Key**：`dashboard-greeting`、`dashboard-date-label`、`dashboard-avatar`、`dashboard-avatar-image`、`dashboard-avatar-initial`、`dashboard-calorie-ring`、`lf-calorie-ring`、`dashboard-ring-consumed`、`dashboard-ring-percent`、`dashboard-ring-target`、`dashboard-ring-status`、`dashboard-remaining-line`、`nutrition-macro-protein`、`nutrition-macro-carbs`、`nutrition-macro-fat`、`dashboard-macro-ratios`、`dashboard-weight-chart`、`dashboard-weight-trend-value`、`dashboard-weight-hint`、`dashboard-weight-range`、`dashboard-weight-range-week`、`dashboard-weight-range-month`、`dashboard-weight-add`、`dashboard-weight-empty`、`dashboard-weight-record`、`weight-bar-chart`、`weight-bar-chart-plot`、`weight-bar-chart-slot-<i>`、`weight-bar-chart-bar-<i>`、`weight-bar-chart-tick-<i>`、`weight-bar-chart-grid-line-<i>`、`weight-bar-chart-tooltip`、`weight-bar-chart-tooltip-text`、`dashboard-stat-water`、`dashboard-stat-steps`、`dashboard-water-value`、`dashboard-water-status`、`dashboard-steps-value`、`dashboard-steps-status`、`dashboard-steps-empty`、`dashboard-next-meal`、`dashboard-next-meal-chip`、`dashboard-next-meal-remaining`、`dashboard-next-meal-note`、`dashboard-next-meal-count`、`dashboard-next-meal-goal`、`cta-log-dinner`、`dashboard-meals-card`、`dashboard-meal-row-<slot>-<i>`、`dashboard-meals-empty`、`cta-view-all-meals`、`cta-ai-workbench`
+**测试 Key**：`dashboard-greeting`、`dashboard-date-label`、`dashboard-avatar`、`dashboard-avatar-image`、`dashboard-avatar-initial`、`dashboard-calorie-ring`、`lf-calorie-ring`、`dashboard-ring-consumed`、`dashboard-ring-percent`、`dashboard-ring-target`、`dashboard-ring-status`、`dashboard-remaining-line`、`nutrition-macro-protein`、`nutrition-macro-carbs`、`nutrition-macro-fat`、`dashboard-macro-ratios`、`dashboard-weight-chart`、`dashboard-weight-trend-value`、`dashboard-weight-hint`、`dashboard-weight-range`、`dashboard-weight-range-week`、`dashboard-weight-range-month`、`dashboard-weight-add`、`dashboard-weight-empty`、`dashboard-weight-record`、`weight-bar-chart`、`weight-bar-chart-plot`、`weight-bar-chart-slot-<i>`、`weight-bar-chart-bar-<i>`、`weight-bar-chart-tick-<i>`、`weight-bar-chart-grid-line-<i>`、`weight-bar-chart-tooltip`、`weight-bar-chart-tooltip-text`、`dashboard-stat-water`、`dashboard-stat-steps`、`dashboard-water-value`、`dashboard-water-status`、`dashboard-steps-value`、`dashboard-steps-status`、`dashboard-steps-empty`、`dashboard-next-meal`、`dashboard-next-meal-chip`、`dashboard-next-meal-title`、`dashboard-next-meal-remaining`、`dashboard-next-meal-note`、`cta-log-next-meal`、`dashboard-meals-card`、`dashboard-meal-row-<slot>-<i>`、`dashboard-meals-empty`、`cta-view-all-meals`、`cta-ai-workbench`
 
 > **2026-10-07 P9 / 2026-10-09 docs/31 S1·S4 的 as-built 增补已并入上文**（体重卡
 > 周/月切换与添加图标、步数卡真接线与三态形态、AI 入口文案与路由）。历史证据：
@@ -1235,8 +1248,9 @@ Column
 │   │                │             「查看候选 N 道」`link()` + `cta-add-meal-<n>`
 │   │                │             「加入<菜品自己的餐次>」`.btn.outline-brand`
 │   │                └ 空态：一句成因 `…-reason` + 一个行动 `…-action`
-│   ├ 页尾 `cta-manage-canteen`：A `.list-link`「管理食堂目录 / 地点、窗口与菜品」
-│   │        （chip + 两行 + 右箭头，整行可点，**不是卡**）
+│   ├ 右下浮钮 `cta-manage-canteen`：**纯图标圆钮**（storefront，无可见文字；
+│   │        tooltip / 读屏标签仍是「管理食堂目录」）。2026-11-02 用户裁决：
+│   │        删除文字只留图标，不再用带字胶囊。
 │   ├ `nutrition-menu-note`：A `.subtle-note` 中在本仓成立的那半句
 │   │        「加入餐次会记为已吃，保存前请确认。」（接了加入动作才画）
 │   └ 底部导航预留
@@ -1283,7 +1297,7 @@ Column
 说的是「记到哪里」，不是「推荐给哪一餐」。要让按钮跟块走，得先改写入语义。按钮自
 2026-10-14 起画在**块底动作行**（A `.dish-action-row`）而不是卡内，文案裁决不变。
 
-**测试 Key**：`nutrition-menu-hero`、`nutrition-menu-hero-planned`、`nutrition-menu-hero-kcal`、`cta-manage-canteen`、`nutrition-menu-note`、`nutrition-menu-daily-set`、`nutrition-menu-daily-set-title`、`nutrition-menu-daily-set-badge`、`nutrition-menu-daily-set-intro`、`nutrition-menu-meal-<slot>`、`nutrition-menu-meal-<slot>-badge`、`nutrition-menu-meal-<slot>-reason`、`nutrition-menu-meal-<slot>-swap`、`nutrition-menu-meal-<slot>-candidates`、`nutrition-menu-meal-<slot>-action`、`nutrition-menu-candidate-<n>`、`nutrition-menu-dish-card-<n>`、`nutrition-menu-macro-row-<n>`、`nutrition-menu-dish-hot-<n>`、`nutrition-menu-dish-source-<n>`、`nutrition-menu-dish-comment-<n>`、`cta-add-meal-<n>`
+**测试 Key**：`nutrition-menu-hero`、`nutrition-menu-hero-planned`、`nutrition-menu-hero-kcal`、`cta-manage-canteen`、`nutrition-menu-note`、`nutrition-menu-daily-set`、`nutrition-menu-daily-set-title`、`nutrition-menu-daily-set-badge`、`nutrition-menu-daily-set-intro`、`nutrition-menu-meal-<slot>`、`nutrition-menu-meal-<slot>-badge`、`nutrition-menu-meal-<slot>-reason`、`nutrition-menu-meal-<slot>-swap`、`nutrition-menu-meal-<slot>-candidates`、`nutrition-menu-meal-<slot>-action`、`nutrition-menu-candidate-<n>`、`nutrition-menu-dish-card-<n>`、`cta-add-meal-<n>`
 
 **食堂目录（同一 sub-tab 的第二段，`docs/28 §4.5`/`§4.6`）的 Key**：`canteen-add-venue`、`canteen-venue-<id>`、`canteen-venue-stats`、`canteen-stat-windows`、`canteen-stat-dishes`、`canteen-stat-analyzed`、`canteen-window-<id>`、`canteen-window-window-<id>`（时段徽标）、`canteen-delete-window-<id>`、`canteen-dish-<id>`、`canteen-dish-grade-<id>`、`canteen-dish-unanalyzed-<id>`、`canteen-add-dish-<id>`、`canteen-analyze-<id>`
 （**2026-10-24 退役**：`canteen-add-to-library-<id>`——食堂目录与菜品库**就是一个库**，
@@ -1375,7 +1389,7 @@ Column
 │       ├ 序号 + 计划名 16 w600 + 时间标签 (今天/周三/周五/周六/下周)
 │       ├ Round7 对账批次 3：周安排块（A `app.js:216` 的 `.plan-days` + `.plan-today`）
 │       │    ├ training-plan-weekdays-<n>   七枚 31dp 圆签（一~日）：计划日=mint-50 底、
-│       │    │                              今天=**primary 实心底**（A `.day-chip.today` 后置覆盖 .on）、
+│       │    │                              今天=**brandStrong 实心底**（A `.day-chip.today` 后置覆盖 .on；2026-10-29 实心面带字统一 brandStrong）、
 │       │    │                              其余=轨道底；`training-plan-weekday-<n>-<1..7>`
 │       │    ├ training-plan-today-note-<n> 「今天是训练日」/「今天休息，恢复也很重要」
 │       │    └ training-plan-start-<n> 「开始训练」/「继续训练」CTA（Round7 裁决 R1，A `.plan-today` 右端钮；
@@ -1385,12 +1399,16 @@ Column
 │       ├ 动作列表                  每个: 名称 + 组次×重量 (力量) 或 配速/阻力 (有氧)
 │       └ 元信息                    4 动作 · 45 分钟 · 中等强度
 │   ⚠ 卡面 CTA 已按 **2026-10-15 用户裁决 R1** 落地：只在今天那张卡「开始训练/继续训练」（同一写入路径，详情入口保留）
-└ cta-new-plan FAB                  右下 mint 圆 + plus
+└ 右下浮钮簇                      常驻 ➕（`cta-new-plan`，复用记录页 RecordFab）
+                                    + 上方 `training-actions-toggle` 上拉三角；
+                                    展开后 `training-stats` / `training-target-progress`
+                                    / `training-exercise-library` 三枚圆钮；
+                                    点 `training-actions-scrim` 或再点三角收回
 ```
 
-**二级入口行**（docs/22 裁决 ②，2026-10-15 逐页对账第一批按 A 补副题）：组末三行 `_SecondaryEntry`——`training-stats` 训练统计 / `training-target-progress` 训练达标 / `training-exercise-library` 动作库——**动作库行按 A `app.js:216` 的 list-link 带副题「先了解动作，再开始训练」**（其余两行保持单行；A 只画了这一行的 list-link 形态）。**`training-ai-plan` 行已于 2026-10-23 退役**（AI 入口只在 FAB 模式弹层里）。
+**训练页右下浮钮（2026-11-02 用户裁决）**：训练统计 / 训练达标 / 动作库 三枚**平时收起**，由 ➕ 上方的上拉三角展开；展开时铺透明挡板，点页面任意空白只做「收回」。**训练统计不再是页面列表里的二级入口行**，改为圆形按钮，位于三枚之上。➕ 直接复用记录页 `RecordFab`（同尺寸、同实心品牌色、同彩色阴影、无描边），解决训练页加号白边与样式不一致。Key 全部沿用，新增 `training-actions-toggle` / `training-actions-scrim`；`training-ai-plan` 行仍退役（AI 入口只在 FAB 模式弹层里）。
 
-**训练统计弹层的口径与缺陷登记**（Round7 裁决 R2 / 批次 5）：容量趋势下加 A 的口径说明句「**容量 = 每组重量 × 次数的合计**」（`training-trend-note`）；肌群分布每行补 **kg 绝对值**（`training-muscle-kg-<muscle>`，A 的图例是「名称 / 百分比 / kg」三件）。**两个既有缺陷同批修掉（帧审看抓到）**：**㉖** 肌群分布此前恒为空——`_StatisticsSheetContent` 只传会话仓储、`muscleGroupDistribution(exercises: const [])` 的 `exerciseId→肌群` 映射永远失败 ⇒「肌群分布（按容量）」在真实数据下也只会写「暂无肌群分布数据。」（修法：把动作库一起传进去，一次读完 312 条）；**㉗** 容量图柱体此前只有 `width: 32` **没有高度** ⇒ 外层 `Column(mainAxisSize: min)` 给无界高、`FractionallySizedBox` 拿不到有限高，**带真实训练数据打开「训练统计」必抛** `BoxConstraints has NaN values in minHeight/maxHeight`（修法：柱区显式 `height: 80`）。两条都此前无任何用例/帧走过这条路。
+**训练统计弹层的口径与缺陷登记**（Round7 裁决 R2 / 批次 5）：容量趋势下加 A 的口径说明句「**容量 = 每组重量 × 次数的合计**」（`training-trend-note`）；肌群分布每行补 **kg 绝对值**（`training-muscle-kg-<muscle>`，A 的图例是「名称 / 百分比 / kg」三件）。**两个既有缺陷同批修掉（帧审看抓到）**：**㉖** 肌群分布此前恒为空——`_StatisticsSheetContent` 只传会话仓储、`muscleGroupDistribution(exercises: const [])` 的 `exerciseId→肌群` 映射永远失败 ⇒「肌群分布（按容量）」在真实数据下也只会写「暂无肌群分布数据。」（修法：把动作库一起传进去，一次读完 312 条）；**㉗** 容量图柱体此前只有 `width: 32` **没有高度** ⇒ 外层 `Column(mainAxisSize: min)` 给无界高、`FractionallySizedBox` 拿不到有限高，**带真实训练数据打开「训练统计」必抛** `BoxConstraints has NaN values in minHeight/maxHeight`（修法：柱区显式 `height: 80`）。两条都此前无任何用例/帧走过这条路。**2026-11-02 布局重做**：弹层改为「三项汇总瓦片 + 三张分区卡（趋势 / 肌群 / 常用动作）」；区卡统一 `DesignCard` + 图标标题，肌群条按容量降序，常用动作加序号；空历史只给一个诚实的空态，不再堆三块「暂无数据」。2.0× 字号下三枚汇总瓦片自动纵向堆叠。
 
 **训练回顾弹层**（Round7 逐页对账批次 4 按 A `app.js:559`）：训练历史行可点 → `AppSheet`（标题「训练回顾」，键 `training-review-sheet`）：组数大字 `training-review-sets` + 「已完成组数」+ 计划名 + 四行 `training-review-date` / `-duration` / `-volume` / `-kcal`。**只读**（全部取自 `WorkoutSessionRecord`，新增零查询零写入）；估算消耗按本仓口径写「—」并在注里说明原因（`WorkoutSets` 无热量列）。
 
@@ -1514,8 +1532,8 @@ Column
 │   │                                ManualCommuteDialog 整族下线，手动通勤列随 schema 23→24 drop；
 │   │                                本行原有「未接线仓储就不渲染」的自门控约定仍有效，只是对象已不在）
 │   └ 关于                           关于 LocalFit AI → vN / 检查更新 / cta-clear-data (error 色)
-└ Footer                            "清除数据后不可恢复" + "LocalFit AI vN"
-                                    + "让每一次记录，回到你自己。"（A `.page-end`，2026-10-15 逐页对账第一批）
+└ Footer                            只留 "LocalFit AI vN"（2026-11-02 用户：
+                                    文字说明过度；清除后果在确认弹层已完整说明）
 ```
 
 **数据来源**：档案（`Profiles`/`Goals`）、`Measurements`（体重/体脂）、`Meals` 计数（总记录）、连续天数（派生）、BMI（派生：体重/身高²）、基础代谢率（派生：Mifflin-St Jeor）、成就解锁态（**新增域**）、食材库条数（`Foods` count）。**健康数据三张图形卡另加了两次「只读不算」的取数**（docs/29 §P2）：BMR 卡的区间 = 该用户自己的 `Goals.calorieMin/Max`（同一行已有列，透传给区间指示用）、饮水环的达成度分子 = 今日 `WaterIntakes` 合计（与 `WaterRepository.watchDay` 同口径）；**BMI/BMR/水目标的派生逻辑一行未改**。
@@ -1591,6 +1609,10 @@ Column
 
 **测试 Key**：`settings-identity-card`、`cta-edit-profile`、`settings-avatar`、`settings-avatar-initial`、`settings-name`、`dashboard-avatar-initial`、`ai-chat-avatar-initial`、`settings-stat-weight`、`settings-stat-records`、`settings-stat-streak`、`settings-health-metrics`、`settings-health-bmi`、`settings-health-bmr`、`settings-achievements`、`settings-achievement-<n>`、`lf-achievement-medal`、`lf-achievement-name`、`lf-achievement-tier`、`lf-achievement-count`、`settings-group-ai`、`settings-ai-model-row`、`ai-protocol`、`ai-base-url`、`ai-model`、`ai-config-probe`、`ai-config-probe-result`、`ai-model-search`、`ai-model-option-<n>`、`ai-reasoning`、`ai-api-key`、`ai-key-clear`、`ai-config-sheet-save`、`settings-group-data`、`cta-backup`、`cta-restore`、`cta-export-csv`、`settings-auto-backup-toggle`、`settings-steps-permission`、`steps-permission-sheet-body`、`steps-enabled-switch`、`steps-enabled-note`、`cta-open-app-settings`、`settings-group-catalog`、`settings-food-db-row`、`settings-menu-sources`、`settings-catalog-import`、`settings-clear-builtin-foods`、`clear-builtin-foods-body`、`clear-builtin-foods-confirm`、`settings-group-about`、`settings-version-row`、`settings-check-update`、`cta-clear-data`；食物库大库（docs/31 S5）：`settings-food-data`、`food-data-sheet-body`、`food-data-sheet-manual`、`food-data-sheet-import`、`backup-export-foods-csv`、`backup-export-training-csv`、`food-import-count-new`、`food-import-count-dup`、`food-import-count-error`、`food-import-dup-samples`、`food-import-error-sample`、`food-import-skip-dup`、`food-import-import-all`、`food-import-cancel`、`new-food-category`；电子体重秤（docs/31 S6）：`settings-scale-row`、`scale-permission-sheet-body`、`scale-action-sync`、`scale-action-app-settings`、`scale-sync-progress`、`scale-sync-cancel`、`scale-conflict-body`、`scale-conflict-keep`、`scale-conflict-overwrite`；编辑资料「每日目标」（docs/32 §4 T9 / §3 D11）：`profile-steps-goal`、`profile-water-target`；身份（2026-10-16 S6：头像与昵称统一在资料页改，设置页那对就地编辑键随弹层下线）：`profile-avatar`、`profile-avatar-image`、`profile-avatar-initial`、`profile-display-name`
 
+**更新下载反馈（2026-11-04）**：点击「下载并安装」后，根导航器弹层持续显示下载进度条、整数百分比与「已下载 / 总大小」；分母优先取响应长度，缺失时用发布清单的包大小，两者均缺失则只显示已下载字节与不确定进度，不编百分比。百分比向下取整，不把未完成的 99.6% 提前显示为 100%；文件落盘后才切换为「正在交给系统安装」。取消、遮罩与返回会中止未完成下载，退场动画期间也不得继续触发安装或二次 pop；安装器已经接手则保留完整包。连点检查更新只允许一条流程。弹层支持窄屏大字号滚动，沿用 `LfProgressBar`、`LfText` 与设计令牌。
+
+**测试 Key（更新下载）**：`update-available-sheet`、`update-download-install`、`update-download-sheet`、`update-download-phase`、`update-download-progress`、`update-download-percent`、`update-download-bytes`、`update-download-cancel`
+
 **测试 Key（AI 记忆页，docs/38 S11）**：`settings-ai-memory-row`、`ai-memory-close`、`ai-memory-add`、`ai-memory-search`、`ai-memory-list`、`ai-memory-row-<n>`、`ai-memory-empty`、`ai-memory-injection-toggle`、`ai-memory-copy-all`、`ai-memory-clear-all`、`ai-memory-clear-confirm`、`ai-memory-editor-text`、`ai-memory-editor-kind`、`ai-memory-editor-domain`、`ai-memory-editor-pinned`、`ai-memory-editor-save`、`ai-memory-delete-confirm`
 
 ### 5.7 AI 对话（`AI 工作.html`）
@@ -1631,7 +1653,7 @@ Column
 
 **语音输入（P10 需求 36 已删除，2026-10-07）**：录音行、`btn-voice-*` 三键、`record` 依赖与 `RECORD_AUDIO` 权限整族移除。历史库中的旧语音消息（D8 保留 `kind=voice` 与 `durationMs` 列）降级为普通用户气泡渲染，只读不写。免责声明行（需求 35）一并删除。
 
-**测试 Key**：`ai-chat-back`、`ai-chat-title`、`ai-chat-message-<n>`、`ai-chat-feature-card`、`cta-write-plan`、`ai-chat-image-<n>`、`ai-chat-typing`、`ai-chat-chip-remaining`、`ai-chat-chip-log-meal`、`ai-chat-chip-ai-create`、`ai-chat-suggestion-<n>-<m>`、`image-preview-bar`、`btn-remove-image`、`btn-image-upload`、`ai-chat-text-input`、`btn-send`；编辑卡（docs/23 §5）：`chat-edit-card-<n>`、`chat-edit-group-<n>-<meal|food|other>`、`chat-edit-group-apply-<n>-<meal|food|other>`、`chat-edit-row-<n>-<m>`、`chat-edit-apply-<n>`、`chat-edit-dismiss-<n>`、推荐按钮 `chat-edit-suggest-<n>-<m>`、修复按钮 `chat-edit-repair-<n>-<m>`；带图时的发送披露行 `image-send-disclosure`；历史库旧语音消息（D8 只读兼容，降级为普通用户气泡）：`ai-chat-voice-<n>`；**结束本次对话**（`RV4-P2-04/05`，D4 合并后）：`ai-chat-end-session`（唯一入口）、提炼忙态行 `ai-chat-extracting`、会话结束分隔线 `ai-chat-session-ended`、候选复选 `ai-memory-candidate-<n>`、保存 `ai-memory-candidate-save`；
+**测试 Key**：`ai-chat-back`、`ai-chat-title`、`ai-chat-message-<n>`、`ai-chat-feature-card`、`cta-write-plan`、`ai-chat-image-<n>`、`ai-chat-typing`、`ai-chat-chip-remaining`、`ai-chat-chip-log-meal`、`ai-chat-chip-ai-create`、`ai-chat-suggestion-<n>-<m>`、`image-preview-bar`、`btn-remove-image`、`btn-image-upload`、`ai-chat-text-input`、`btn-send`；编辑卡（docs/23 §5）：`chat-edit-card-<n>`、`chat-edit-group-<n>-<meal|food|other>`、`chat-edit-group-apply-<n>-<meal|food|other>`、`chat-edit-row-<n>-<m>`、`chat-edit-apply-<n>`、`chat-edit-dismiss-<n>`、推荐按钮 `chat-edit-suggest-<n>-<m>`、修复按钮 `chat-edit-repair-<n>-<m>`；（带图时的发送披露行 image-send-disclosure 已于 **2026-10-31 用户裁决退役**——披露文字整行删除，Key 随组件一起退役，不再计入 Key 表）；历史库旧语音消息（D8 只读兼容，降级为普通用户气泡）：`ai-chat-voice-<n>`；**结束本次对话**（`RV4-P2-04/05`，D4 合并后）：`ai-chat-end-session`（唯一入口）、提炼忙态行 `ai-chat-extracting`、会话结束分隔线 `ai-chat-session-ended`、候选复选 `ai-memory-candidate-<n>`、保存 `ai-memory-candidate-save`；
 **清除聊天记录**（`RV4-P2-06`）：`ai-chat-clear-history` + 二次确认 `ai-chat-clear-history-confirm` / `-cancel` / `-confirm-ok`；
 **今天还剩多少**（`RV4-R16`）：结果卡 `ai-chat-remaining-card`；
 **行级应用**（`RV4-P2-07`）：`chat-edit-row-apply-<n>-<m>`
@@ -1999,16 +2021,24 @@ Column
 |---|---|---|
 | `meal-entry-chooser` | `AppSheet` 弹层根 | 标题「记录一餐」；说明句「按食材记账用食物库（每 100g）；吃现成的菜用我的菜（按份）。」 |
 | `meal-entry-by-food` | `DesignCard` 行（可点） | 「按食材记录 / 食物库 · 每 100g × 克数」→ 既有 `MealEditorDialog`（键契约不变） |
-| `meal-entry-by-dish` | `DesignCard` 行（可点） | 「按菜品记录 / 我的菜 · 按份记入」→ `dish-meal-picker` |
-| `dish-meal-picker` | 弹层根 | 菜品库列表（空态见下一行） |
+| `meal-entry-by-dish` | `DesignCard` 行（可点） | 「按菜品记录 / 我的菜 · 按份记入」→ `dish-meal-editor`（2026-10-28 用户：「按菜品记录为什么弹窗还是这样，我要的是按食材记录这样」——从「选菜 → 二次确认」两步改为与按食材**同构的表单弹层**） |
+| `dish-meal-editor` | 弹层根 | 标题「按菜品记录」+ 餐次胶囊（`dish-meal-slot`）+ 搜索（`dish-meal-picker-search`）+ 结果行 + 已添加卡 + 合计卡 + 保存（`meal-save` 沿用键契约口径见下） |
+| `dish-meal-picker-search` | 搜索框 | 与按食材同款 `LfSearchField`；hint「搜菜品名（如「番茄」）」 |
+| `dish-meal-picker-item-<dishId>` | 搜索结果行 | `LfPickerRow`：名称 + 餐次 · kcal/份 + 来源徽标（与菜品卡同源）；点击 = 加入本餐 |
 | `dish-meal-picker-empty` | 空态文案 | 菜品库为空时的**可行动**文案「先存为菜品 / 在食堂目录里分析菜品」；不写「暂无数据」 |
-| `dish-meal-picker-item-<dishId>` | 列表行 | 名称 + 餐次 + kcal/份 + 来源徽标（与菜品卡同源） |
-| `dish-meal-confirm` / `dish-meal-cancel` | B3 / B6 | 「记一份」/「取消」 |
-| `meal-entry-by-food` 之后的既有键 | — | `meal-food-search` / `meal-save` / `meal-grams-item-N` 一字不动 |
+| `dish-meal-added-<dishId>` | 已添加卡 | 名称 + 移除（B4）+ 份量胶囊（整份；历史行无克数列，整份口径不变）+ 按份营养 |
+| `dish-meal-totals` | 合计卡 | 与按食材的「合计」同构：kcal 大字 + MacroDotLine |
+| `meal-save` | B2 | 「保存餐食」——与按食材同一动作键名（同一落库动作） |
 
-进口径：`FAB → 入口弹层 → 按食材 = 旧编辑弹层；按菜品 = 选菜 → 确认（整份）`。
-**不新增写路径**：两条都落到 `MealRepository.create`（`source` 分别为
-`manual` / `dish_library`）。
+【保留但退役为主路的键】`dish-meal-picker-empty` 语义不变；`DishMealConfirmSheet`
+（`dish-meal-confirm-body` / `dish-meal-slot-*` / `dish-meal-cancel` / `dish-meal-confirm`）
+**不再是主路**——确认并进表单弹层的「已添加 + 保存」；类型（`PickedLibraryDish` 等）
+保留给既有测试与「未分析食堂菜」支路。
+
+进口径（2026-10-28 起）：`FAB → 入口弹层 → 按食材 = 表单弹层；按菜品 = 表单弹层
+（搜菜加入）`。**不新增写路径**：保存逐条走 `onAddDishToMeal`（即 `AddDishToMeal.run`
+→ `MealRepository.create`，`source = dish_library`），份量沿用整份口径
+（`servingGrams` / 100g 兜底），餐次胶囊 = `slotOverride`。
 
 ### D2 建食堂菜时的「参考食物库」chip（`docs/40` §3.1）
 
@@ -2059,7 +2089,6 @@ Column
 
 | Key | 形态 | 行为 |
 |---|---|---|
-| `nutrition-menu-dish-basis-<index>` | 中性徽标「按 100g 估算」 | 仅 `basisAssumed=true`（份量未知/历史回填）时渲染；**不假装知道份量** |
 | ~~`nutrition-menu-dish-stale-<index>`~~ | **2026-10-24 退役**（`RV4-P2-09` / `docs/56` R10-c / 裁决 D2）：「陈旧提示 + 手动同步」整族退役——自动同步已覆盖建菜/改名/换照片/写营养/删菜/删窗口/删地点七条写路径，且 `userEdited` 行现被**冻结**（`DishLibraryRepository.upsertBySource` 跳过手改行）。详见 `docs/40 §6` |
 
 判定与订阅都在菜单页自己完成（`DishStalenessChecker`；显式注入优先，否则用
@@ -2170,3 +2199,23 @@ Column
 `常吃搭配`（`meal-pairing.v1`）三张卡**不再有自己的 decoder**：它们只把启动提示词发进对话，
 写库统一由 chat-edit 命令层承担。`docs/03` §9/§14/§15 已加 as-built 退役横幅；
 若要恢复结构化草案，须先补实现 + 断言（不得只改文档）。
+
+## 统一营养主库的界面口径（schema 31，2026-11-09）
+
+契约见 [`docs/68`](68-unified-nutrition-data-contract.md)；方案 [`docs/67`](67-unified-nutrition-master-canteen-catalog-feasibility-plan-2026-11-09.md)。
+
+1. **单位必须分开写**：主食物是「每 100g」；食堂供应是「每份 Xg」。同一行里
+   不得把每 100g 的数字标成「/份」。
+2. **供应四态**（食堂目录、记餐搜索、AI 快照同一套）：
+   | 状态 | 显示 | 可做 |
+   |---|---|---|
+   | 待分析 | 「未分析营养」（不是 0 千卡） | 补分析 / 补照片 / 选主食物 |
+   | 份量未知 | 每 100g + 「每份克数未知（只能按克记）」 | 按明确克数记餐 |
+   | 份量为估计 | 「每份约 Xg（估计）」 | 用户确认后按份记 |
+   | 份量已知 | 「每份 Xg · 一份约 N kcal」 | 按份或按克记 |
+3. **记餐编辑器**：供应结果行打「食堂」来源标 + 窗口名；选中即记 1 份，
+   克数为该供应每份克数；手改克数后份数清空（不留下自相矛盾的快照）。
+4. **旧菜品**（`dish_library`）：份量不可信时**拒绝添加**并说明「补一份多少克
+   或重新分析」，不按 100g 兜底。
+5. **归档主食物**：供应详情要能解释「已归档，需选择替代条目」，不进入自动推荐、
+   不能新挂窗；历史餐照旧可读。

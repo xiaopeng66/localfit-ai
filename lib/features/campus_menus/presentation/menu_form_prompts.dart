@@ -135,13 +135,16 @@ class MenuFormPrompts {
       _promptDishForm(
         context,
         title: '添加菜品',
-        write: (name, imagePath, _) async {
+        write: (name, imagePath, _, servingGrams) async {
           final id = await repository.createDish(
             windowId: windowId,
             name: name,
             // 新增：快照里的路径就是最终态（空串＝没加照片，写 null）。
             imagePath: imagePath.isEmpty ? null : imagePath,
           );
+          if (servingGrams != null) {
+            await repository.updateDishServingGrams(id, servingGrams);
+          }
           // 建菜成功后本地跑一次食物库匹配（docs/40 §3.1）：命中给三选一，
           // 不静默填。回调未接线/无命中时什么都不发生（旧行为）。
           await onDishCreated?.call(id, name);
@@ -154,15 +157,18 @@ class MenuFormPrompts {
         title: '编辑菜品',
         initialName: dish.name,
         initialImagePath: dish.imagePath ?? '',
+        initialServingGrams: dish.servingGrams,
         // 第四参 setImagePath：用户没碰照片字段时保持 false，仓库不写列、
         // 也不删旧文件（测试锚点：'编辑菜品：未碰照片不动列'）。
-        write: (name, imagePath, setImagePath) async {
+        write: (name, imagePath, setImagePath, servingGrams) async {
           await repository.updateDish(
             dishId: dish.id,
             name: name,
             imagePath: imagePath.isEmpty ? null : imagePath,
             setImagePath: setImagePath,
           );
+          // 份量单独写：清空也要落库（null = 回到按 100g 估算）。
+          await repository.updateDishServingGrams(dish.id, servingGrams);
           // 改名同样给一次匹配建议（docs/40 §3.1「建菜/改名成功后」）。
           await onDishCreated?.call(dish.id, name);
         },
@@ -183,10 +189,12 @@ class MenuFormPrompts {
       String name,
       String imagePath,
       bool setImagePath,
+      double? servingGrams,
     )
     write,
     String initialName = '',
     String initialImagePath = '',
+    double? initialServingGrams,
   }) async {
     final pick = pickDishImage;
     await CanteenFormSheet.show(
@@ -199,6 +207,15 @@ class MenuFormPrompts {
           hint: '例：番茄炒蛋',
           initialValue: initialName,
           autofocus: true,
+        ),
+        CanteenField(
+          key: 'canteen-dish-serving',
+          label: '一份多少克（可选）',
+          hint: '例：300；不填按 100g 估算',
+          numeric: true,
+          initialValue: initialServingGrams == null
+              ? ''
+              : _formatServing(initialServingGrams),
         ),
         // 照片可选可删（需求 16）：没有的事不画，移除后回虚线空态。
         if (pick != null)
@@ -214,14 +231,22 @@ class MenuFormPrompts {
         final error = validateDishForm(values);
         if (error != null) return error;
         final imagePath = values['canteen-dish-photo'] ?? initialImagePath;
+        final rawServing = (values['canteen-dish-serving'] ?? '').trim();
+        final servingGrams = rawServing.isEmpty
+            ? null
+            : double.tryParse(rawServing);
         return _writeViaSheet(
           () => write(
             values['canteen-dish-name']!,
             imagePath,
             imagePath != initialImagePath,
+            servingGrams,
           ),
         );
       },
     );
   }
+
+  static String _formatServing(double grams) =>
+      grams == grams.roundToDouble() ? grams.round().toString() : '$grams';
 }

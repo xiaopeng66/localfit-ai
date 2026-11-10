@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  在线更新的 APK 交接路径（需求 17b，2026-10-25）。
+
+  只暴露**应用私有目录**里的一个子目录 `updates/`：下载的新版安装包落在那里，
+  由 FileProvider 换成 content:// URI 交给系统安装器。不暴露外部存储、
+  不暴露数据库与图片目录——这条通道只服务「把一个 APK 交给系统安装器」这一件事。
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="updates" path="updates/" />
+    <cache-path name="updates-cache" path="updates/" />
+</paths>

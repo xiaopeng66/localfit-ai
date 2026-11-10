@@ -46,7 +46,9 @@ class SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    final titleColor = destructive ? c.error : c.cardForeground;
+    // 破坏性操作的**标题是正文**（14px），必须用文字档：填充档 `error`
+    // 在白卡上只有 3.68:1（2026-11-09 全量审查实测），`errorText` 6.54:1。
+    final titleColor = destructive ? c.errorText : c.cardForeground;
     final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 52),
       child: Padding(

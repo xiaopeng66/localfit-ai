@@ -191,9 +191,10 @@ void main() {
       expect(find.byKey(const Key('dashboard-calorie-ring')), findsOneWidget);
       expect(find.text('0'), findsWidgets, reason: '无记录就是 0 摄入');
       expect(find.textContaining('超出 '), findsNothing);
-      // 有目标、无摄入 → 剩余等于整个目标，说成 A 的「还可摄入 N kcal」。
+      // 有目标、无摄入 → 剩余**区间**下界是「下限 − 0」而不是 0（本夹具
+      // 下限 = 上限 − 500 ⇒ 1,500–2,000）。
       expect(
-        find.textContaining('还可摄入 2,000 kcal', findRichText: true),
+        find.textContaining('还可摄入 1,500–2,000 kcal', findRichText: true),
         findsWidgets,
         reason: '有目标、无摄入时应显示剩余额度（2000 − 0 = 2000）',
       );

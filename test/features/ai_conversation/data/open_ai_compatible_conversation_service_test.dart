@@ -28,8 +28,9 @@ void main() {
     String baseUrl = 'https://api.example.com/v1',
     int maxResponseBytes = 512 * 1024,
     Duration maxStreamDuration = const Duration(minutes: 3),
+    _BodyRecordingAdapter? adapterOverride,
   }) {
-    final adapter = _RecordingAdapter(response);
+    final adapter = adapterOverride ?? _RecordingAdapter(response);
     final service = OpenAiCompatibleConversationService(
       dio: Dio(),
       configurationReader: _FixedConfiguration(
@@ -88,6 +89,166 @@ void main() {
       Headers.contentTypeHeader: ['text/event-stream'],
     },
   );
+
+  test('修改请求首轮 sendMessageForcedJson 就带 response_format（不再先散文）', () async {
+    final harness = createHarness(
+      protocol: AiProviderProtocol.chatCompletions,
+      response: sseResponse([
+        jsonEncode({
+          'choices': [
+            {
+              'delta': {'content': '{"reply":"ok","edits":[]}'},
+            },
+          ],
+        }),
+        '[DONE]',
+      ]),
+    );
+    final chunks = <String>[];
+    final done = Completer<void>();
+    harness.service
+        .sendMessageForcedJson(
+          messages: [
+            ConversationMessage(
+              id: 'u1',
+              role: ConversationRole.user,
+              text: '帮我记午餐',
+              createdAt: DateTime.utc(2026, 11, 6),
+            ),
+          ],
+          onProgress: chunks.add,
+          systemContext: 'PROTOCOL-CTX',
+        )
+        .listen((_) {}, onDone: done.complete);
+    await done.future;
+
+    final body =
+        jsonDecode(harness.adapter.bodies.single) as Map<String, Object?>;
+    expect(body['response_format'], {'type': 'json_object'});
+    expect(chunks.join(), '{"reply":"ok","edits":[]}');
+  });
+
+  // 【2026-11-03 根治「不按协议输出 JSON」】信封编译请求：纯文字、强制
+  // JSON；供应商不认 response_format 时自动降级一次（仍走提示词）。
+  group('信封编译（强制 JSON）', () {
+    Future<(String, List<String>)> compile(
+      _Harness harness, {
+      String? userText,
+      String? assistantReply,
+    }) async {
+      final chunks = <String>[];
+      final done = Completer<void>();
+      Object? error;
+      harness.service
+          .compileEnvelope(
+            userText: userText ?? '帮我记录这顿饭',
+            assistantReply: assistantReply ?? '我准备记为午餐：米饭150g。点应用后生效。',
+            systemContext: 'PROTOCOL-CTX',
+            onProgress: chunks.add,
+          )
+          .listen(
+            (_) {},
+            onDone: done.complete,
+            onError: (Object e) {
+              error = e;
+              done.complete();
+            },
+          );
+      await done.future;
+      if (error != null) throw StateError('stream error: $error');
+      return (chunks.join(), harness.adapter.bodies);
+    }
+
+    test('请求体带 response_format，且只发一条编译指令（不带历史）', () async {
+      final harness = createHarness(
+        protocol: AiProviderProtocol.chatCompletions,
+        response: sseResponse([
+          jsonEncode({
+            'choices': [
+              {
+                'delta': {'content': '{"reply":"ok","edits":[]}'},
+              },
+            ],
+          }),
+          '[DONE]',
+        ]),
+      );
+      final (text, bodies) = await compile(harness);
+      expect(text, '{"reply":"ok","edits":[]}');
+
+      final body = jsonDecode(bodies.single) as Map<String, Object?>;
+      expect(body['response_format'], {'type': 'json_object'});
+      final messages = body['messages']! as List<Object?>;
+      expect(messages, hasLength(3)); // 主 system + 协议 system + 编译指令
+      final prompt = (messages.last! as Map)['content']! as String;
+      expect(prompt, contains('用户请求'));
+      expect(prompt, contains('帮我记录这顿饭'));
+      expect(prompt, contains('米饭150g'));
+      expect(prompt, contains('只输出一个 JSON 对象'));
+    });
+
+    test('编译 prompt 带照片识别轮规则：识别清单就是记录素材，reply 一句话', () async {
+      final harness = createHarness(
+        protocol: AiProviderProtocol.chatCompletions,
+        response: sseResponse([
+          jsonEncode({
+            'choices': [
+              {
+                'delta': {'content': '{"reply":"ok","edits":[]}'},
+              },
+            ],
+          }),
+          '[DONE]',
+        ]),
+      );
+      // 照片轮：userText 为空（App 会换成「发来一张食物照片」占位），
+      // 目标回复是识别清单 + 建议（2026-11-07 真机实测的失败场景）。
+      final (text, bodies) = await compile(
+        harness,
+        userText: '（用户发来一张食物照片，没有文字说明）',
+        assistantReply:
+            '识别到：麻辣香锅 约500g、手撕鸡 约350g、白米饭 约150g。'
+            '全天合计约1400kcal。小提示：下次可以少要酱。',
+      );
+      expect(text, '{"reply":"ok","edits":[]}');
+      final body = jsonDecode(bodies.single) as Map<String, Object?>;
+      final prompt =
+          ((body['messages']! as List<Object?>).last! as Map)['content']!
+              as String;
+      // 【2026-11-07 用户裁决】点击 = 要求记入：编译不再判断「是否提议」，
+      // 直接从对话内容提取可落库的对象与数值；照片识别清单是素材之一。
+      expect(prompt, contains('记入 App'));
+      expect(prompt, contains('识别'));
+      expect(prompt, isNot(contains('已经明确提出')));
+      // 空结果的 reply 必须短（一句话），不许大段解释或反问。
+      expect(prompt, contains('一句话'));
+      expect(prompt, contains('不要反问'));
+      // 【2026-11-09 真机】模型给 water.add 发明了 notes 参数 ⇒ 整条被
+      // decoder 拒绝。编译 prompt 必须写明「参数逐字来自清单，不许发明」。
+      expect(prompt, contains('清单里没有的参数'));
+      expect(prompt, contains('拒绝'));
+    });
+
+    test('供应商 400 拒绝 response_format ⇒ 自动去掉约束重发一次', () async {
+      final adapter = _JsonRejectingAdapter();
+      final harness = createHarness(
+        protocol: AiProviderProtocol.chatCompletions,
+        response: sseResponse([]),
+        adapterOverride: adapter,
+      );
+      final (text, bodies) = await compile(harness);
+      expect(text, '{"reply":"ok","edits":[]}');
+      expect(bodies, hasLength(2), reason: '第一次带 response_format 被拒，第二次去掉');
+      expect(
+        (jsonDecode(bodies.first) as Map).containsKey('response_format'),
+        isTrue,
+      );
+      expect(
+        (jsonDecode(bodies.last) as Map).containsKey('response_format'),
+        isFalse,
+      );
+    });
+  });
 
   // 2026-10-16（S1，用户：「你的哪里设置不对吧，我的模型可以识图的」）：
   // 对话里的图片**真的随这条消息发出去**——按各协议的图片块形状拼请求体。
@@ -1058,6 +1219,56 @@ final class _RecordingAdapter implements _BodyRecordingAdapter {
       bodies.add(utf8.decode(chunks, allowMalformed: true));
     }
     return response;
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+/// 带 `response_format` 的请求回 400（模拟供应商不支持 JSON 模式），
+/// 其余请求回一条合法 SSE。
+final class _JsonRejectingAdapter implements _BodyRecordingAdapter {
+  @override
+  final requests = <RequestOptions>[];
+  @override
+  final bodies = <String>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    var body = '';
+    if (requestStream != null) {
+      final chunks = <int>[];
+      await for (final chunk in requestStream) {
+        chunks.addAll(chunk);
+      }
+      body = utf8.decode(chunks, allowMalformed: true);
+      bodies.add(body);
+    }
+    if (body.contains('"response_format"')) {
+      return ResponseBody.fromString(
+        '{"error":"response_format unsupported"}',
+        400,
+      );
+    }
+    final event = jsonEncode({
+      'choices': [
+        {
+          'delta': {'content': '{"reply":"ok","edits":[]}'},
+        },
+      ],
+    });
+    return ResponseBody.fromString(
+      'data: $event\n\ndata: [DONE]\n\n',
+      200,
+      headers: const {
+        Headers.contentTypeHeader: ['text/event-stream'],
+      },
+    );
   }
 
   @override

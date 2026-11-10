@@ -205,6 +205,8 @@ void main() {
       () => const ExerciseSeedImporter().importIfNeeded(database),
     );
     await pumpApp(tester, AppRoutes.training);
+    // 2026-11-02：动作库收在上拉三角里，先展开再点。
+    await tapKey(tester, 'training-actions-toggle');
     await tapKey(tester, 'training-exercise-library');
 
     final grid = find.descendant(

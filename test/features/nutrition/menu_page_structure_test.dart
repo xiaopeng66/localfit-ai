@@ -12,6 +12,7 @@ import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
+import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_dish_list.dart';
 
 /// 菜单页的 **A `nutritionMenus()` 结构**（Round7 阶段 3 步骤 1，D25–D30）。
@@ -142,7 +143,8 @@ void main() {
 
   Widget host({
     VoidCallback? onOpenCanteen,
-    Future<void> Function(DishRecord dish)? onAddToMeal,
+    Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
+    onAddToMeal,
     double textScale = 1.0,
     Size viewport = const Size(480, 6000),
   }) {
@@ -205,12 +207,12 @@ void main() {
       );
 
       // 指引行 = A 的字面句 + 原 hero 副标题的来源事实（两件都在）。
-      final intro = find.textContaining('选好份量后再加入饮食记录');
+      final intro = find.textContaining('按食堂窗口推荐');
       expect(intro, findsOneWidget);
       expect(
         tester.widget<Text>(intro).data,
-        contains('按你的食堂窗口推荐'),
-        reason: '「按你的食堂窗口」是这套推荐真正依赖的本地事实，不随 hero 退场而消失',
+        contains('按食堂窗口推荐'),
+        reason: '食堂窗口仍是这套推荐真正依赖的本地事实',
       );
 
       // 页首不再是一张卡：hero 键所指的是纯文字块。
@@ -247,7 +249,7 @@ void main() {
       final header = tester.getRect(
         find.byKey(const Key('nutrition-menu-hero')),
       );
-      final intro = tester.getRect(find.textContaining('选好份量后再加入饮食记录'));
+      final intro = tester.getRect(find.textContaining('按食堂窗口推荐'));
       final summary = tester.getRect(planned);
       final firstCard = tester.getRect(
         find.byKey(const Key('nutrition-menu-daily-set')),
@@ -368,7 +370,7 @@ void main() {
       var added = 0;
       await tester.pumpWidget(
         host(
-          onAddToMeal: (_) async {
+          onAddToMeal: (_, {slotOverride}) async {
             added++;
           },
         ),
@@ -390,7 +392,7 @@ void main() {
     testWidgets('块底动作行：查看候选链 + 加入钮同排；钮是 A 的软底档；卡内没有第二枚', (tester) async {
       await seedTarget();
       await seedFiveDishes();
-      await tester.pumpWidget(host(onAddToMeal: (_) async {}));
+      await tester.pumpWidget(host(onAddToMeal: (_, {slotOverride}) async {}));
       await tester.pumpAndSettle();
 
       final candidates = find.byKey(
@@ -457,29 +459,34 @@ void main() {
   });
 
   group('A 页尾（D28/D29）', () {
-    testWidgets('list-link「管理食堂目录」+ A 的 note；入口仍可达', (tester) async {
-      var opened = 0;
+    /// 【2026-10-25 断言语义变更（需求 13a，强度不降）】原断言是「页尾
+    /// `.list-link`『管理食堂目录』在推荐区之后、note 之前，整行可点」。
+    ///
+    /// 用户 2026-10-25 点名把该入口**挪到右下浮动按钮**（翻到页尾才看得见的
+    /// 入口 = 事实上不存在）。所以：
+    /// * 入口本体与可达性由 `test/app/floating_actions_test.dart` 断言
+    ///   （浮钮位置 + 点得开目录页）；
+    /// * **本文件**保留它该管的那半：`MenuDishList` 里**不再**渲染这个入口
+    ///   （不许同时存在两枚同 Key 的入口），且 A 的 `.subtle-note` 仍然成立。
+    testWidgets('入口已搬去浮钮：列表内不再渲染它；note 仍在', (tester) async {
       await seedTarget();
       await seedFiveDishes();
       // note 说的是「加入餐次」这件事，所以必须走接了加入动作的装配
       // （没接线时不写这句：说了也没用，D28）。
-      await tester.pumpWidget(
-        host(onOpenCanteen: () => opened++, onAddToMeal: (_) async {}),
-      );
+      await tester.pumpWidget(host(onAddToMeal: (_, {slotOverride}) async {}));
       await tester.pumpAndSettle();
 
-      final link = find.byKey(const Key('cta-manage-canteen'));
-      expect(link, findsOneWidget);
+      expect(
+        find.byKey(const Key('cta-manage-canteen')),
+        findsNothing,
+        reason: '13a：入口搬到页面壳的右下浮钮，列表里不许留第二枚同 Key 的',
+      );
       expect(
         find.textContaining('地点、窗口与菜品'),
-        findsOneWidget,
-        reason: 'A 的 list-link 副行（app.js:185）',
+        findsNothing,
+        reason: '页尾两行 list-link 的副行随入口一起退役',
       );
 
-      // A：list-link 在推荐区之后、note 之前。
-      final lastSlot = tester.getRect(
-        find.byKey(const Key('nutrition-menu-meal-dinner')),
-      );
       final note = find.byKey(const Key('nutrition-menu-note'));
       expect(note, findsOneWidget, reason: 'A 的 `.subtle-note` 中在本仓成立的那半句');
       expect(
@@ -492,15 +499,11 @@ void main() {
         isNot(contains('演示样例')),
         reason: 'A 的前半句是原型免责声明：本仓的数据是真实分析结果，搬过来是假话（D28）',
       );
-      expect(tester.getRect(link).top, greaterThan(lastSlot.bottom));
-      expect(
-        tester.getRect(note).top,
-        greaterThan(tester.getRect(link).bottom),
+      // note 仍在推荐区之后（页尾那半句的原始意图不变）。
+      final lastSlot = tester.getRect(
+        find.byKey(const Key('nutrition-menu-meal-dinner')),
       );
-
-      await tester.tap(link);
-      await tester.pump();
-      expect(opened, 1, reason: 'list-link 承接原 hero 圆钮的同一路由');
+      expect(tester.getRect(note).top, greaterThan(lastSlot.bottom));
       await drain(tester);
     });
   });

@@ -26,12 +26,13 @@ import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_empty_state.dart';
+import 'package:localfit_ai/app/design/widgets/lf_stat_tile.dart';
 import 'package:localfit_ai/app/design/widgets/lf_top_bar.dart';
 import 'package:localfit_ai/features/training/presentation/rest_countdown.dart';
 import 'package:localfit_ai/features/training/presentation/exercise_library_page.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_training_targets.dart';
 import 'package:localfit_ai/features/training/presentation/sections/planned_entry_sheet.dart';
-import 'package:localfit_ai/features/training/presentation/sections/training_plan_fab.dart';
+import 'package:localfit_ai/features/training/presentation/sections/training_floating_actions.dart';
 import 'package:localfit_ai/features/training/presentation/sections/training_hero.dart';
 import 'package:localfit_ai/features/training/domain/workout_plan.dart';
 import 'package:localfit_ai/features/training/domain/workout_session.dart';
@@ -201,11 +202,14 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
                 // 的 16 留白不对称。
                 padding: EdgeInsets.only(
                   top: LfDimens.pagePadding + LfInsets.top(context),
-                  bottom: LfInsets.navReserve(context),
+                  // 【2026-11-02 用户：统计改圆钮、其余三枚收进上拉三角】
+                  // 展开态比收缩态高一整列；内容要能滚出**最高**的那一态，
+                  // 否则展开时最后一张卡会被统计/达标/动作库盖住。
+                  bottom: TrainingFloatingActions.contentClearance(context),
                 ),
                 children: [
                   TrainingHero(
-                    weekIndex: data.weekIndex,
+                    weekRangeText: data.weekRangeText,
                     finishedCount: data.finishedCount,
                     totalDuration: data.totalDuration,
                     // 消耗 kcal 无数据源（`WorkoutSets` 没有热量列）→ 恒 null，
@@ -240,7 +244,24 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
               );
             },
           ),
-          PositionedTrainingPlanFab(onPressed: () => _openNewPlan(context)),
+          // 【2026-11-02 用户裁决】右下改成「常驻 ➕ + 上拉三角」：
+          // 训练统计 / 训练达标 / 动作库 平时收在三角里，点开才向上展开；
+          // 点页面空白处或再点三角即收回。➕ 直接复用记录页的 `RecordFab`
+          // （同一枚视觉，解决训练页加号的白边与样式不一致）。
+          TrainingFloatingActions(
+            onNewPlan: () => _openNewPlan(context),
+            onExerciseLibrary: () => _openExerciseLibrary(context),
+            onTrainingTargets: sessionRepository == null
+                ? null
+                : () => _openTrainingTargets(
+                    context,
+                    planRepository,
+                    sessionRepository,
+                  ),
+            onStatistics: sessionRepository == null
+                ? null
+                : () => _openStatistics(context, sessionRepository),
+          ),
         ],
       ),
     );
@@ -270,19 +291,33 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
       cards.add((card: card, entries: entries));
     }
     // Round7 阶段 6 · 缺陷 ㉓：空态统一到 A 的 [LfEmptyState]（52 R18 图标块）
-    // ——旧 [AppEmptyState] 是 80dp 渐变圆 + 32px **emoji**，本仓不随包 emoji
+    // ——旧 [AppEmptyState] 是 80dp 渐变圆 + 32px **emoji**，本仓库不随包 emoji
     // 字体 ⇒ 帧里是空方框；A 的空态语言是线稿图标。
+    //
+    // 【2026-10-26 用户：「运动记录也输入不了」】没有计划时**必须还能记录
+    // 训练**：原来空态只有一句「新建一个计划」，用户想记一次练（哪怕不按
+    // 计划）就没有任何入口。这里给一个直达自由训练的按钮——它与「新建计划」
+    // 并列，不抢主次（计划仍是更完整的路径，但要先付出配置成本）。
     final emptyState = data.planCards.isEmpty
-        ? const LfEmptyState(
+        ? LfEmptyState(
             icon: Icons.fitness_center,
             title: '还没有本地训练计划。',
-            message: '新建一个计划，安排本周训练日。',
+            message: '新建计划，或先记一次自由训练。',
+            action: sessionRepository == null
+                ? null
+                : LfSoftButton(
+                    key: const Key('training-start-free-empty'),
+                    label: '开始一次自由训练',
+                    icon: Icons.play_arrow,
+                    onPressed: () => _startFreeSession(context),
+                  ),
           )
         : const LfEmptyState(
             icon: Icons.search_off,
             title: '没有匹配的动作。',
-            message: '换个肌群筛选，或选「全部」看完整计划。',
+            message: '换个肌群，或选「全部」。',
           );
+
     return [
       Padding(
         padding: const EdgeInsets.only(top: LfDimens.spaceMedium),
@@ -299,7 +334,7 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
           LfDimens.cardGap,
         ),
         child: TrainingWeekStatsCard(
-          weekIndex: data.weekIndex,
+          weekRangeText: data.weekRangeText,
           finishedCount: data.finishedCount,
           totalDuration: data.totalDuration,
           totalKcal: null,
@@ -312,6 +347,31 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
           },
         ),
       ),
+      // 【2026-10-26 用户：「运动记录也输入不了」】今天没有计划安排时（休息日 /
+      // 计划里没有今天），原来**一个记录入口都没有**。这里在页面中部给一条
+      // 「今天没有计划 · 自由训练」的行：既解释了为什么没有「开始训练」按钮，
+      // 也给了出口。
+      //
+      // 为什么不放在页尾二级入口：取帧实测那一行正好压在右下三枚浮钮下面
+      // （chevron 被旗标按钮遮住）。中部这一行不撞任何浮层。
+      if (sessionRepository != null &&
+          data.active == null &&
+          data.planCards.isNotEmpty &&
+          !cards.any((row) => row.card.day.weekday == today.weekday))
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            LfDimens.pagePadding,
+            0,
+            LfDimens.pagePadding,
+            LfDimens.spaceSmallPlus,
+          ),
+          child: _SecondaryEntry(
+            entryKey: const Key('training-free-session'),
+            icon: Icons.play_circle_outline,
+            label: '今天不是计划日 · 开始一次自由训练',
+            onTap: () => _startFreeSession(context),
+          ),
+        ),
       if (cards.isEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: LfDimens.pagePadding),
@@ -367,50 +427,38 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
             ),
           ),
         ),
-      ..._secondaryEntries(context, data, planRepository),
     ];
   }
 
-  /// 二级入口（docs/22 裁决 ②）：设计稿没画到、但数据与逻辑都要留的三件事，
-  /// 各自只占一行。
-  List<Widget> _secondaryEntries(
-    BuildContext context,
-    _TrainingSnapshot data,
-    WorkoutPlanRepository planRepository,
-  ) {
+  /// 开始一次**自由训练**（不绑定计划）。
+  ///
+  /// 数据层早就支持（`sessionRepository.start(planId: null)`，AI 聊天的
+  /// `session.start` 走的也是这条）；训练弹层在无计划时把动作下拉直接换成
+  /// 整个动作库（`_exerciseOptions`），历史里也会显示「自由训练」。
+  /// 所以这里只补「入口」这一件事：
+  /// * 已有进行中的会话 → **不新开**，直接打开那一个（用户要的是继续记）；
+  /// * 开成功后立刻进弹层，不多一次点击。
+  Future<void> _startFreeSession(BuildContext pageContext) async {
     final sessionRepository = widget.workoutSessionRepository;
-    return [
-      const SizedBox(height: LfDimens.spaceSmall),
-      if (sessionRepository != null && data.history.isNotEmpty)
-        _SecondaryEntry(
-          entryKey: const Key('training-stats'),
-          icon: Icons.assessment_outlined,
-          label: '训练统计',
-          onTap: () => _openStatistics(context, sessionRepository),
-        ),
-      // 训练达标（docs/21 §5.1 第 5 项）：设计稿的今日页没有这一格，
-      // 按 docs/22 裁决 ② 由本页以弹层承载（阶段 I 补漏——此前只在旧今日
-      // 首屏出现，重建后一度没有任何可达入口）。
-      if (sessionRepository != null)
-        _SecondaryEntry(
-          entryKey: const Key('training-target-progress'),
-          icon: Icons.flag_outlined,
-          label: '训练达标',
-          onTap: () =>
-              _openTrainingTargets(context, planRepository, sessionRepository),
-        ),
-      // 2026-10-23 用户：「删『AI 生成训练计划』按钮，功能转移到 ➕」——
-      // 入口只保留 FAB（`cta-new-plan` 的模式弹层里选「AI 生成」，走
-      // `/workout-plan-create` 页）；这里不再有第二个入口。
-      _SecondaryEntry(
-        entryKey: const Key('training-exercise-library'),
-        icon: Icons.fitness_center,
-        label: '动作库',
-        // A `app.js:216` 的 list-link 是两行：标题 + 「先了解动作，再开始训练」。
-        subtitle: '先了解动作，再开始训练',
-        onTap: () => _openExerciseLibrary(context),
-      ),
-    ];
+    if (sessionRepository == null) return;
+    final today = widget.now ?? DateTime.now();
+    try {
+      await sessionRepository.start(localDate: formatLocalDate(today));
+    } on StateError {
+      // 已有进行中的训练：把它打开，而不是弹一句「请先结束」（那等于让
+      // 用户自己去别处找入口）。
+      if (!pageContext.mounted) return;
+      await _openActiveSession(pageContext, sessionRepository);
+      return;
+    } on FormatException catch (error) {
+      if (!pageContext.mounted) return;
+      AppSnackBar.show(pageContext, error.message, icon: AppSnackBar.errorIcon);
+      return;
+    }
+    if (!pageContext.mounted) return;
+    await _openActiveSession(pageContext, sessionRepository);
+    if (!mounted) return;
+    setState(() {});
   }
 
   /// 动作库二级页（docs/22 裁决 ②）。导航写在这里，页面本体不持有入口。
@@ -429,9 +477,11 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
   List<Widget> _historySegment(BuildContext context, _TrainingSnapshot data) {
     final c = context.lf;
     if (data.history.isEmpty) {
-      return const [
+      // E-1（docs/64）：空态给一个能做的事——先记一次自由训练。
+      final sessionRepository = widget.workoutSessionRepository;
+      return [
         Padding(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             LfDimens.pagePadding,
             LfDimens.spaceSmall,
             LfDimens.pagePadding,
@@ -440,7 +490,15 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
           child: LfEmptyState(
             icon: Icons.event_note_outlined,
             title: '还没有已结束的训练。',
-            message: '完成一次训练后，这里会留下逐次记录。',
+            message: '完成训练后显示记录。',
+            action: sessionRepository == null
+                ? null
+                : LfSoftButton(
+                    key: const Key('training-history-empty-action'),
+                    label: '开始一次自由训练',
+                    icon: Icons.play_arrow,
+                    onPressed: () => _startFreeSession(context),
+                  ),
           ),
         ),
       ];
@@ -500,6 +558,13 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
   }
 
   /// 训练页一次构建需要的全部派生值（docs/21 §5.5「数据来源」）。
+  /// 删除整次训练后重读页面快照（历史行 / 周统计都是派生值，重读不许手改）。
+  void _reloadSnapshot() {
+    setState(() {
+      _snapshot = _loadSnapshot(widget.now ?? DateTime.now());
+    });
+  }
+
   Future<_TrainingSnapshot> _loadSnapshot(DateTime today) async {
     final exerciseRepository = widget.exerciseRepository!;
     final planRepository = widget.workoutPlanRepository!;
@@ -615,15 +680,10 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
           ),
     ];
 
-    // 「第 N 周」= 从首个已结束训练起算的周序号（§7.1 派生只读）。
-    int? weekIndex;
-    if (history.isNotEmpty) {
-      final first = DateTime.tryParse(history.last.localDate);
-      if (first != null) {
-        final weeks = _mondayOf(today).difference(_mondayOf(first)).inDays ~/ 7;
-        if (weeks >= 0) weekIndex = weeks + 1;
-      }
-    }
+    // 【2026-10-29（R-6，用户：不要写「第一周」，要针对真实日期统计）】
+    // 「第 N 周」退役，改为**本周真实日期区间**（周一 – 周日）。它是统计
+    // 窗口本身的事实，与有没有训练历史无关，恒有值。
+    final weekRangeText = _weekRangeText(today);
 
     final planNames = {
       for (final summary in summaries) summary.id: summary.name,
@@ -631,7 +691,7 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
     final activeSession = active;
     return _TrainingSnapshot(
       planCards: planCards,
-      weekIndex: weekIndex,
+      weekRangeText: weekRangeText,
       finishedCount: weekSessions.length,
       totalDuration: totalDuration,
       weekVolumeKg: weekVolumeKg,
@@ -902,6 +962,41 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
         session: session,
         planName: planName,
         durationLabel: TrainingHero.formatDuration(_sessionDuration(session)),
+        // A-4：删整次。弹层内先确认（说明「组次一起删、不可撤销」），
+        // 删完关弹层并重读历史。
+        onDelete: () async {
+          final confirmed = await AppSheet.show<bool>(
+            context,
+            title: '删除这次训练？',
+            content: Text(
+              '将删除 ${session.localDate} 这次训练与其中 '
+              '${session.completedSetCount} 组记录，周统计会跟着回退。',
+            ),
+            actions: Builder(
+              builder: (sheetContext) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  LfTextButton(
+                    label: '取消',
+                    onPressed: () => Navigator.pop(sheetContext, false),
+                  ),
+                  LfDangerButton(
+                    key: const Key('training-review-delete-confirm'),
+                    label: '删除',
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                  ),
+                ],
+              ),
+            ),
+          );
+          if (confirmed != true) return;
+          await widget.workoutSessionRepository!.deleteSession(session.id);
+          if (!context.mounted) return;
+          // `_SessionReviewContent` already closes the root review sheet before
+          // invoking this callback. Popping with the page/branch context here
+          // would pop the training route when hosted in StatefulShellRoute.
+          _reloadSnapshot();
+        },
       ),
     );
   }
@@ -957,7 +1052,7 @@ final class _TrainingPageState extends State<TrainingPage> with DailyRollover {
     return AppSheet.showCustom<void>(
       context,
       builder: (_) =>
-          _PersonalRecordsSheet(sessionRepository: sessionRepository),
+          PersonalRecordsSheet(sessionRepository: sessionRepository),
     );
   }
 
@@ -1065,18 +1160,29 @@ final class _StatisticsSheetContentState
       child: FutureBuilder<List<WorkoutSessionRecord>>(
         future: _sessionsFuture,
         builder: (context, snapshot) {
-          final sessions = snapshot.data ?? const [];
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const SizedBox(
               height: 200,
               child: Center(child: CircularProgressIndicator()),
             );
           }
+          if (snapshot.hasError) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: LfDimens.spaceLarge),
+              child: AppErrorText('训练统计加载失败，请重试。'),
+            );
+          }
+          final sessions = snapshot.data ?? const <WorkoutSessionRecord>[];
           final trend = _calculator.trainingTrendWeeklyVolume(
             sessions: sessions,
             endOfLatestWeek: _latestWeekMonday,
             weeks: 4,
           );
+          final totalVolume = trend.fold<double>(
+            0,
+            (sum, value) => sum + value,
+          );
+          final weekVolume = trend.isEmpty ? 0.0 : trend.last;
           final muscleDist = _calculator.muscleGroupDistribution(
             sessions: sessions,
             exercises: _exercises,
@@ -1085,19 +1191,68 @@ final class _StatisticsSheetContentState
             sessions: sessions,
             limit: 5,
           );
+          // 2.0× 字号下三块瓦片并排会把标签挤成两行；整组改为纵向堆叠，
+          // 每块通栏（LfStatTileRow 的既定用法，不另写布局）。
+          final stacked = MediaQuery.textScalerOf(context).scale(12) > 16;
           return ListView(
+            key: const Key('training-stats-sheet'),
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             children: [
-              Text('训练统计', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              const Text('训练趋势、肌群分布、常用动作。'),
-              const SizedBox(height: 16),
-              _TrendSection(trend: trend),
-              const SizedBox(height: 20),
-              _MuscleDistributionSection(distribution: muscleDist),
-              const SizedBox(height: 20),
-              _MostUsedExercisesSection(exercises: mostUsed),
+              Text('训练统计', style: LfText.titleLarge),
+              const SizedBox(height: LfDimens.spaceMedium),
+              if (sessions.isEmpty)
+                const _StatsEmpty()
+              else ...[
+                LfStatTileRow(
+                  columns: 3,
+                  stacked: stacked,
+                  tiles: [
+                    LfStatTile(
+                      compact: true,
+                      label: '近 4 周容量',
+                      value: formatGroupedInt(totalVolume.round()),
+                      unit: 'kg',
+                    ),
+                    LfStatTile(
+                      compact: true,
+                      label: '本周容量',
+                      value: formatGroupedInt(weekVolume.round()),
+                      unit: 'kg',
+                      emphasized: false,
+                    ),
+                    LfStatTile(
+                      compact: true,
+                      label: '完成训练',
+                      value: '${sessions.length}',
+                      unit: '次',
+                      emphasized: false,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: LfDimens.spaceMedium),
+                _StatsSectionCard(
+                  icon: Icons.insights_outlined,
+                  title: '训练趋势（近 4 周容量）',
+                  subtitle: '容量 = 每组重量 × 次数的合计',
+                  subtitleKey: const Key('training-trend-note'),
+                  child: _TrendSection(trend: trend),
+                ),
+                const SizedBox(height: LfDimens.cardGap),
+                _StatsSectionCard(
+                  icon: Icons.pie_chart_outline,
+                  title: '肌群分布',
+                  subtitle: '按容量占比',
+                  child: _MuscleDistributionSection(distribution: muscleDist),
+                ),
+                const SizedBox(height: LfDimens.cardGap),
+                _StatsSectionCard(
+                  icon: Icons.repeat,
+                  title: '常用动作',
+                  subtitle: '按组数排序',
+                  child: _MostUsedExercisesSection(exercises: mostUsed),
+                ),
+              ],
             ],
           );
         },
@@ -1106,9 +1261,134 @@ final class _StatisticsSheetContentState
   }
 }
 
+/// 统计卡的外壳（图标 + 标题 + 一句口径 + 内容）。
+///
+/// 旧版三块内容是裸标题直接摞在弹层里，没有边界，看起来像一份没排版的
+/// 调试输出。现在每块装进设计稿唯一卡片形态（`DesignCard`），标题行用
+/// 浅品牌圆图标定位，块与块之间统一 12dp。
+final class _StatsSectionCard extends StatelessWidget {
+  const _StatsSectionCard({
+    required this.icon,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.subtitleKey,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Key? subtitleKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    final brightness = Theme.of(context).brightness;
+    return DesignCard(
+      padding: const EdgeInsets.all(LfDimens.spaceMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: LfColors.mint(brightness).tone(100),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  size: LfDimens.iconSm + 2,
+                  color: LfColors.mintText(brightness),
+                ),
+              ),
+              const SizedBox(width: LfDimens.spaceSmallPlus),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: LfText.title.copyWith(color: c.cardForeground),
+                    ),
+                    if (subtitle != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          subtitle!,
+                          key: subtitleKey,
+                          style: LfText.caption.copyWith(
+                            color: c.mutedForeground,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: LfDimens.spaceMedium),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// 还没有任何已结束训练时的统计空态。
+final class _StatsEmpty extends StatelessWidget {
+  const _StatsEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    final brightness = Theme.of(context).brightness;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceLarge),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: LfColors.mint(brightness).tone(100),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.assessment_outlined,
+              size: 28,
+              color: LfColors.mintText(brightness),
+            ),
+          ),
+          const SizedBox(height: LfDimens.spaceSmall),
+          Text(
+            '还没有可统计的训练。',
+            style: LfText.bodyStrong.copyWith(color: c.cardForeground),
+          ),
+          const SizedBox(height: LfDimens.spaceMicro),
+          Text(
+            '完成一次训练后再来看。',
+            style: LfText.caption.copyWith(color: c.mutedForeground),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 容量图柱区高度（缺陷 ㉗）：`FractionallySizedBox` 的百分比高度必须落在
 /// 有限高里，否则无界约束下直接抛 NaN。
 const double _trendBarAreaHeight = 80;
+
+/// 趋势图单列的固定宽度（值和周标签共用）：2.0× 时靠 FittedBox 缩字，
+/// 而不是让四列互相挤到溢出。
+const double _trendColumnWidth = 60;
 
 final class _TrendSection extends StatelessWidget {
   const _TrendSection({required this.trend});
@@ -1121,78 +1401,69 @@ final class _TrendSection extends StatelessWidget {
         ? 1.0
         : trend.reduce((a, b) => a > b ? a : b);
     final maxValue = maxVolume > 0 ? maxVolume : 1.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    if (trend.every((v) => v == 0)) {
+      return Text(
+        '这 4 周还没有训练记录。',
+        style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
+      );
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text('训练趋势（近 4 周容量）', style: LfText.headline),
-        // Round7 裁决 R2：A `app.js:267` 的口径说明句（标题搬了、句子漏了）。
-        const SizedBox(height: 2),
-        Text(
-          '容量 = 每组重量 × 次数的合计',
-          key: const Key('training-trend-note'),
-          style: LfText.caption.copyWith(color: context.lf.mutedForeground),
-        ),
-        const SizedBox(height: 8),
-        if (trend.every((v) => v == 0))
-          const Text('暂无训练记录。')
-        else
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.end,
+        for (var i = 0; i < trend.length; i++)
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              for (var i = 0; i < trend.length; i++)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 32,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Text(
-                          trend[i] > 0 ? '${trend[i].toInt()}kg' : '',
-                          style: LfText.label,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // 缺陷 ㉗（批次 5 帧审看抓到）：柱体此前只有 `width: 32`
-                    // **没有高度** —— 外层 `Column(mainAxisSize: min)` 给的是
-                    // 无界高，`FractionallySizedBox` 拿不到有限高 ⇒
-                    // 「BoxConstraints has NaN values in minHeight/maxHeight」
-                    // 当场抛在 `RenderDecoratedBox` 上（带真实训练数据打开
-                    // 「训练统计」必现；此前没有一条用例/帧走过这条路）。
-                    // 柱区高度显式给出，百分比高度才有分母。
-                    SizedBox(
-                      width: 32,
-                      height: _trendBarAreaHeight,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: FractionallySizedBox(
-                          heightFactor: (trend[i] / maxValue).clamp(0.0, 1.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: LfColors.mint(Theme.of(context).brightness)
-                                  .tone(600),
-                              borderRadius: BorderRadius.circular(
-                                LfDimens.radiusSm,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // 数据是时间升序（index 0 = 最早），所以「几周前」由
-                    // 数组长度反推；末位才是本周。曾经按降序写成
-                    // `trend.length - i`，改用升序后标签会整个反过来。
-                    Text(
-                      i == trend.length - 1
-                          ? '本周'
-                          : '${trend.length - 1 - i}周前',
-                      style: LfText.bodySmall,
-                    ),
-                  ],
+              SizedBox(
+                width: _trendColumnWidth,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    trend[i] > 0 ? '${trend[i].toInt()}kg' : '',
+                    style: LfText.label,
+                  ),
                 ),
+              ),
+              const SizedBox(height: 4),
+              // 缺陷 ㉗（批次 5 帧审看抓到）：柱体此前只有 `width: 32`
+              // **没有高度** —— 外层 `Column(mainAxisSize: min)` 给的是
+              // 无界高，`FractionallySizedBox` 拿不到有限高 ⇒
+              // 「BoxConstraints has NaN values in minHeight/maxHeight」
+              // 当场抛在 `RenderDecoratedBox` 上（带真实训练数据打开
+              // 「训练统计」必现；此前没有一条用例/帧走过这条路）。
+              // 柱区高度显式给出，百分比高度才有分母。
+              SizedBox(
+                width: 28,
+                height: _trendBarAreaHeight,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionallySizedBox(
+                    heightFactor: (trend[i] / maxValue).clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: LfColors.mint(Theme.of(context).brightness)
+                            .tone(600),
+                        borderRadius: BorderRadius.circular(LfDimens.radiusSm),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              // 数据是时间升序（index 0 = 最早），所以「几周前」由数组长度
+              // 反推；末位才是本周。曾经按降序写成 `trend.length - i`，
+              // 改用升序后标签会整个反过来。
+              SizedBox(
+                width: _trendColumnWidth,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    i == trend.length - 1 ? '本周' : '${trend.length - 1 - i}周前',
+                    style: LfText.bodySmall,
+                  ),
+                ),
+              ),
             ],
           ),
       ],
@@ -1208,81 +1479,87 @@ final class _MuscleDistributionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = distribution.values.fold(0.0, (a, b) => a + b);
+    if (distribution.isEmpty) {
+      return Text(
+        '暂无肌群分布数据。',
+        style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
+      );
+    }
+    // 按容量从高到低；Map 的插入顺序是「第一次练到」的顺序，不是强度顺序。
+    final entries = distribution.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('肌群分布（按容量）', style: LfText.headline),
-        const SizedBox(height: 8),
-        if (distribution.isEmpty)
-          const Text('暂无肌群分布数据。')
-        else
-          for (final entry in distribution.entries)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // A `app.js:267` 的图例是「名称 / 百分比 / kg」三件：
-                  // 百分比说了占比，kg 才是这件事的绝对量（裁决 R2）。
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${entry.key.label} '
-                          '${total > 0 ? ((entry.value / total) * 100).round() : 0}%',
-                          style: LfText.body,
-                        ),
+        for (var i = 0; i < entries.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == entries.length - 1 ? 0 : LfDimens.spaceSmall,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // A `app.js:267` 的图例是「名称 / 百分比 / kg」三件：
+                // 百分比说了占比，kg 才是这件事的绝对量（裁决 R2）。
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${entries[i].key.label} '
+                        '${total > 0 ? ((entries[i].value / total) * 100).round() : 0}%',
+                        style: LfText.body,
                       ),
-                      Text(
-                        '${formatGroupedInt(entry.value.round())} kg',
-                        key: Key('training-muscle-kg-${entry.key.name}'),
-                        style: LfText.body.copyWith(
-                          color: context.lf.mutedForeground,
-                        ),
+                    ),
+                    Text(
+                      '${formatGroupedInt(entries[i].value.round())} kg',
+                      key: Key('training-muscle-kg-${entries[i].key.name}'),
+                      style: LfText.body.copyWith(
+                        color: context.lf.mutedForeground,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final barWidth = total > 0
-                          ? (entry.value / total) * constraints.maxWidth
-                          : 0.0;
-                      return Stack(
-                        children: [
-                          Container(
-                            height: 8,
-                            width: constraints.maxWidth,
-                            decoration: BoxDecoration(
-                              color: context.lf.muted,
-                              borderRadius: BorderRadius.circular(
-                                LfDimens.radiusSm,
-                              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final barWidth = total > 0
+                        ? (entries[i].value / total) * constraints.maxWidth
+                        : 0.0;
+                    return Stack(
+                      children: [
+                        Container(
+                          height: 8,
+                          width: constraints.maxWidth,
+                          decoration: BoxDecoration(
+                            color: context.lf.muted,
+                            borderRadius: BorderRadius.circular(
+                              LfDimens.radiusSm,
                             ),
                           ),
-                          if (barWidth > 0)
-                            Positioned(
-                              left: 0,
-                              child: Container(
-                                height: 8,
-                                width: barWidth,
-                                decoration: BoxDecoration(
-                                  color: LfColors.mint(
-                                    Theme.of(context).brightness,
-                                  ).tone(600),
-                                  borderRadius: BorderRadius.circular(
-                                    LfDimens.radiusSm,
-                                  ),
+                        ),
+                        if (barWidth > 0)
+                          Positioned(
+                            left: 0,
+                            child: Container(
+                              height: 8,
+                              width: barWidth,
+                              decoration: BoxDecoration(
+                                color: LfColors.mint(
+                                  Theme.of(context).brightness,
+                                ).tone(600),
+                                borderRadius: BorderRadius.circular(
+                                  LfDimens.radiusSm,
                                 ),
                               ),
                             ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
+          ),
       ],
     );
   }
@@ -1295,32 +1572,62 @@ final class _MostUsedExercisesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (exercises.isEmpty) {
+      return Text(
+        '暂无常用动作数据。',
+        style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
+      );
+    }
+    final c = context.lf;
+    final brightness = Theme.of(context).brightness;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('常用动作（按组数）', style: LfText.headline),
-        const SizedBox(height: 8),
-        if (exercises.isEmpty)
-          const Text('暂无常用动作数据。')
-        else
-          for (final exercise in exercises)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: _LeadingBadge(
-                icon: Icons.fitness_center_outlined,
-                tint: LfColors.mint(Theme.of(context).brightness).tone(100),
-                foreground: LfColors.mint(Theme.of(context).brightness)
-                    .tone(600),
-              ),
-              title: Text(exercise.exerciseName, style: LfText.body),
-              subtitle: Text(
-                '${exercise.setCount} 组 · ${exercise.volume.toInt()}kg',
-                style: LfText.bodySmall.copyWith(
-                  color: context.lf.mutedForeground,
-                ),
-              ),
+        for (var i = 0; i < exercises.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == exercises.length - 1 ? 0 : LfDimens.spaceSmall,
             ),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: LfColors.mint(brightness).tone(100),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${i + 1}',
+                    style: LfText.label.copyWith(
+                      color: LfColors.mintText(brightness),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: LfDimens.spaceSmallPlus),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        exercises[i].exerciseName,
+                        style: LfText.body.copyWith(color: c.cardForeground),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${exercises[i].setCount} 组 · '
+                        '${formatGroupedInt(exercises[i].volume.round())} kg',
+                        style: LfText.caption.copyWith(
+                          color: c.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1608,6 +1915,37 @@ final class _ActiveSessionSheetState extends State<_ActiveSessionSheet> {
     _reloadSession();
   }
 
+  /// A-4：删掉这一组（先确认）。删完 `_reloadSession()` 重读会话——组数与
+  /// 容量都是派生值，重读才不会手算出假数字。
+  Future<void> _confirmDeleteSet(WorkoutSetRecord set) async {
+    final confirmed = await AppSheet.show<bool>(
+      context,
+      title: '删除这一组？',
+      content: Text(
+        '将删除 ${set.exerciseName} ${set.weightKg}kg × ${set.reps} 次。',
+      ),
+      actions: Builder(
+        builder: (sheetContext) => Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            LfTextButton(
+              label: '取消',
+              onPressed: () => Navigator.pop(sheetContext, false),
+            ),
+            LfDangerButton(
+              key: const Key('training-set-delete-confirm'),
+              label: '删除',
+              onPressed: () => Navigator.pop(sheetContext, true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.sessionRepository.deleteSet(set.id);
+    _reloadSession();
+  }
+
   void _reloadSession() {
     _session = widget.sessionRepository.getActive();
   }
@@ -1683,6 +2021,9 @@ final class _ActiveSessionSheetState extends State<_ActiveSessionSheet> {
                                 key: Key('training-logged-set-${set.id}'),
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
+                                // A-4：长按删这一组（记错了能撤）。确认在两按钮
+                                // 弹层里做，不直接删。
+                                onLongPress: () => _confirmDeleteSet(set),
                                 leading: Text('#${set.sortOrder + 1}'),
                                 title: Text(
                                   '${set.exerciseName} ${set.weightKg}kg × ${set.reps} 次',
@@ -2161,6 +2502,17 @@ String _dateOnly(DateTime date) =>
     '${date.month.toString().padLeft(2, '0')}-'
     '${date.day.toString().padLeft(2, '0')}';
 
+/// 本周（周一 – 周日）的日期区间文案：「10/27 – 11/2」。
+///
+/// 【R-6】替代「第 N 周」：相对周序看不出统计窗口；真实日期一眼可查。
+String _weekRangeText(DateTime today) {
+  final monday = _mondayOf(today);
+  final sunday = monday.add(const Duration(days: 6));
+  String fmt(DateTime d) => '${d.month}/${d.day}';
+  // 两侧都带月份（「9/7 – 9/13」）：省略月号的「9/7 – 13」有歧义。
+  return '${fmt(monday)} – ${fmt(sunday)}';
+}
+
 DateTime _mondayOf(DateTime date) {
   final local = DateTime(date.year, date.month, date.day);
   return local.subtract(Duration(days: local.weekday - 1));
@@ -2237,11 +2589,15 @@ class _SessionReviewContent extends StatelessWidget {
     required this.session,
     required this.planName,
     required this.durationLabel,
+    this.onDelete,
   });
 
   final WorkoutSessionRecord session;
   final String planName;
   final String durationLabel;
+
+  /// 「删除这次训练」（A-4）。null = 不画（未接线时不给点了没反应的按钮）。
+  final Future<void> Function()? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -2296,6 +2652,18 @@ class _SessionReviewContent extends StatelessWidget {
           '训练消耗估算不在本地记录范围内，这里不虚构数值。',
           style: LfText.micro.copyWith(color: c.mutedForeground),
         ),
+        if (onDelete != null) ...[
+          const SizedBox(height: LfDimens.spaceLarge),
+          LfDangerButton(
+            key: const Key('training-review-delete'),
+            label: '删除这次训练',
+            icon: Icons.delete_outline,
+            onPressed: () {
+              Navigator.of(context).pop();
+              unawaited(onDelete!());
+            },
+          ),
+        ],
       ],
     );
   }
@@ -2366,7 +2734,7 @@ final class _PlanCardData {
 final class _TrainingSnapshot {
   const _TrainingSnapshot({
     required this.planCards,
-    required this.weekIndex,
+    required this.weekRangeText,
     required this.finishedCount,
     required this.totalDuration,
     required this.weekVolumeKg,
@@ -2384,8 +2752,8 @@ final class _TrainingSnapshot {
   /// 展平后的计划卡（跨计划，按「计划创建时间倒序 × 周内升序」）。
   final List<_PlanCardData> planCards;
 
-  /// 「第 N 周」。null = 还没有任何已结束训练。
-  final int? weekIndex;
+  /// 本周真实日期区间（「10/27 – 11/2」）。恒有值（R-6）。
+  final String weekRangeText;
   final int finishedCount;
   final Duration totalDuration;
 
@@ -2594,7 +2962,9 @@ final class _MuscleChip extends StatelessWidget {
         button: true,
         selected: selected,
         child: Material(
-          color: selected ? c.primary : c.muted,
+          color: selected
+              ? LfColors.brandStrong(Theme.of(context).brightness)
+              : c.muted,
           borderRadius: BorderRadius.circular(LfDimens.radiusFull),
           child: InkWell(
             key: chipKey,
@@ -2609,7 +2979,9 @@ final class _MuscleChip extends StatelessWidget {
                 label,
                 style: (selected ? LfText.captionStrong : LfText.caption)
                     .copyWith(
-                      color: selected ? c.primaryForeground : c.mutedForeground,
+                      color: selected
+                          ? LfColors.onBrandStrong(Theme.of(context).brightness)
+                          : c.mutedForeground,
                     ),
               ),
             ),
@@ -2775,22 +3147,21 @@ final class _PlanModeRow extends StatelessWidget {
 
 /// 二级入口行（docs/22 裁决 ②）：设计稿没画的功能，各自只占一行。
 ///
-/// `subtitle` 是 Round7 A 的 list-link 形态（`app.js:216` 的「动作库」两行：
-/// 标题 + 一行说明）——只有 A 画了副题的行才传，其余行保持单行。
+/// 【2026-10-25（需求 13b）】`subtitle` 参数随「动作库」整枚迁进右下浮动列
+/// 而退役——本仓当前没有两行的 _SecondaryEntry（唯一那个用户就是动作库）。
+/// 删除而不是留着：留一个永远为 null 的形参会让下一个人以为它还在用。
 final class _SecondaryEntry extends StatelessWidget {
   const _SecondaryEntry({
     required this.entryKey,
     required this.icon,
     required this.label,
     required this.onTap,
-    this.subtitle,
   });
 
   final Key entryKey;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -2818,13 +3189,6 @@ final class _SecondaryEntry extends StatelessWidget {
                     label,
                     style: LfText.body.copyWith(color: c.cardForeground),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: LfText.caption.copyWith(color: c.mutedForeground),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -2840,45 +3204,23 @@ final class _SecondaryEntry extends StatelessWidget {
   }
 }
 
-/// 列表行首 36dp 浅底圆图标（docs/21 §3.3）。
-///
-/// 动作库网格与训练统计底层各有一处使用者，两页都在本文件之外/之内共用
-/// 同一个形状——不复制第二份。
-final class _LeadingBadge extends StatelessWidget {
-  const _LeadingBadge({
-    required this.icon,
-    required this.tint,
-    required this.foreground,
-  });
-
-  final IconData icon;
-  final Color tint;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 36,
-    height: 36,
-    decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-    child: Icon(icon, size: 20, color: foreground),
-  );
-}
-
 /// 个人纪录弹层内容（docs/32 §4 T5）。
 ///
 /// `future` 在 `initState` 建一次：弹层内容会因把手拖动而起止重建，
 /// 若 future 建在 build 内，每次重建都会重新查询（`food_detail_sheet` 的
 /// 同一个缺陷形态）。
-final class _PersonalRecordsSheet extends StatefulWidget {
-  const _PersonalRecordsSheet({required this.sessionRepository});
+final class PersonalRecordsSheet extends StatefulWidget {
+  const PersonalRecordsSheet({super.key, required this.sessionRepository});
 
   final WorkoutSessionRepository sessionRepository;
 
   @override
-  State<_PersonalRecordsSheet> createState() => _PersonalRecordsSheetState();
+  State<PersonalRecordsSheet> createState() =>
+      PublicPersonalRecordsSheetState();
 }
 
-final class _PersonalRecordsSheetState extends State<_PersonalRecordsSheet> {
+final class PublicPersonalRecordsSheetState
+    extends State<PersonalRecordsSheet> {
   late final Future<List<WorkoutSessionRecord>> _records = widget
       .sessionRepository
       .listAllFinished();
@@ -2895,29 +3237,168 @@ final class _PersonalRecordsSheetState extends State<_PersonalRecordsSheet> {
           shrinkWrap: true,
           padding: const EdgeInsets.only(bottom: LfDimens.spaceLarge),
           children: [
-            Text('个人纪录', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              '个人纪录',
+              style: LfText.headline.copyWith(color: context.lf.cardForeground),
+            ),
             const SizedBox(height: 4),
-            const Text('按已结束训练中的最重组次记录；同重量取次数更多的一次。'),
+            Text(
+              '每个动作的最重组次；同重量取次数更多的一次。',
+              style: LfText.caption.copyWith(color: context.lf.mutedForeground),
+            ),
+            const SizedBox(height: LfDimens.spaceMedium),
             if (records.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text('还没有可统计的已完成训练。'),
-              )
-            else
-              for (final record in records)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    '${record.exerciseName} ${record.weightKg}kg × ${record.reps} 次',
-                  ),
-                  subtitle: Text(
-                    '达成于 ${_dateOnly(record.achievedAt.toLocal())}',
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  '还没有可统计的已完成训练。',
+                  key: const Key('personal-records-empty'),
+                  style: LfText.body.copyWith(
+                    color: context.lf.mutedForeground,
                   ),
                 ),
+              )
+            else ...[
+              // 【2026-10-29（R-5，用户：个人记录一堆文字太丑）】图形化：
+              // 每条一张卡 = 奖牌位 + 动作名 + 大数字（kg×次）+ 相对最重
+              // 纪录的**重量比例条**（第一名 = 满条 mint，其余按比例）+ 日期。
+              // 数据口径不变（仍 `TrainingStatsCalculator.personalRecords`）。
+              for (final (index, record) in records.indexed)
+                _PersonalRecordCard(
+                  key: Key('personal-record-card-${record.exerciseId}'),
+                  record: record,
+                  rank: index + 1,
+                  heaviestKg: records.first.weightKg,
+                ),
+            ],
           ],
         );
       },
+    );
+  }
+}
+
+/// 单条个人纪录卡（R-5 图形化形态）。
+class _PersonalRecordCard extends StatelessWidget {
+  const _PersonalRecordCard({
+    super.key,
+    required this.record,
+    required this.rank,
+    required this.heaviestKg,
+  });
+
+  final PersonalRecord record;
+  final int rank;
+  final double heaviestKg;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.lf;
+    final isTop = rank == 1;
+    final ratio = heaviestKg <= 0
+        ? 1.0
+        : (record.weightKg / heaviestKg).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: LfDimens.spaceSmall),
+      child: DesignCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 名次徽章：第一名实心主色圆，其余 muted。
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isTop
+                        ? LfColors.brandStrong(Theme.of(context).brightness)
+                        : c.muted,
+                  ),
+                  child: Text(
+                    '$rank',
+                    style: LfText.bodyStrong.copyWith(
+                      color: isTop
+                          ? LfColors.onBrandStrong(Theme.of(context).brightness)
+                          : c.mutedForeground,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: LfDimens.spaceSmall),
+                // 【R-5 实帧修正（320×2.0「杠铃…」截断）】动作名与数字同行时
+                // 只剩 ~3 个字——动作名是这张卡的**标识**，不许截。改两行：
+                // 动作名独占第一行（可折 2 行）；大数字 + kg + ×次 在第二行。
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.exerciseName,
+                        style: LfText.bodyStrong.copyWith(color: c.foreground),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: LfDimens.spaceMicro),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            record.weightKg == record.weightKg.roundToDouble()
+                                ? record.weightKg.round().toString()
+                                : record.weightKg.toStringAsFixed(1),
+                            style: LfText.headline.copyWith(
+                              color: c.cardForeground,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            'kg',
+                            style: LfText.caption.copyWith(
+                              color: c.mutedForeground,
+                            ),
+                          ),
+                          const SizedBox(width: LfDimens.spaceSmall),
+                          Text(
+                            '× ${record.reps}',
+                            style: LfText.bodyStrong.copyWith(
+                              color: c.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: LfDimens.spaceSmall),
+            // 重量比例条：第一名满条，其余按相对重量。只是**视觉参照**，
+            // 不是进度（不许被读成「完成度」）——与「达标 n%」那种真进度
+            // 分开表达。
+            ClipRRect(
+              borderRadius: BorderRadius.circular(LfDimens.radiusFull),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 5,
+                backgroundColor: c.muted,
+                valueColor: AlwaysStoppedAnimation(
+                  isTop ? c.primary : c.mutedForeground.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: LfDimens.spaceXSmall),
+            Text(
+              '达成于 ${_dateOnly(record.achievedAt.toLocal())}'
+              '${isTop ? ' · 全场最重' : ''}',
+              style: LfText.micro.copyWith(color: c.mutedForeground),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

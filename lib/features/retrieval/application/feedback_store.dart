@@ -72,6 +72,24 @@ final class FeedbackStore {
   double scoreOf(String dishName) =>
       _byName[normalizeFeedbackName(dishName)]?.score ?? 0;
 
+  /// 被点过「不错」的菜名（已归一化）。UI 用它把按钮换成「已记下」；
+  /// 读的是持久化计数，所以重进页面也认得出，而不是只活在这一次点击里。
+  Set<String> get likedNames => {
+    for (final entry in _byName.entries)
+      if (entry.value.likes > 0) entry.key,
+  };
+
+  /// 排序档位：2 = 用户明确喜欢，1 = 中性/样本不足，0 = 明确不喜欢。
+  ///
+  /// 只在**同一证据等级**内参与排序（见 `_compare`），不会让一道被点赞的
+  /// 估算菜压过已确认数据的菜；它是软偏好，不是硬过滤。
+  int preferenceRank(String dishName) {
+    final score = scoreOf(dishName);
+    if (score >= 0.5) return 2;
+    if (score <= -0.5) return 0;
+    return 1;
+  }
+
   /// 检索 boost：偏好 +5%、不喜欢 ×0.85（与 `applyBoosts` 的量级一致）。
   double multiplierFor(String dishName) {
     final score = scoreOf(dishName);

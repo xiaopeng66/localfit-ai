@@ -154,10 +154,20 @@ void main() {
       );
     }
     expect(find.text('当天没有这餐记录'), findsNWidgets(4));
-    // 历史日不画加号（A：`ui.date === state.today` 才渲染）。
+    // 【语义变更，2026-10-27（docs/64 阶段 4 B-3）】原来这条钉的是
+    // 「历史日不画加号」（A：`ui.date === state.today` 才渲染）。用户当天裁决
+    // 「30 天，继续」= 允许补记近 30 天 ⇒ 09-08（now=09-09，窗口内）现在
+    // **有**加号，并带「补记」徽标。断言强度不变，钉的是新口径的边界：
+    // 窗口内可补记、非今天有徽标、未来仍不可切换。
     expect(
       find.byKey(const Key('nutrition-record-slot-lunch-add')),
-      findsNothing,
+      findsOneWidget,
+      reason: '窗口内历史日可补记（B-3 新口径）',
+    );
+    expect(
+      find.byKey(const Key('nutrition-record-backfill-badge')),
+      findsWidgets,
+      reason: '非今天要标「补记」，免得用户以为是今天',
     );
 
     await tester.pumpWidget(const SizedBox.shrink());

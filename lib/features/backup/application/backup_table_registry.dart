@@ -112,7 +112,16 @@ final class LocalFitBackupTables {
 
   List<BackupTableSpec> get all => [
     // ── 1.x 表：1.x 的备份包必须全部存在 ───────────────────────────
-    _table(key: 'profiles', table: database.profiles, from: Profile.fromJson),
+    _table(
+      key: 'profiles',
+      table: database.profiles,
+      from: Profile.fromJson,
+      defaults: const {
+        // True 1.x backups predate these non-null profile columns.
+        'allergenAvoidancesJson': '[]',
+        'pantryCoverageEnabled': false,
+      },
+    ),
     _table(key: 'goals', table: database.goals, from: Goal.fromJson),
     _table(
       key: 'daily_targets',
@@ -126,7 +135,16 @@ final class LocalFitBackupTables {
       from: Measurement.fromJson,
       validateRow: _isoDateFields({'localDate'}),
     ),
-    _table(key: 'foods', table: database.foods, from: Food.fromJson),
+    _table(
+      key: 'foods',
+      table: database.foods,
+      from: Food.fromJson,
+      defaults: const {
+        // True 1.x backups predate the directory state/license columns.
+        'state': 'verified',
+        'licenseStatus': 'unknown',
+      },
+    ),
     _table(
       key: 'meals',
       table: database.meals,
@@ -188,6 +206,15 @@ final class LocalFitBackupTables {
       table: database.foodNutritionRevisions,
       from: FoodNutritionRevision.fromJson,
       optional: true,
+      // schema 31 新增非空列：旧包没有这些键 ⇒ 按"导入的每 100g 事实"
+      // 回填。**不能**回填成 perServing——历史修订表只被目录导入写过，
+      // 那句"每份"从来没成立过。
+      defaults: const {
+        'nutritionBasis': 'per100g',
+        'basisAssumed': false,
+        'origin': 'import',
+        'isEstimated': false,
+      },
     ),
     _table(
       key: 'food_portions',
@@ -251,6 +278,12 @@ final class LocalFitBackupTables {
       // imagePath（docs/29 §P7，schema 21）与 dish_library 同款：存的是
       // 应用文档目录里的私有副本路径，读取侧直接 File(path)。
       validateRow: _pathFields({'imagePath'}, nullable: true),
+      // schema 31：旧包没有份量可信度 ⇒ 一律"未知"。有数字但没依据的
+      // 历史行不能因为"回填了默认值"就变成可信份量。
+      defaults: const {
+        'servingGramsStatus': 'unknown',
+        'servingGramsSource': 'legacy_unknown',
+      },
     ),
     _table(
       key: 'menu_item_food_matches',
@@ -378,6 +411,15 @@ final class LocalFitBackupTables {
       key: 'app_settings',
       table: database.appSettings,
       from: AppSetting.fromJson,
+      optional: true,
+    ),
+    // docs/67 §7.4：旧实体迁移台账必须随包往返——否则恢复后的库会"忘记"
+    // 哪条旧记录已经归一过，重跑会给同一旧键再造一条主食物。
+    // 顺序放最后：它引用 foods/menu_items，但两列都没有外键（允许待补全）。
+    _table(
+      key: 'legacy_entity_mappings',
+      table: database.legacyEntityMappings,
+      from: LegacyEntityMappingRow.fromJson,
       optional: true,
     ),
   ];

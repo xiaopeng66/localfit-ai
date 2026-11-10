@@ -64,8 +64,7 @@ void main() {
 
     await tester.tap(find.byTooltip('记录一餐'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('meal-entry-by-food')));
-    await tester.pumpAndSettle();
+    // 【N-2】chooser 退役：统一记录弹层直接开。
     await tester.enterText(find.byKey(const Key('meal-food-search')), '米饭');
     await tester.pumpAndSettle();
     await tester.tap(find.text('米饭').last);
@@ -293,7 +292,7 @@ void main() {
       reason: '餐次行值同走千分位口径',
     );
     expect(
-      find.textContaining('还可摄入 492 kcal', findRichText: true),
+      find.textContaining('还可摄入 0–492 kcal', findRichText: true),
       findsOneWidget,
       reason: '2000 - 1508 = 492，剩余行必须按真值算',
     );

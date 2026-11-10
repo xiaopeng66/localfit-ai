@@ -7,6 +7,7 @@ import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/application/build_daily_meal_recommendation.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_dish_list.dart';
@@ -137,14 +138,17 @@ void main() {
 
   Widget host({
     VoidCallback? onOpenCanteen,
-    Future<void> Function(DishRecord dish)? onAddToMeal,
+    Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
+    onAddToMeal,
     MealRepository? mealRepository,
     DishLibraryRepository? repository,
+    SupplyCatalogRepository? supplyCatalog,
     DateTime? clockNow,
   }) => MaterialApp(
     home: Scaffold(
       body: MenuDishList(
         repository: repository ?? dishes,
+        supplyCatalog: supplyCatalog,
         mealRepository: mealRepository ?? meals,
         now: clockNow ?? now,
         onAddToMeal: onAddToMeal,
@@ -179,6 +183,11 @@ void main() {
       }
       // 加餐不是一顿饭：没有第四个块。
       expect(find.byKey(const Key('nutrition-menu-meal-snack')), findsNothing);
+      // 2026-10-31 用户：推荐卡右下三点菜单及其功能退役；食堂目录管理
+      // 不在这条「今天吃什么」的推荐路径上重复出现。
+      for (var index = 0; index < 3; index++) {
+        expect(find.byKey(Key('dish-menu-$index')), findsNothing);
+      }
       await drain(tester);
     });
 
@@ -291,23 +300,57 @@ void main() {
       await drain(tester);
     });
 
-    testWidgets('加入按钮说的是菜品自己的餐次（写入落在 dish.mealSlot）', (tester) async {
+    testWidgets('食堂供应（全天窗口）也进三餐推荐（不按 snack 排除）', (tester) async {
+      // 回归 v4136 用户实测：推荐消失。根因：supplyDishCandidates 把全天
+      // 窗口（closeTime > 20:30）归为 snack，而 snack 不是推荐位 ⇒ 三餐全空。
+      // 正确口径：供应的 servingWindow 与餐带相交即候选（与旧菜品库同规）。
       await seedTarget();
-      // 窗口 11:00–14:00 横跨午餐时段带，但这道菜自己的标签是「加餐」；
-      // `AddDishToMeal.run` 记到 `dish.mealSlot`，所以按钮必须说「加入加餐」
-      // ——写成块头的「加入午餐」会让用户以为记进了午餐。
+      await addDish(
+        name: '全天供应菜',
+        mealSlot: 'snack',
+        kcal: 300,
+        servingWindow: '06:00-21:00',
+      );
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      // 午餐段能看到它（servingWindow 06:00-21:00 与午餐带 09:30-14:00 相交）。
+      expect(
+        find.textContaining('全天供应菜'),
+        findsWidgets,
+        reason: '全天窗口的菜不该被 snack 标签排除出三餐推荐',
+      );
+      await drain(tester);
+    });
+
+    testWidgets('加入按钮说的是**这一段**的餐次，并把 slotOverride 传下去', (tester) async {
+      await seedTarget();
+      // 窗口 11:00–14:00 横跨午餐时段带，但这道菜自己的标签是「加餐」。
+      // 2026-11-10（docs/67）：按钮与写入都必须用**推荐段**的餐次——
+      // 旧行为说「加入加餐」并真的记进加餐，是数据落错位，不是文案问题。
       await addDish(
         name: '窗口小食',
         mealSlot: 'snack',
         kcal: 300,
         servingWindow: '11:00-14:00',
       );
-      // 必须接线 `onAddToMeal`：没接线时菜品卡不画加入按钮（降级不画假按钮），
-      // 那样这条断言测的就不是「按钮写了什么」而是「有没有按钮」。
-      await tester.pumpWidget(host(onAddToMeal: (dish) async {}));
+      MealSlot? askedSlot;
+      var calls = 0;
+      await tester.pumpWidget(
+        host(
+          onAddToMeal: (dish, {slotOverride}) async {
+            calls++;
+            askedSlot = slotOverride;
+          },
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(find.text('加入加餐'), findsOneWidget);
-      expect(find.text('加入午餐'), findsNothing);
+      expect(find.text('加入午餐'), findsOneWidget);
+      expect(find.text('加入加餐'), findsNothing);
+
+      await tester.tap(find.text('加入午餐'));
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(askedSlot, MealSlot.lunch, reason: '写入必须落到用户点的那一段，不是菜品自己的默认餐次');
       await drain(tester);
     });
 
@@ -428,26 +471,55 @@ void main() {
   });
 
   group('空态', () {
-    testWidgets('菜品库为空：hero 仍在，给一句可照做的空态，不画三个空块', (tester) async {
+    testWidgets('供应目录为空：hero 与补资料指引仍在，可去维护，不画三个空块', (tester) async {
       await seedTarget();
-      await tester.pumpWidget(host());
-      await tester.pumpAndSettle();
+      // 真实供应源为空时，不能回退旧库、把旧菜当作当前可计算供应。
+      await addDish(name: '只读兼容旧菜', mealSlot: 'breakfast', kcal: 300);
+      final supplies = SupplyCatalogRepository(database: database);
+      expect(await supplies.listAll(), isEmpty);
+      var opened = 0;
+      final semantics = tester.ensureSemantics();
+      try {
+        await tester.pumpWidget(
+          host(supplyCatalog: supplies, onOpenCanteen: () => opened++),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('nutrition-menu-hero')), findsOneWidget);
-      expect(find.text('菜品库还是空的。'), findsOneWidget);
-      expect(find.text('在食堂目录里自建菜品，或让 AI 生成今日菜单。'), findsOneWidget);
-      expect(
-        find.byKey(const Key('nutrition-menu-meal-breakfast')),
-        findsNothing,
-      );
-      // 没有推荐时不写 0 kcal（0 的意思是「今天不吃」）。
-      expect(
-        tester
-            .widget<Text>(find.byKey(const Key('nutrition-menu-hero-kcal')))
-            .data,
-        '预计 —',
-      );
-      await drain(tester);
+        const guidance = '请先到食堂目录添加供应并补充营养与每份克数；AI 只能从已有可信供应选菜。';
+        expect(find.byKey(const Key('nutrition-menu-hero')), findsOneWidget);
+        expect(find.text('菜品库还是空的。'), findsOneWidget);
+        expect(find.text(guidance), findsOneWidget);
+        expect(find.bySemanticsLabel(guidance), findsOneWidget);
+        expect(find.text('只读兼容旧菜'), findsNothing);
+        expect(find.byKey(const Key('nutrition-menu-daily-set')), findsNothing);
+        for (final slot in ['breakfast', 'lunch', 'dinner']) {
+          expect(find.byKey(Key('nutrition-menu-meal-$slot')), findsNothing);
+        }
+        // 没有推荐时不写 0 kcal（0 的意思是「今天不吃」）。
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('nutrition-menu-hero-kcal')))
+              .data,
+          '预计 —',
+        );
+        expect(
+          tester
+              .widget<Text>(
+                find.byKey(const Key('nutrition-menu-hero-planned')),
+              )
+              .data,
+          '已安排 0 餐',
+        );
+        final action = find.byKey(const Key('menu-empty-action-canteen'));
+        expect(action.hitTestable(), findsOneWidget);
+        expect(find.bySemanticsLabel('去食堂目录'), findsOneWidget);
+        await tester.tap(action);
+        expect(opened, 1, reason: '空态维护入口必须触发接线，真实导航由暗色整页巡检验证');
+        expect(await database.select(database.meals).get(), isEmpty);
+      } finally {
+        semantics.dispose();
+        await drain(tester);
+      }
     });
 
     testWidgets('未接线：只说「尚未配置」，不拿别的表冒充菜品', (tester) async {

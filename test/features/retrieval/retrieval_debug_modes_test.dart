@@ -94,6 +94,39 @@ void main() {
     expect(find.textContaining('SEMANTIC_FIRST'), findsOneWidget);
   });
 
+  testWidgets('首次打开不加载模型；点按钮才启动索引（防首开卡顿）', (tester) async {
+    await dishes.create(
+      DishDraft(
+        name: '红烧肉',
+        mealSlot: '午餐',
+        kcal: 200,
+        proteinG: 10,
+        carbsG: 20,
+        fatG: 8,
+        source: 'manual',
+      ),
+    );
+    var loads = 0;
+    final runtime = SemanticRuntime(
+      database: db,
+      engineFactory: () async {
+        loads++;
+        return const _ScriptedEngine();
+      },
+      settings: AppSettingsRepository(database: db),
+    );
+    await pumpPanel(tester, semantic: runtime);
+    expect(loads, 0, reason: '首帧只读开关，不加载 24MB 模型');
+    expect(
+      find.byKey(const Key('retrieval-debug-semantic-status')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('未加载'), findsWidgets);
+    await tester.tap(find.byKey(const Key('retrieval-debug-semantic-load')));
+    await tester.pumpAndSettle();
+    expect(loads, 1);
+  });
+
   testWidgets('语义不可用时如实显示原因（Key retrieval-debug-semantic-reason）', (
     tester,
   ) async {
@@ -117,6 +150,8 @@ void main() {
       settings: AppSettingsRepository(database: db),
     );
     await pumpPanel(tester, semantic: runtime);
+    await tester.tap(find.byKey(const Key('retrieval-debug-semantic-load')));
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const Key('retrieval-debug-semantic-reason')),
       findsOneWidget,
@@ -145,6 +180,8 @@ void main() {
       settings: AppSettingsRepository(database: db),
     );
     await pumpPanel(tester, semantic: runtime);
+    await tester.tap(find.byKey(const Key('retrieval-debug-semantic-load')));
+    await tester.pumpAndSettle();
 
     // 面板默认查询「想吃点清淡的汤」与菜名无字面重叠；脚本引擎把
     // 「清淡」映射到红烧肉的向量。

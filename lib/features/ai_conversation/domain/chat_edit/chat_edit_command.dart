@@ -143,7 +143,13 @@ Map<String, Object> validateChatEditArgs(
   for (final entry in rawArgs.entries) {
     final key = entry.key;
     if (key is! String || spec.specOf(key) == null) {
-      throw ChatEditArgsException('参数「$key」不是「${spec.action}」认识的参数。');
+      // 【2026-11-09 真机反馈】模型给 water.add 发明了 notes（从别的命令串行）。
+      // 文案要给用户一条**可行动的路**：点名多余参数 + 引导重新生成。
+      final known = [for (final arg in spec.args) arg.name].join('、');
+      throw ChatEditArgsException(
+        '参数「$key」不是「${spec.action}」认识的参数'
+        '（它只认：$known）；点「重新生成」让 AI 按清单重写。',
+      );
     }
   }
   for (final argSpec in spec.args) {

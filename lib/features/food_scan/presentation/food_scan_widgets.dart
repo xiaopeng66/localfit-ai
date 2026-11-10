@@ -505,7 +505,7 @@ final class ScanDraftCard extends StatelessWidget {
             ],
           ),
           Text(
-            '尚未保存，也未计入今日统计。此只读草案仅在本地食物匹配不可用时显示；确认入账将在下一步骤提供。',
+            '尚未保存，也未计入今日统计。',
             style: LfText.caption.copyWith(color: c.mutedForeground),
           ),
           const SizedBox(height: LfDimens.spaceMedium),

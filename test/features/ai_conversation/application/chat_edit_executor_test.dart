@@ -17,7 +17,9 @@ import 'package:localfit_ai/features/daily_plan/data/planning_constraints_reposi
 import 'package:localfit_ai/features/hydration/application/update_water_target_ml.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
@@ -698,9 +700,98 @@ void main() {
       final meals = await database.select(database.meals).get();
       expect(meals, hasLength(1));
       expect(meals.single.localDate, '2026-10-02');
+      expect(
+        meals.single.source,
+        'food_library',
+        reason: '餐里有食物条目 ⇒ 餐级来源是 food_library',
+      );
       final items = await database.select(database.mealItems).get();
       expect(items.single.foodNameSnapshot, contains('米饭'));
       expect(items.single.grams, 200);
+    });
+
+    test('meal.create：空库同次重复来源只记首份，营养不双计', () async {
+      final result = await executor.apply(
+        cmd('meal.create', {
+          'slot': '午餐',
+          'items': [
+            {'food': '米饭', 'grams': 200.0},
+            {'food': '[food:seed-fc-1]', 'grams': 100.0},
+            {'food': '鸡蛋', 'grams': 50.0},
+            {'food': '鸡蛋', 'grams': 50.0},
+          ],
+        }),
+      );
+      expect(result.ok, isTrue, reason: result.message);
+      final items = await database.select(database.mealItems).get();
+      expect(items, hasLength(2));
+      expect(items.singleWhere((i) => i.sourceId == 'seed-fc-1').grams, 200);
+      expect(items.fold<double>(0, (sum, i) => sum + i.kcalSnapshot), 301.5);
+      expect(await database.select(database.meals).get(), hasLength(1));
+    });
+
+    test('meal.create：并入已有餐时同次重复的新来源也只追加首份', () async {
+      final first = await executor.apply(
+        cmd('meal.create', {
+          'slot': '午餐',
+          'items': [
+            {'food': '米饭', 'grams': 200.0},
+          ],
+        }),
+      );
+      expect(first.ok, isTrue, reason: first.message);
+      final mealId = (await database.select(database.meals).get()).single.id;
+      final result = await executor.apply(
+        cmd('meal.create', {
+          'slot': '午餐',
+          'items': [
+            {'food': '鸡蛋', 'grams': 50.0},
+            {'food': '[food:seed-fc-8769]', 'grams': 100.0},
+          ],
+        }),
+      );
+      expect(result.ok, isTrue, reason: result.message);
+      final items = await database.select(database.mealItems).get();
+      expect(items, hasLength(2));
+      expect(items.singleWhere((i) => i.sourceId == 'seed-fc-8769').grams, 50);
+      expect(items.fold<double>(0, (sum, i) => sum + i.kcalSnapshot), 301.5);
+      expect((await database.select(database.meals).get()).single.id, mealId);
+    });
+
+    test('meal.create：同次同名且 id 相同的 food/dish 仍是不同来源实体', () async {
+      await database
+          .into(database.dishLibrary)
+          .insert(
+            DishLibraryCompanion.insert(
+              id: 'seed-fc-1',
+              name: '米饭',
+              mealSlot: '午餐',
+              kcal: 116,
+              proteinG: 2.6,
+              carbsG: 25.9,
+              fatG: 0.3,
+              servingGrams: const drift.Value(150),
+              source: 'manual',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+      final result = await executor.apply(
+        cmd('meal.create', {
+          'slot': '午餐',
+          'items': [
+            {'food': '[food:seed-fc-1]', 'grams': 200.0},
+            {'food': '[dish:seed-fc-1]', 'grams': 150.0},
+            {'food': '[food:seed-fc-1]', 'grams': 200.0},
+            {'food': '[dish:seed-fc-1]', 'grams': 150.0},
+          ],
+        }),
+      );
+      expect(result.ok, isTrue, reason: result.message);
+      final items = await database.select(database.mealItems).get();
+      expect(items, hasLength(2));
+      expect(items.map((i) => i.sourceType).toSet(), {'food', 'dish'});
+      expect(items.fold<double>(0, (sum, i) => sum + i.kcalSnapshot), 348);
     });
 
     test('meal.create：食物名不存在时失败且不写任何行', () async {
@@ -744,7 +835,8 @@ void main() {
         }),
       );
       expect(second.ok, isTrue, reason: second.message);
-      expect(second.message, contains('跳过 1 条'));
+      // 2026-11-07 用户：新文案不再用「跳过 N 条」的黑话。
+      expect(second.message, contains('1 样今天已记过'));
 
       final meals = await database.select(database.meals).get();
       expect(meals, hasLength(2), reason: '午餐 + 晚餐两条主记录');
@@ -768,6 +860,228 @@ void main() {
       expect(third.ok, isTrue);
       expect(third.message, contains('没有重复写入'));
       expect(await database.select(database.mealItems).get(), hasLength(2));
+
+      // 2026-11-06 用户：「改记为午餐」点了没反应。模型给 meal.create 时，
+      // 若这些食物已经在另一餐，必须失败并指路，不能假报已应用。
+      final moveAttempt = await executor.apply(
+        cmd('meal.create', {
+          'slot': '晚餐',
+          'items': [
+            {'food': '米饭', 'grams': 200.0},
+          ],
+        }),
+      );
+      expect(moveAttempt.ok, isFalse, reason: '跨餐重复不是“已应用”');
+      expect(moveAttempt.message, contains('改餐次'));
+      expect(moveAttempt.message, contains('meal.update'));
+      expect(await database.select(database.mealItems).get(), hasLength(2));
+    });
+
+    test('meal.create 部分重复时点名被跳过的食物', () async {
+      final first = await executor.apply(
+        cmd('meal.create', {
+          'slot': '午餐',
+          'items': [
+            {'food': '米饭', 'grams': 200.0},
+          ],
+        }),
+      );
+      expect(first.ok, isTrue, reason: first.message);
+      final second = await executor.apply(
+        cmd('meal.create', {
+          'slot': '晚餐',
+          'items': [
+            {'food': '米饭', 'grams': 100.0},
+            {'food': '鸡蛋', 'grams': 50.0},
+          ],
+        }),
+      );
+      expect(second.ok, isTrue, reason: second.message);
+      // docs/66 后续（2026-11-07 用户）：结果说明要能挂到**每样食物**下面
+      // ——米饭被全天去重跳过、鸡蛋新记，各自有自己的一句话。
+      expect(second.itemNotes['米饭'], '今天已记过，没有重复算');
+      expect(second.itemNotes['鸡蛋'], '已记入今天的晚餐');
+      expect(second.message, contains('1 样今天已记过'));
+    });
+
+    test('meal.create 全新餐次：每样食物都带「已记入」说明', () async {
+      final result = await executor.apply(
+        cmd('meal.create', {
+          'slot': '早餐',
+          'items': [
+            {'food': '米饭', 'grams': 200.0},
+            {'food': '鸡蛋', 'grams': 50.0},
+          ],
+        }),
+      );
+      expect(result.ok, isTrue, reason: result.message);
+      expect(result.itemNotes['米饭'], '已记入今天的早餐');
+      expect(result.itemNotes['鸡蛋'], '已记入今天的早餐');
+    });
+
+    group('记一餐认菜品（Phase 1）', () {
+      Future<void> seedDish() async {
+        await database
+            .into(database.dishLibrary)
+            .insert(
+              DishLibraryCompanion.insert(
+                id: 'dish-hg',
+                name: '红油豆腐粉',
+                mealSlot: '午餐',
+                kcal: 268,
+                proteinG: 8,
+                carbsG: 32,
+                fatG: 12,
+                servingGrams: const drift.Value(300),
+                source: 'manual',
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      }
+
+      test('[dish:id] 记一餐：按份量换算，条目带 dish 来源', () async {
+        await seedDish();
+        final result = await executor.apply(
+          cmd('meal.create', {
+            'slot': '午餐',
+            'items': [
+              {'food': '[dish:dish-hg]', 'grams': 150.0},
+            ],
+          }),
+        );
+        expect(result.ok, isTrue, reason: result.message);
+
+        final item = await database.select(database.mealItems).getSingle();
+        expect(item.foodNameSnapshot, '红油豆腐粉');
+        expect(item.grams, 150);
+        expect(item.kcalSnapshot, 134, reason: '268 × 150/300，只缩放一次');
+        expect(item.sourceType, 'dish');
+        expect(item.sourceId, 'dish-hg');
+        final meal = await database.select(database.meals).getSingle();
+        expect(
+          meal.source,
+          'dish_library',
+          reason: '餐里有菜品条目 ⇒ 餐级来源是 dish_library',
+        );
+      });
+
+      test('精确菜名记一餐：整份口径，来源 dish', () async {
+        await seedDish();
+        final result = await executor.apply(
+          cmd('meal.create', {
+            'slot': '午餐',
+            'items': [
+              {'food': '红油豆腐粉', 'grams': 300.0},
+            ],
+          }),
+        );
+        expect(result.ok, isTrue, reason: result.message);
+
+        final item = await database.select(database.mealItems).getSingle();
+        expect(item.kcalSnapshot, 268, reason: '300g = 整份');
+        expect(item.sourceType, 'dish');
+        expect(item.sourceId, 'dish-hg');
+      });
+
+      test('[canteen-dish:id] 未同步到菜品库：如实说先分析，不写库', () async {
+        final result = await executor.apply(
+          cmd('meal.create', {
+            'slot': '午餐',
+            'items': [
+              {'food': '[canteen-dish:menu-9]', 'grams': 300.0},
+            ],
+          }),
+        );
+        expect(result.ok, isFalse);
+        expect(result.message, contains('还没有可用营养'));
+        expect(await database.select(database.meals).get(), isEmpty);
+      });
+
+      test('食物库与菜品库同名：说明冲突，不默认选一边', () async {
+        await seedDish();
+        // 夹具里有「米饭」食物；再建一道同名菜品。
+        await database
+            .into(database.dishLibrary)
+            .insert(
+              DishLibraryCompanion.insert(
+                id: 'dish-rice',
+                name: '米饭',
+                mealSlot: '午餐',
+                kcal: 116,
+                proteinG: 2.6,
+                carbsG: 25.9,
+                fatG: 0.3,
+                source: 'manual',
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+
+        final result = await executor.apply(
+          cmd('meal.create', {
+            'slot': '午餐',
+            'items': [
+              {'food': '米饭', 'grams': 200.0},
+            ],
+          }),
+        );
+        expect(result.ok, isFalse);
+        expect(result.message, contains('命中食物库 1 条、旧菜品 1 条'));
+        expect(await database.select(database.meals).get(), isEmpty);
+      });
+
+      test('同名食物与菜品是两条：按 id 引用时不被名字去重吞掉', () async {
+        await database
+            .into(database.dishLibrary)
+            .insert(
+              DishLibraryCompanion.insert(
+                id: 'dish-rice',
+                name: '米饭',
+                mealSlot: '晚餐',
+                kcal: 116,
+                proteinG: 2.6,
+                carbsG: 25.9,
+                fatG: 0.3,
+                servingGrams: const drift.Value(150),
+                source: 'manual',
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+        final food = await (database.select(
+          database.foods,
+        )..where((row) => row.name.equals('米饭'))).getSingle();
+
+        final lunch = await executor.apply(
+          cmd('meal.create', {
+            'slot': '午餐',
+            'items': [
+              {'food': '[food:${food.id}]', 'grams': 200.0},
+            ],
+          }),
+        );
+        expect(lunch.ok, isTrue, reason: lunch.message);
+
+        final dinner = await executor.apply(
+          cmd('meal.create', {
+            'slot': '晚餐',
+            'items': [
+              {'food': '[dish:dish-rice]', 'grams': 150.0},
+            ],
+          }),
+        );
+        expect(dinner.ok, isTrue, reason: dinner.message);
+        expect(
+          dinner.message,
+          isNot(contains('跳过')),
+          reason: '食物「米饭」和菜品「米饭」是两个实体，不能按名字去重',
+        );
+
+        final items = await database.select(database.mealItems).get();
+        expect(items, hasLength(2));
+        expect(items.map((item) => item.sourceType).toSet(), {'food', 'dish'});
+      });
     });
 
     test('meal.update 改餐次与备注；meal.delete 删除与缺失', () async {
@@ -880,6 +1194,39 @@ void main() {
       expect(duplicate.message, contains('已直接引用（未新建）'));
       final rows = await database.select(database.foods).get();
       expect(rows.where((row) => row.name.contains('自定义蛋白粉')), hasLength(1));
+    });
+
+    test('food.create 与菜品库同名：提示两库同名，不算重复', () async {
+      // 菜品库先有一道同名菜：食物/菜品是两个实体，不算重复，但要让用户知道。
+      await database
+          .into(database.dishLibrary)
+          .insert(
+            DishLibraryCompanion.insert(
+              id: 'dish-dup',
+              name: '自定义蛋白粉',
+              mealSlot: '午餐',
+              kcal: 100,
+              proteinG: 5,
+              carbsG: 5,
+              fatG: 2,
+              source: 'manual',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          );
+
+      final result = await executor.apply(
+        cmd('food.create', {
+          'name': '自定义蛋白粉',
+          'kcalPer100g': 380.0,
+          'proteinPer100g': 75.0,
+          'carbsPer100g': 8.0,
+          'fatPer100g': 5.0,
+        }),
+      );
+      expect(result.ok, isTrue, reason: result.message);
+      expect(result.message, contains('菜品库'));
+      expect(result.message, contains('不算重复'));
     });
   });
 
@@ -1018,9 +1365,9 @@ void main() {
     });
   });
 
-  group('菜品库', () {
-    test('dish.upsert 同名是更新不是新增；dish.delete 与缺失', () async {
-      final created = await executor.apply(
+  group('旧「每份菜品」命令（dish.upsert 兼容路径）', () {
+    test('没有每份克数：拒绝换算，不把"每份"写成每 100g', () async {
+      final result = await executor.apply(
         cmd('dish.upsert', {
           'name': '麻婆豆腐',
           'slot': '晚餐',
@@ -1030,32 +1377,107 @@ void main() {
           'fat': 10.0,
         }),
       );
-      expect(created.ok, isTrue, reason: created.message);
-      final updated = await executor.apply(
+      expect(result.ok, isFalse);
+      expect(result.message, contains('没有每份克数'));
+      expect(
+        await (database.select(
+          database.foods,
+        )..where((t) => t.name.equals('麻婆豆腐'))).get(),
+        isEmpty,
+        reason: '不能凭空造一条"每份值当每 100g"的主食物',
+      );
+      expect(
+        await database.select(database.dishLibrary).get(),
+        isEmpty,
+        reason: '旧命令不再写独立的每份菜品副本',
+      );
+    });
+
+    test('给了可信每份克数：按公式换算进主库（不是换个字段名）', () async {
+      final result = await executor.apply(
         cmd('dish.upsert', {
-          'name': '麻婆豆腐',
+          'name': '剁椒鱼头',
           'slot': '晚餐',
-          'kcal': 200.0,
-          'protein': 13.0,
-          'carbs': 9.0,
-          'fat': 11.0,
+          'kcal': 500.0,
+          'protein': 30.0,
+          'carbs': 10.0,
+          'fat': 35.0,
+          'servingGrams': 250.0,
         }),
       );
-      expect(updated.ok, isTrue);
-      final rows = await database.select(database.dishLibrary).get();
-      expect(rows, hasLength(1));
-      expect(rows.single.kcal, 200);
-      expect(rows.single.source, 'ai_chat');
+      expect(result.ok, isTrue, reason: result.message);
+      final food = await (database.select(
+        database.foods,
+      )..where((t) => t.name.equals('剁椒鱼头'))).getSingle();
+      expect(food.kcalPer100g, closeTo(200, 1e-9), reason: '500 × 100 ÷ 250');
+      expect(food.proteinPer100g, closeTo(12, 1e-9));
+      expect(food.currentRevisionId, isNotNull);
+      final revision = await (database.select(
+        database.foodNutritionRevisions,
+      )..where((t) => t.foodId.equals(food.id))).getSingle();
+      expect(revision.basisServingGrams, 250);
+      expect(revision.nutritionBasis, 'perServing');
+      expect(
+        await database.select(database.dishLibrary).get(),
+        isEmpty,
+        reason: '不再产生独立每份副本',
+      );
+    });
 
+    test('dish.delete 对不存在与存在都给如实结果', () async {
       final missing = await executor.apply(
         cmd('dish.delete', {'dishId': 'ghost'}),
       );
       expect(missing.ok, isFalse);
-      expect(
-        (await executor.apply(cmd('dish.delete', {'dishId': rows.single.id})))
-            .ok,
-        isTrue,
+    });
+  });
+
+  group('快照 id 形态兼容（真实模型会原样抄方括号）', () {
+    test('window 传 [window:id]、foodId 传 [food:id] 也能落到正确实体', () async {
+      final venue = await executor.apply(
+        cmd('canteen.venue.create', {'name': '二食堂', 'campus': '主校区'}),
       );
+      expect(venue.ok, isTrue, reason: venue.message);
+      final venueId = (await database.select(database.venues).get()).single.id;
+      final window = await executor.apply(
+        cmd('canteen.window.create', {
+          'venue': venueId,
+          'name': '面食窗口',
+          'openTime': '10:00',
+          'closeTime': '14:00',
+        }),
+      );
+      expect(window.ok, isTrue, reason: window.message);
+      final windowId =
+          (await database.select(database.menuServices).get()).single.id;
+      final food = await executor.apply(
+        cmd('food.create', {
+          'name': '牛肉面',
+          'kcalPer100g': 160.0,
+          'proteinPer100g': 8.0,
+          'carbsPer100g': 22.0,
+          'fatPer100g': 5.0,
+        }),
+      );
+      expect(food.ok, isTrue, reason: food.message);
+      final foodId = (await database.select(database.foods).get())
+          .firstWhere((row) => row.name == '牛肉面')
+          .id;
+
+      final created = await executor.apply(
+        cmd('canteen.dish.create', {
+          'window': '[window:$windowId]',
+          'name': '牛肉面',
+          'foodId': '[food:$foodId]',
+          'servingGrams': 300.0,
+          'contract': 'v2',
+        }),
+      );
+      expect(created.ok, isTrue, reason: created.message);
+      final supply = (await database.select(database.menuItems).get()).single;
+      expect(supply.serviceId, windowId);
+      expect(supply.foodId, foodId);
+      expect(supply.servingGrams, 300);
     });
   });
 
@@ -1132,6 +1554,65 @@ void main() {
         )).ok,
         isTrue,
       );
+    });
+
+    test('canteen.dish.create 同窗口同名：直接引用，不新建第二道', () async {
+      await executor.apply(
+        cmd('canteen.venue.create', {'name': '东区食堂', 'campus': '示范大学'}),
+      );
+      await executor.apply(
+        cmd('canteen.window.create', {
+          'venue': '东区食堂',
+          'name': '一楼快餐',
+          'openTime': '11:00',
+          'closeTime': '13:30',
+        }),
+      );
+
+      final first = await executor.apply(
+        cmd('canteen.dish.create', {'window': '一楼快餐', 'name': '狮子头'}),
+      );
+      expect(first.ok, isTrue, reason: first.message);
+      expect(first.message, contains('已新增菜品'));
+
+      final second = await executor.apply(
+        cmd('canteen.dish.create', {'window': '一楼快餐', 'name': '狮子头'}),
+      );
+      expect(second.ok, isTrue, reason: second.message);
+      expect(
+        second.message,
+        contains('已直接引用（未新建）'),
+        reason: '同窗口同名就是同一道菜，不能再堆一张卡',
+      );
+
+      final items = await database.select(database.menuItems).get();
+      expect(items, hasLength(1), reason: '去重后仍然只有一道');
+    });
+
+    test('窗口歧义：失败文案列出「地点·窗口」候选，不猜', () async {
+      for (final venueName in ['东区食堂', '西区食堂']) {
+        await executor.apply(
+          cmd('canteen.venue.create', {'name': venueName, 'campus': '示范大学'}),
+        );
+        await executor.apply(
+          cmd('canteen.window.create', {
+            'venue': venueName,
+            'name': '一楼快餐',
+            'openTime': '11:00',
+            'closeTime': '13:30',
+          }),
+        );
+      }
+
+      final result = await executor.apply(
+        cmd('canteen.dish.create', {'window': '一楼快餐', 'name': '狮子头'}),
+      );
+      expect(result.ok, isFalse);
+      expect(result.message, contains('命中 2 个同名窗口'));
+      expect(result.message, contains('东区食堂·一楼快餐'));
+      expect(result.message, contains('西区食堂·一楼快餐'));
+      expect(result.message, contains('请用 id 或带地点的窗口名指定'));
+      expect(await database.select(database.menuItems).get(), isEmpty);
     });
   });
 
@@ -1406,6 +1887,12 @@ RepositoryChatEditExecutor _buildExecutor(AppDatabase database, DateTime now) {
       database: database,
       clock: clock,
       foodRepository: foods,
+      foodCatalog: FoodCatalogService(
+        database: database,
+        idGenerator: ids,
+        clock: clock,
+      ),
+      supplyCatalog: SupplyCatalogRepository(database: database),
       aiMemoryRepository: AiMemoryRepository(
         database: database,
         clock: clock,

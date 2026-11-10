@@ -55,6 +55,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 【v2（2026-10-30 用户批准 design/round8/memory-v2.html）】设置项
+  /// （开关 / 待确认 / 整理建议 / 规则 / 复制 / 清空）从首屏撤进 ⚙️ 弹层：
+  /// 断言这些控件前先打开设置弹层。行为与 key 不变，只是位置变了。
+  Future<void> openSettings(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('ai-memory-settings')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('ai-memory-settings-sheet')),
+      findsOneWidget,
+      reason: '⚙️ 应打开记忆设置弹层',
+    );
+  }
+
   testWidgets('添加 → 列表可见 → 开关落库 → 删除', (tester) async {
     await pumpPage(tester);
     expect(find.byKey(const Key('ai-memory-empty')), findsOneWidget);
@@ -87,9 +100,14 @@ void main() {
       reason: '页面手写的记忆来源必须是 manual',
     );
 
+    // 【v2】开关在 ⚙️ 设置弹层里（首屏不再有设置卡）。
+    await openSettings(tester);
     await tester.tap(find.byKey(const Key('ai-memory-injection-toggle')));
     await tester.pumpAndSettle();
     expect(await repository.injectionEnabled(), isFalse);
+    // 关掉设置弹层再继续行内操作（否则弹层遮住列表）。
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
@@ -131,6 +149,8 @@ void main() {
     await repository.remember(text: 'B');
     await pumpPage(tester);
 
+    // 【v2】「清空全部记忆」在 ⚙️ 设置弹层里（破坏性动作离开首屏）。
+    await openSettings(tester);
     await tester.tap(find.byKey(const Key('ai-memory-clear-all')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('ai-memory-clear-confirm')));

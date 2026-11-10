@@ -47,8 +47,6 @@ void main() {
             selectedDate: DateTime(2026, 9, 9),
             now: DateTime(2026, 9, 9),
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             leading: const SizedBox(
               key: Key('p6-leading-probe'),
               height: 40,

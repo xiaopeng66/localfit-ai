@@ -1,7 +1,16 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:localfit_ai/app/app_version.dart';
+import 'package:localfit_ai/features/settings/application/app_update_service.dart';
+import 'package:localfit_ai/features/settings/application/data_self_check.dart';
+import 'package:localfit_ai/data/database/app_database.dart';
+import 'package:localfit_ai/features/nutrition/presentation/legacy_migration_sheet.dart';
+import 'package:localfit_ai/features/settings/presentation/data_self_check_page.dart';
+import 'package:localfit_ai/features/settings/application/platform_links.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_insets.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
@@ -11,6 +20,7 @@ import 'package:localfit_ai/app/design/widgets/settings_group.dart';
 import 'package:localfit_ai/app/design/widgets/setting_row.dart';
 import 'package:localfit_ai/app/design/widgets/lf_achievement_row.dart';
 import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
+import 'package:localfit_ai/app/design/widgets/lf_markdown.dart';
 import 'package:localfit_ai/app/design/widgets/lf_metric_gauge.dart';
 import 'package:localfit_ai/features/settings/application/load_profile_overview.dart';
 import 'package:localfit_ai/features/settings/data/app_settings_repository.dart';
@@ -37,6 +47,7 @@ import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
 import 'package:localfit_ai/features/progress/presentation/weight_history_sheet.dart';
 import 'package:localfit_ai/features/settings/presentation/steps_permission_sheet.dart';
+import 'package:localfit_ai/features/settings/presentation/update_download_sheet.dart';
 import 'package:localfit_ai/features/settings/domain/ai_endpoint_probe.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_protocol.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_settings.dart';
@@ -45,6 +56,16 @@ import 'package:localfit_ai/features/settings/domain/open_ai_compatible_endpoint
 import 'package:localfit_ai/utils/number_format.dart';
 import 'package:localfit_ai/app/design/widgets/lf_select_field.dart';
 import 'package:localfit_ai/app/design/widgets/user_avatar.dart';
+
+/// 数据管理二级弹层里选中的动作（关层后再执行，避免叠弹层）。
+enum _DataAction {
+  backup,
+  restore,
+  exportMeals,
+  exportTraining,
+  exportFoods,
+  legacyMigration,
+}
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
@@ -72,6 +93,12 @@ class SettingsPage extends StatefulWidget {
     this.measurementRepository,
     this.appVersion,
     this.now,
+    this.helpContentLoader,
+    this.appUpdateService,
+    this.dietaryConstraintsSummary,
+    this.onOpenDietaryConstraints,
+    this.dataSelfCheck,
+    this.database,
   });
 
   final AiProviderSettingsStore? settingsStore;
@@ -145,9 +172,39 @@ class SettingsPage extends StatefulWidget {
   /// + 落库（默认不覆盖同日手输值）。null＝未接线，不渲染 `settings-scale-row`。
   final ScaleSyncController? scaleSync;
 
-  /// 版本号（docs/21 §5.6 📱）。null 时显示「版本未知」而不是编一个号。
+  /// 版本号（docs/21 §5.6 📱）。null 时回落到随包版本（17c：永不显示「未知」）。
   final String? appVersion;
   final DateTime? now;
+
+  /// 反馈链接（仓库 issue 新建页，**需求 17e**）。常量：链接是不可配置的
+  /// 事实，不该由调用方各写一份。
+  static const String feedbackIssueUrl =
+      'https://github.com/xiaopeng66/localfit-ai/issues/new';
+
+  /// 在线更新服务（**需求 17b**）。null = 用默认实现（真网络）。
+  ///
+  /// 注入是给测试用的：**不许**在 widget 测试里真的发网络请求。
+  final AppUpdateService? appUpdateService;
+
+  /// 「饮食约束」行（C-2，docs/64）：摘要与弹层都由路由层注入——本 feature
+  /// 不直连 `daily_plan`（分层门禁只许减，docs/52）；仓储与弹层住在
+  /// daily_plan feature，这里只留两个回调位。null＝不渲染该行。
+  final Future<String> Function()? dietaryConstraintsSummary;
+  final Future<void> Function()? onOpenDietaryConstraints;
+
+  /// 「数据自检」（D-1/D-2，docs/64）：三类可检问题 + 最近一次备份。
+  /// 由路由层用 database 组装。null＝未接线，不渲染 `data-self-check-entry`。
+  final DataSelfCheck? dataSelfCheck;
+
+  /// 只读查看旧数据迁移台账（docs/67 §5.4）。null＝未接线，不渲染该入口。
+  final AppDatabase? database;
+
+  /// 帮助正文加载器（**需求 17d**）。null = 读随包 `assets/help/*.md`。
+  ///
+  /// 测试注入用：`rootBundle` 是 `CachingAssetBundle`（按路径缓存、跨用例
+  /// 互相污染），本仓既有做法是**注入闭包**而不是让 widget 测试去碰真实资产
+  /// （见 `bundled_user_food_importer_test.dart` 的同一条注记）。
+  final Future<String> Function()? helpContentLoader;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -161,6 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loading = true;
   int _settingsLoad = 0;
   bool _saving = false;
+  bool _updating = false;
   bool _hasApiKey = false;
   String? _error;
 
@@ -191,6 +249,9 @@ class _SettingsPageState extends State<SettingsPage> {
   /// 「自动本地备份」开关（裁决 ⑦）。写入失败要回滚 UI 并提示。
   bool _autoBackupEnabled = false;
 
+  /// 局域网更新源（null/空 = 只走 GitHub）。
+  String? _lanUpdateUrl;
+
   @override
   void initState() {
     super.initState();
@@ -202,6 +263,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     _watchIdentity();
     _loadAutoBackup();
+    unawaited(_loadLanUpdateUrl());
   }
 
   @override
@@ -285,6 +347,41 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (!mounted) return;
     setState(() => _autoBackupEnabled = enabled);
+  }
+
+  Future<void> _loadLanUpdateUrl() async {
+    final repo = widget.appSettingsRepository;
+    if (repo == null) return;
+    final value = await repo.getString(
+      AppSettingsRepository.lanUpdateBaseUrlKey,
+    );
+    if (!mounted) return;
+    setState(() => _lanUpdateUrl = value);
+  }
+
+  Future<void> _openLanUpdateDialog() async {
+    final repo = widget.appSettingsRepository;
+    if (repo == null) return;
+    final result = await AppSheet.showStateful<String>(
+      context,
+      title: '局域网更新地址',
+      bodyBuilder: (sheetContext) => _LanUpdateSheet(
+        initialUrl: _lanUpdateUrl ?? '',
+        onDone: (value) => Navigator.pop(sheetContext, value),
+      ),
+    );
+    if (result == null || !mounted) return;
+    if (result.isEmpty) {
+      await repo.remove(AppSettingsRepository.lanUpdateBaseUrlKey);
+      if (!mounted) return;
+      setState(() => _lanUpdateUrl = null);
+      AppSnackBar.show(context, '已清除局域网更新地址。', icon: AppSnackBar.successIcon);
+      return;
+    }
+    await repo.setString(AppSettingsRepository.lanUpdateBaseUrlKey, result);
+    if (!mounted) return;
+    setState(() => _lanUpdateUrl = result);
+    AppSnackBar.show(context, '已保存局域网更新地址。', icon: AppSnackBar.successIcon);
   }
 
   Future<void> _toggleAutoBackup(bool value) async {
@@ -390,6 +487,22 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: LfDimens.spaceLarge),
           _HealthMetricsCard(overviewFuture: _overviewFuture),
+          const SizedBox(height: LfDimens.spaceLarge),
+          // C-2（docs/64）：饮食约束（素食标签 + 过敏原）。2026-11-02 用户：
+          // 原先一行光秃秃挂在页面上、没有卡片占位，和上下分组不像一套；
+          // 现在收进 `SettingsGroup`，与 AI / 数据 / 食材库同一卡片语言。
+          if (widget.dietaryConstraintsSummary != null &&
+              widget.onOpenDietaryConstraints != null)
+            SettingsGroup(
+              title: '饮食与偏好',
+              titleKey: const Key('settings-group-dietary'),
+              children: [
+                _DietaryConstraintsRow(
+                  summary: widget.dietaryConstraintsSummary!,
+                  onOpen: widget.onOpenDietaryConstraints!,
+                ),
+              ],
+            ),
           const SizedBox(height: LfDimens.spaceLarge),
           _AchievementsCard(overviewFuture: _overviewFuture),
           const SizedBox(height: LfDimens.spaceLarge),
@@ -499,63 +612,26 @@ class _SettingsPageState extends State<SettingsPage> {
       title: '数据管理',
       titleKey: const Key('settings-group-data'),
       children: [
-        if (hasBackup) ...[
+        // 【2026-11-02 用户：数据管理条目太多，汇总进二级弹层】备份/恢复/
+        // 三个 CSV 导出收进「备份与导出」；自动备份开关留在行尾，常用状态
+        // 一眼可见。内部行沿用原 Key，自动化与读屏定位不变。
+        if (hasBackup)
           SettingRow(
-            key: const Key('cta-backup'),
-            icon: Icons.download_outlined,
-            title: '备份数据',
+            key: const Key('settings-backup-hub'),
+            icon: Icons.folder_copy_outlined,
+            title: '备份与导出',
             showChevron: true,
-            onTap: _openExportDialog,
-          ),
-          SettingRow(
-            key: const Key('cta-restore'),
-            icon: Icons.upload_outlined,
-            title: '恢复数据',
-            showChevron: true,
-            onTap: _openRestoreDialog,
-          ),
-          SettingRow(
-            key: const Key('cta-export-csv'),
-            icon: Icons.table_view_outlined,
-            title: '导出饮食记录',
-            showChevron: true,
-            onTap: _exportMealsCsv,
-          ),
-          SettingRow(
-            key: const Key('backup-export-training-csv'),
-            icon: Icons.table_view_outlined,
-            title: '导出训练记录',
-            showChevron: true,
-            onTap: _exportTrainingCsv,
-          ),
-          // 食物库全量导出（docs/31 S5 需求 54）：与导入器同一格式，
-          // 往返无损——备份组里自然的一行。
-          SettingRow(
-            key: const Key('backup-export-foods-csv'),
-            icon: Icons.table_view_outlined,
-            title: '导出食物数据',
-            showChevron: true,
-            onTap: _exportFoodsCsv,
-          ),
-        ],
-        // 步数与身体活动（docs/30 §2 D9 / 需求 3）：授权状态 + 撤销/开启入口。
-        // 放在「数据管理」组内——步数是本机数据，与备份/恢复/CSV 同类，
-        // 不与 AI 配置混在一起。未接线时不渲染（与体重秤行同约定）。
-        if (widget.stepsRepository != null)
-          _StepsPermissionRow(
-            repository: widget.stepsRepository!,
-            onOpenSheet: _openStepsPermissionSheet,
-          ),
-        // 电子体重秤（docs/31 S6，需求 47 / D6）：仅前台、用户主动同步。
-        // 同一约定：未接线不渲染。弹层关了后 `_scaleNonce` 自增让行重查
-        // 权限状态（权限可能在弹层里刚被用户改过）。
-        if (widget.scaleSync != null)
-          _ScalePermissionRow(
-            key: ValueKey('scale-row-$_scaleNonce'),
-            sync: widget.scaleSync!,
-            onOpenSheet: _openScaleSheet,
-          ),
-        if (widget.appSettingsRepository != null)
+            trailing: widget.appSettingsRepository == null
+                ? null
+                : SettingToggle(
+                    key: const Key('settings-auto-backup-toggle'),
+                    value: _autoBackupEnabled,
+                    onChanged: _toggleAutoBackup,
+                    semanticLabel: '自动本地备份',
+                  ),
+            onTap: _openBackupExportSheet,
+          )
+        else if (widget.appSettingsRepository != null)
           SettingRow(
             icon: Icons.backup_outlined,
             title: '自动本地备份',
@@ -566,18 +642,114 @@ class _SettingsPageState extends State<SettingsPage> {
               semanticLabel: '自动本地备份',
             ),
           ),
+        if (widget.dataSelfCheck != null)
+          SettingRow(
+            key: const Key('data-self-check-entry'),
+            icon: Icons.fact_check_outlined,
+            title: '数据自检',
+            showChevron: true,
+            onTap: _openDataSelfCheck,
+          ),
+        if (widget.stepsRepository != null)
+          _StepsPermissionRow(
+            repository: widget.stepsRepository!,
+            onOpenSheet: _openStepsPermissionSheet,
+          ),
+        if (widget.scaleSync != null)
+          _ScalePermissionRow(
+            key: ValueKey('scale-row-$_scaleNonce'),
+            sync: widget.scaleSync!,
+            onOpenSheet: _openScaleSheet,
+          ),
       ],
     );
   }
 
-  /// 步数权限说明弹层（docs/30 §2 D9）。
+  /// 备份/恢复/导出的二级弹层（2026-11-02 用户：数据管理条目太多）。
   ///
-  /// **不做应用内「取消授权」开关**：Android 的运行时权限只能由用户在系统
-  /// 设置里撤销，应用内的开关只能停用自己的读数、撤不掉权限本身——那会让
-  /// 设置页说「已取消」而系统里权限还在。所以这里的唯一动作就是把用户送到
-  /// 系统设置页（`ACTION_APPLICATION_DETAILS_SETTINGS`）。
-  /// 步数权限说明弹层（docs/30 §2 D9；Round7 裁决 R11 起与今日页步数卡的
-  /// 「查看详情」共用同一个公共函数——同一段说明、同一个动作，不复制第二份）。
+  /// 二级只收纳**低频动作**；自动备份开关留在父行行尾。返回枚举后再执行，
+  /// 不叠着弹层开下一个弹层（备份/恢复各自还有密码弹层）。
+  Future<void> _openBackupExportSheet() async {
+    final action = await AppSheet.show<_DataAction>(
+      context,
+      title: '备份与导出',
+      content: Builder(
+        builder: (sheetContext) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SettingRow(
+              key: const Key('cta-backup'),
+              icon: Icons.download_outlined,
+              title: '备份数据',
+              showChevron: true,
+              onTap: () => Navigator.of(sheetContext).pop(_DataAction.backup),
+            ),
+            SettingRow(
+              key: const Key('cta-restore'),
+              icon: Icons.upload_outlined,
+              title: '恢复数据',
+              showChevron: true,
+              onTap: () => Navigator.of(sheetContext).pop(_DataAction.restore),
+            ),
+            SettingRow(
+              key: const Key('cta-export-csv'),
+              icon: Icons.table_view_outlined,
+              title: '导出饮食记录',
+              showChevron: true,
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_DataAction.exportMeals),
+            ),
+            SettingRow(
+              key: const Key('backup-export-training-csv'),
+              icon: Icons.table_view_outlined,
+              title: '导出训练记录',
+              showChevron: true,
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_DataAction.exportTraining),
+            ),
+            SettingRow(
+              key: const Key('backup-export-foods-csv'),
+              icon: Icons.table_view_outlined,
+              title: '导出食物数据',
+              showChevron: true,
+              onTap: () =>
+                  Navigator.of(sheetContext).pop(_DataAction.exportFoods),
+            ),
+            if (widget.database != null)
+              SettingRow(
+                key: const Key('cta-legacy-migration'),
+                icon: Icons.history_outlined,
+                title: '旧数据迁移记录',
+                showChevron: true,
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_DataAction.legacyMigration),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _DataAction.backup:
+        await _openExportDialog();
+      case _DataAction.restore:
+        await _openRestoreDialog();
+      case _DataAction.exportMeals:
+        await _exportMealsCsv();
+      case _DataAction.exportTraining:
+        await _exportTrainingCsv();
+      case _DataAction.exportFoods:
+        await _exportFoodsCsv();
+      case _DataAction.legacyMigration:
+        final database = widget.database;
+        if (database != null) {
+          await LegacyMigrationSheet.show(context, database);
+        }
+    }
+  }
+
+  /// 步数与身体活动（docs/30 §2 D9 / 需求 3）：授权状态 + 撤销/开启入口。
+  /// 未接线时不渲染（与体重秤行同约定）。
   Future<void> _openStepsPermissionSheet() async {
     final repository = widget.stepsRepository;
     if (repository == null) return;
@@ -867,12 +1039,25 @@ class _SettingsPageState extends State<SettingsPage> {
           showChevron: true,
           onTap: _openAboutSheet,
         ),
+        if (widget.appSettingsRepository != null)
+          SettingRow(
+            icon: Icons.lan_outlined,
+            key: const Key('settings-lan-update'),
+            title: '局域网更新',
+            value: (_lanUpdateUrl ?? '').isEmpty ? '未设置' : _lanUpdateUrl,
+            showChevron: true,
+            onTap: _openLanUpdateDialog,
+          ),
         SettingRow(
           icon: Icons.cloud_download_outlined,
           key: const Key('settings-check-update'),
           title: '检查更新',
+          // 【2026-11-09 审查修复】原来只有一条会消失的 SnackBar：慢网时
+          // 行内毫无变化，用户不知道点没点上，再点又被 `_updating` 静默
+          // 忽略。现在行内直接显示「检查中…」作为 value。
+          value: _updating ? '检查中…' : null,
           showChevron: true,
-          onTap: _checkUpdate,
+          onTap: _updating ? null : _checkUpdate,
         ),
         SettingRow(
           icon: Icons.help_outline,
@@ -918,17 +1103,59 @@ class _SettingsPageState extends State<SettingsPage> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.6,
       ),
-      child: const SingleChildScrollView(child: _HelpContent()),
+      child: SingleChildScrollView(
+        child: _HelpContent(loader: widget.helpContentLoader),
+      ),
     ),
   );
 
-  /// 反馈（docs/21 §5.6 📱）。当前无外发通道，所以只如实说明数据去向，
-  /// 不给一个点了没反应的假按钮。
+  /// 反馈（docs/21 §5.6 📱；**需求 17e** 2026-10-25 用户「按你的建议来」）。
+  ///
+  /// 三条都真能做事：
+  /// 1. **可点链接**直达仓库 issue 新建页（`xiaopeng66/localfit-ai`，已 public）；
+  /// 2. **复制环境信息**一键把「版本 / 机型 / Android / 当前页面」放进剪贴板；
+  /// 3. 保留「没有内置上报通道」这句事实说明（不许为了有个按钮就把实话说没了）。
+  ///
+  /// 开链接走**自己的平台通道**（`PlatformLinks`，零新依赖）；打不开时如实
+  /// 说一句并把链接复制到剪贴板——点了必须有反应。
   Future<void> _openFeedback() => AppSheet.show<void>(
     context,
     title: '反馈',
-    content: const _FeedbackContent(),
+    content: _FeedbackContent(
+      onOpenIssue: _openFeedbackIssue,
+      onCopyEnv: _copyFeedbackEnv,
+    ),
   );
+
+  Future<void> _openFeedbackIssue() async {
+    final opened = await PlatformLinks().openUrl(SettingsPage.feedbackIssueUrl);
+    if (!mounted) return;
+    if (opened) return;
+    // 打不开（没有浏览器 / 平台拒绝）：把链接复制好并如实说明。
+    await Clipboard.setData(
+      const ClipboardData(text: SettingsPage.feedbackIssueUrl),
+    );
+    if (!mounted) return;
+    _showMessage('没能打开浏览器，链接已复制到剪贴板。');
+  }
+
+  /// 复制环境信息（版本 / 机型 / Android / 当前页面）。
+  ///
+  /// 机型与系统版本从平台读（`PlatformLinks.deviceFacts`，**不含任何标识符**）；
+  /// 读不到时如实写「机型未知」，不编一个。
+  Future<void> _copyFeedbackEnv() async {
+    final facts = await PlatformLinks().deviceFacts();
+    if (!mounted) return;
+    final text = [
+      'LocalFit AI $_versionLabel',
+      '机型：${facts.modelLabel}',
+      facts.androidLabel,
+      '页面：我的 → 反馈',
+    ].join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    _showMessage('环境信息已复制，粘到 issue 里就行。');
+  }
 
   String? _baseUrlError(String? value) =>
       OpenAiCompatibleEndpoint.tryParse(value ?? '', protocol: _protocol) ==
@@ -1249,12 +1476,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '配置仅保存在本机。保存配置不会上传照片或调用供应商。\n'
-              '协议决定请求地址：Chat Completions 为 /chat/completions，'
-              'Responses 为 /responses，Anthropic Messages 为 /messages；'
-              '把完整端点粘进 Base URL 也可以，末尾的协议路径会自动去掉。\n'
-              '推理档「关闭推理」会对 Chat Completions 请求附加 thinking 字段；'
-              '若你的供应商拒绝该字段，请把「推理」切回「默认」。',
+              '配置仅保存在本机；端点格式见「帮助文档」。',
               style: LfText.micro.copyWith(color: context.lf.mutedForeground),
             ),
             if (errorText != null) ...[
@@ -1347,8 +1569,15 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  /// 版本标签（17c）：**永不为「版本未知」**。
+  ///
+  /// 2026-10-25 用户实测看到「版本未知」——根因是构建时漏传
+  /// `--dart-define=APP_VERSION=`。这里不再把「没注入」渲染成一句话，
+  /// 而是回落到随包常量（`lib/app/app_version.dart`）——那也是一个**真实的**
+  /// 构建号，不是编的。构建脚本 `tool/build_release.bat` 负责注入每个 ABI 的
+  /// versionCode。
   String get _versionLabel =>
-      widget.appVersion == null ? '版本未知' : 'v${widget.appVersion}';
+      'v${resolveAppVersion(injected: widget.appVersion)}';
 
   /// 关于弹层：应用名 + 版本 + 本地运行声明。
   Future<void> _openAboutSheet() {
@@ -1361,9 +1590,9 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Text('版本 $_versionLabel'),
           const SizedBox(height: 8),
-          const Text(
-            '全数据本地存储：饮食、训练与档案都在这台设备上，备份文件在本机加密。AI 功能只在你主动配置并调用时，才经你自己配置的供应商端点发生。',
-          ),
+          // 【2026-11-02 用户：文字说明太多，该有的放帮助里】长句删掉，
+          // 保留一句事实标签；隐私细节在「帮助文档」里。
+          const Text('数据仅保存在本机；AI 只在你主动调用时联网。'),
         ],
       ),
       actions: Builder(
@@ -1378,18 +1607,147 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  /// 「检查更新」的诚实实现：本应用完全本地运行、无更新通道，如实说明，
-  /// 不假装检查过。
-  void _checkUpdate() {
+  /// **在线更新**（需求 17b，2026-10-25）：查最新版 → 有事说事。
+  ///
+  /// 【这条以前是假按钮】原来点它只弹一句「本应用完全本地运行，不会联网检查
+  /// 更新」——而仓库早已 public、Release 也带了三个 ABI 的包。用户要的是
+  /// 「点击检查更新并安装」，所以先把假话删掉，再真做：
+  ///
+  /// 1. `GET releases/latest` 拿最新 tag 与三个资产；
+  /// 2. 用**本包 versionCode**（系统读出来的）与「本 ABI 那个包的 versionCode」
+  ///    比大小——语义版本（0.1.0）在同一代内不变，比不出新旧；
+  /// 3. 有新版：弹一层说明 + 「下载并安装」；下载完交给系统安装器
+  ///    （FileProvider + ACTION_VIEW，见 `MainActivity.installApk`）；
+  /// 4. 已是最新 / 连不上 / 没有本机可用的包：**各自如实说**，不假装检查过。
+  Future<void> _checkUpdate() async {
+    if (_updating) return;
+    _updating = true;
+    if (mounted) setState(() {});
+    try {
+      final service = widget.appUpdateService ?? AppUpdateService();
+      AppSnackBar.show(context, '正在检查更新…', icon: AppSnackBar.infoIcon);
+      final check = await service.checkLatest(lanBaseUrl: _lanUpdateUrl);
+      if (!mounted) return;
+      switch (check.kind) {
+        case AppUpdateCheckKind.upToDate:
+          AppSnackBar.show(
+            context,
+            '已是最新（$_versionLabel，versionCode ${check.localVersionCode}）。',
+            icon: AppSnackBar.successIcon,
+          );
+        case AppUpdateCheckKind.failed:
+          AppSnackBar.show(
+            context,
+            check.message ?? '检查更新失败。',
+            icon: AppSnackBar.errorIcon,
+          );
+        case AppUpdateCheckKind.available:
+          await _showUpdateSheet(service, check);
+      }
+    } finally {
+      _updating = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  /// 「发现新版本」弹层：说清版本号与包大小，再给一个真的会下载的按钮。
+  Future<void> _showUpdateSheet(
+    AppUpdateService service,
+    AppUpdateCheck check,
+  ) async {
+    final asset = check.asset!;
+    final release = check.release!;
+    final sizeText = (asset.sizeBytes ?? 0) <= 0
+        ? '大小未知'
+        : formatMegabytes(asset.sizeBytes!);
+    final confirmed = await AppSheet.show<bool>(
+      context,
+      title: '发现新版本',
+      content: Column(
+        key: const Key('update-available-sheet'),
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${release.tagName}（本机 versionCode ${check.localVersionCode} → '
+            '${asset.versionCode}）',
+            style: LfText.bodyStrong.copyWith(color: context.lf.cardForeground),
+          ),
+          const SizedBox(height: LfDimens.spaceXSmall),
+          Text(
+            '将下载 ${asset.name}（$sizeText）并交给系统安装。',
+            style: LfText.caption.copyWith(color: context.lf.mutedForeground),
+          ),
+        ],
+      ),
+      actions: Builder(
+        // 【2026-11-09 审查修复】原来是 Row + spaceBetween：320dp 屏扣掉
+        // 内边距后只有 288dp，两个按钮自然宽约 300dp ⇒ 2.0 字号下溢出。
+        // `OverflowBar` 放不下时自动把按钮竖排（与 AppSheet 提交表单同口径）。
+        builder: (sheetContext) => OverflowBar(
+          alignment: MainAxisAlignment.end,
+          overflowAlignment: OverflowBarAlignment.end,
+          spacing: LfDimens.spaceSmall,
+          overflowSpacing: LfDimens.spaceXSmall,
+          children: [
+            LfTextButton(
+              label: '以后再说',
+              onPressed: () => Navigator.of(sheetContext).pop(),
+            ),
+            LfPrimaryButton(
+              key: const Key('update-download-install'),
+              label: '下载并安装',
+              onPressed: () => Navigator.of(sheetContext).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    await _downloadAndInstall(service, asset);
+  }
+
+  /// 下载期间**不再只给一句静态 SnackBar**（2026-11-04 用户：「根本不知道
+  /// 下载到什么进度了」）：改为弹出进度弹层（百分比 + 已下载字节 + 取消），
+  /// 结局（交给安装器 / 要权限 / 失败 / 取消）关层后如实提示。
+  Future<void> _downloadAndInstall(
+    AppUpdateService service,
+    AppReleaseAsset asset,
+  ) async {
+    final result = await showUpdateDownloadSheet(
+      context,
+      service: service,
+      asset: asset,
+    );
+    if (!mounted) return;
+    // 遮罩/返回键返回 null 时，弹层已经立即发出取消，文件清理由 Dio 负责。
+    // 不在这里宣称「已清理」：取消结果可能早于异步删除完成。
+    final kind = result?.kind ?? AppUpdateInstallKind.cancelled;
     AppSnackBar.show(
       context,
-      '当前 $_versionLabel；本应用完全本地运行，不会联网检查更新。',
-      icon: AppSnackBar.infoIcon,
+      switch (kind) {
+        AppUpdateInstallKind.installerOpened => '下载完成，已交给系统安装（在系统界面点安装即可）。',
+        AppUpdateInstallKind.needPermission =>
+          result?.message ?? '需要先允许本应用安装其它应用。',
+        AppUpdateInstallKind.failed => result?.message ?? '安装没起来。',
+        AppUpdateInstallKind.cancelled => '已取消下载。',
+      },
+      icon: switch (kind) {
+        AppUpdateInstallKind.installerOpened => AppSnackBar.successIcon,
+        AppUpdateInstallKind.needPermission => AppSnackBar.infoIcon,
+        AppUpdateInstallKind.failed => AppSnackBar.errorIcon,
+        AppUpdateInstallKind.cancelled => AppSnackBar.infoIcon,
+      },
     );
   }
 }
 
 extension _BackupDialogs on _SettingsPageState {
+  /// 打开数据自检弹层（D-1/D-2）。关了后重读页面概要（自检的修复会改库）。
+  Future<void> _openDataSelfCheck() async {
+    await showDataSelfCheckSheet(context, selfCheck: widget.dataSelfCheck!);
+  }
+
   Future<void> _openExportDialog() async {
     var password = '';
     var confirm = '';
@@ -1459,6 +1817,15 @@ extension _BackupDialogs on _SettingsPageState {
                       final path = await widget.createEncryptedBackup!.run(
                         password: password,
                       );
+                      if (!dialogContext.mounted) return;
+                      // D-2（docs/64）：备份成功就记时间，自检页的
+                      // 「最近一次备份」读这一个键（没有就如实说没备份过）。
+                      if (path != null) {
+                        await widget.appSettingsRepository?.setString(
+                          AppSettingsRepository.lastBackupAtKey,
+                          DateTime.now().millisecondsSinceEpoch.toString(),
+                        );
+                      }
                       if (!dialogContext.mounted) return;
                       Navigator.of(dialogContext).pop();
                       _showMessage(
@@ -1552,12 +1919,20 @@ extension _BackupDialogs on _SettingsPageState {
                       if (summary != null) {
                         // 2026-10-21 RV-P2-12：数据已替换成功；索引重建没
                         // 入队时如实说「数据已恢复、索引待重建」，不报失败。
+                        // docs/67 §7.4：`.lfb` 不含图片字节，跨设备恢复后
+                        // 照片/语音会缺——如实说出缺几张，不写"完整恢复"。
+                        final missingNote = summary.missingMediaCount > 0
+                            ? '；${summary.missingMediaCount} 张照片/语音在本机不存在'
+                                  '（备份只带路径，不含图片字节）'
+                            : '';
                         _showMessage(
                           summary.indexRebuildPending
                               ? '备份已恢复（导出于 ${summary.exportedAt}）；'
-                                    '派生索引待重建，搜索可能暂时退化。'
-                              : '备份已恢复（导出于 ${summary.exportedAt}）。',
-                          icon: summary.indexRebuildPending
+                                    '派生索引待重建，搜索可能暂时退化$missingNote。'
+                              : '备份已恢复（导出于 ${summary.exportedAt}）$missingNote。',
+                          icon:
+                              summary.indexRebuildPending ||
+                                  summary.missingMediaCount > 0
                               ? AppSnackBar.infoIcon
                               : AppSnackBar.successIcon,
                         );
@@ -1859,6 +2234,58 @@ class _StepsPermissionRowState extends State<_StepsPermissionRow> {
   }
 }
 
+/// 设置页「饮食约束」行（C-2，docs/64）：值显示当前约束摘要（「素食 · 忌口
+/// 2 项」/「未设置」——措辞来自 `PlanningConstraints.summaryLabel`），点开
+/// 弹层；弹层回来后**重读**摘要（不许拿打开时的旧值继续显示）。仓储与弹层
+/// 都在 daily_plan feature，这里只拿两个回调（分层门禁只许减）。
+class _DietaryConstraintsRow extends StatefulWidget {
+  const _DietaryConstraintsRow({required this.summary, required this.onOpen});
+
+  final Future<String> Function() summary;
+  final Future<void> Function() onOpen;
+
+  @override
+  State<_DietaryConstraintsRow> createState() => _DietaryConstraintsRowState();
+}
+
+class _DietaryConstraintsRowState extends State<_DietaryConstraintsRow> {
+  String? _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_reload());
+  }
+
+  Future<void> _reload() async {
+    final summary = await widget.summary();
+    if (!mounted) return;
+    setState(() => _summary = summary);
+  }
+
+  Future<void> _open() async {
+    await widget.onOpen();
+    if (!mounted) return;
+    await _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _summary ?? '';
+    return SettingRow(
+      key: const Key('settings-dietary-constraints'),
+      icon: Icons.no_food_outlined,
+      title: '饮食约束',
+      trailing: Text(
+        value,
+        style: LfText.caption.copyWith(color: context.lf.mutedForeground),
+      ),
+      showChevron: true,
+      onTap: _open,
+    );
+  }
+}
+
 /// 设置页「电子体重秤」行（docs/31 S6，需求 47 / D6）。
 ///
 /// 与步数行同构：**三态各自说实话**，短词只回答「现在能不能同步」——
@@ -1971,30 +2398,10 @@ class _ScaleSheetBodyState extends State<_ScaleSheetBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Column(
+        const Text(
           key: Key('scale-permission-sheet-body'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '· 上秤后点「授权并开始同步」，本机将只在前台扫描约 10 秒，'
-              '读到一次体重就停。',
-              style: LfText.bodySmall,
-            ),
-            SizedBox(height: 8),
-            Text('· 读数只写入本机数据库，不上传；来源会标为「秤同步」。', style: LfText.bodySmall),
-            SizedBox(height: 8),
-            Text(
-              '· 支持「标准体重秤协议」（Bluetooth SIG 体重秤服务）的秤；'
-              '厂商私有协议（如部分小米秤）暂不支持，会如实提示。',
-              style: LfText.bodySmall,
-            ),
-            SizedBox(height: 8),
-            Text(
-              '· 需要系统授予「附近设备（蓝牙）」权限；用于扫描与连接秤，'
-              '不用于获取位置。',
-              style: LfText.bodySmall,
-            ),
-          ],
+          '上秤后点同步；仅前台扫描约 10 秒，读数只存本机。',
+          style: LfText.bodySmall,
         ),
         const SizedBox(height: LfDimens.spaceMedium),
         LfConfirmButton(
@@ -2090,92 +2497,139 @@ class _PrivacyBadge extends StatelessWidget {
   }
 }
 
-/// 帮助文档正文（docs/21 §5.6 📱）。纯本地静态文本，没有外链。
-class _HelpContent extends StatelessWidget {
-  const _HelpContent();
+/// 帮助文档正文（docs/21 §5.6 📱；**需求 17d** 2026-10-25）。
+///
+/// 【为什么从 7 组硬编码问答改成随包 Markdown】用户原话是「优化帮助文档」。
+/// 硬编码问答有三个问题：改一句要动 Dart（评审噪音大）、小标题/列表写不出来
+/// （`Column` 里只有纯文本）、内容与行为的一致性没人保证。
+///
+/// 现在内容住在 `assets/help/*.md`（**随包、离线可读**），由**既有**的
+/// `LfMarkdown` 渲染器渲染——不引新依赖，也复用对话气泡那套 Markdown 语言。
+///
+/// **诚实边界不变**：文档里不许出现与行为矛盾的隐私断言（「不会上传到任何
+/// 服务器」之类），这条由 `settings_page_test` 的断言继续钉住。
+class _HelpContent extends StatefulWidget {
+  const _HelpContent({this.loader});
 
-  static const _topics = <(String, String)>[
-    (
-      '数据存在哪里？',
-      '全部条目存在这台设备的加密数据库里，密钥由系统安全区保管。'
-          '不主动使用 AI 功能就不会有内容离开这台设备；用拍照识别、AI 工作台'
-          '或 AI 对话时，会把这次功能需要的那部分内容发给你自己配置的 AI 服务。',
-    ),
-    (
-      'AI 会直接改我的数据吗？',
-      '不会。AI 只生成草稿，草稿要先给你看清「发送了什么」，'
-          '结果回来后还要你逐条确认，确认过才写入本地事实。',
-    ),
-    (
-      '怎么记一餐？',
-      '在「饮食」页选餐次后拍照识别，或从食物库直接搜。'
-          '识别出的每个候选都要你确认或改名后才计入营养。',
-    ),
-    (
-      '餐前餐后怎么算净摄入？',
-      '先拍餐前照片，吃完再拍剩余照片，应用用「餐前 − 剩余」'
-          '估算真正吃下去的份量，而不是把整份都记账。',
-    ),
-    (
-      '食堂菜单怎么维护？',
-      '在「饮食」页的「菜单」里按 地点 → 窗口 → 菜品 三级建结构。'
-          '这是常驻结构，不是某一天的菜单照片；菜品营养可以交给 AI 分析。',
-    ),
-    (
-      '为什么有的动作显示「难度未知」？',
-      '难度和常用度是可空字段。历史动作没标注就显示「未知」，'
-          '应用不会拿一个默认值冒充真实标注。',
-    ),
-    (
-      '数据能带走吗？',
-      '可以。「我的」页支持导出加密备份（口令加密的 .lfb 文件）'
-          '以及饮食/训练 CSV，恢复时会用备份内容替换当前全部数据。',
-    ),
+  /// 注入的正文加载器；null = 读随包资产（生产路径）。
+  final Future<String> Function()? loader;
+
+  /// 随包帮助文档（顺序即展示顺序）。
+  static const List<String> assetPaths = [
+    'assets/help/00-guide.md',
+    'assets/help/01-data-and-privacy.md',
+    'assets/help/02-ai-boundaries.md',
+    'assets/help/03-recording.md',
+    'assets/help/04-canteen-and-target.md',
+    'assets/help/05-troubleshooting.md',
   ];
 
   @override
+  State<_HelpContent> createState() => _HelpContentState();
+}
+
+class _HelpContentState extends State<_HelpContent> {
+  /// 读一次即缓存：弹层反复开会重建，但资源内容不变。
+  Future<String>? _content;
+
+  @override
+  void initState() {
+    super.initState();
+    _content = _load();
+  }
+
+  Future<String> _load() async {
+    final injected = widget.loader;
+    if (injected != null) return injected();
+    final parts = <String>[];
+    for (final path in _HelpContent.assetPaths) {
+      try {
+        parts.add((await rootBundle.loadString(path)).trim());
+      } on Object {
+        // 资产缺失如实说明（不静默少一段：帮助文档少一节用户看不出来）。
+        parts.add('（这一节没能读出来：$path）');
+      }
+    }
+    // 两节之间空一行（Markdown 段落分隔）。
+    return parts.join('\n\n');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      // 必须 min：外层 _SheetBody 用 Flexible + SingleChildScrollView 包内容，
-      // 默认 max 会要求撑满无界高度，7 组问答直接顶出 540dp 溢出。
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final (question, answer) in _topics) ...[
-          Text(question, style: theme.textTheme.titleSmall),
-          const SizedBox(height: LfDimens.spaceMedium),
-          Text(
-            answer,
-            style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
-          ),
-          const SizedBox(height: LfDimens.spaceLarge),
-        ],
-      ],
+    final content = _content;
+    if (content == null) return const SizedBox.shrink();
+    return FutureBuilder<String>(
+      future: content,
+      builder: (context, snapshot) {
+        final text = snapshot.data;
+        if (text == null) {
+          // **不用转圈**：无限动画会让 `pumpAndSettle` 永远等不到静止
+          // （实测：帮助弹层的用例因此超时）。读取只在本地资产上做，一瞬间
+          // 的事，静态占位足够，也更好测。
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: LfDimens.spaceMedium),
+            child: Text('正在读取帮助文档…'),
+          );
+        }
+        return SizedBox(
+          key: const Key('help-markdown'),
+          width: double.infinity,
+          child: LfMarkdown(text: text),
+        );
+      },
     );
   }
 }
 
-/// 反馈说明（docs/21 §5.6 📱）。没有外发通道时如实讲清楚，而不是
-/// 摆一个点了没反应的入口。
+/// 反馈说明（docs/21 §5.6 📱；**需求 17e** 2026-10-25）。
+///
+/// 三件事各归其位：
+/// 1. **没有内置上报通道**这句事实保留（原来就有，用户没让删——不许为了让
+///    页面好看就把实话说没了）；
+/// 2. 给一个**能点的链接**（GitHub issue 新建页）——它真的能打开浏览器；
+/// 3. 给「复制环境信息」——不依赖任何外部服务，一键把报问题要的四件事复制好。
 class _FeedbackContent extends StatelessWidget {
-  const _FeedbackContent();
+  const _FeedbackContent({required this.onOpenIssue, required this.onCopyEnv});
+
+  final Future<void> Function() onOpenIssue;
+  final Future<void> Function() onCopyEnv;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = context.lf;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 口径与原来逐字一致的那句事实说明（用户没要求删，就不删）。
         Text('没有内置上报通道', style: theme.textTheme.titleSmall),
         const SizedBox(height: LfDimens.spaceMedium),
         Text(
-          '这个版本没有内置上报通道：出错不会自动回传，也没有崩溃上报 SDK。'
-          '唯一会联网的是你自己配置的 AI 服务，而且只在你用 AI 功能时才请求。'
-          '要反馈问题，请把「我的 → 关于 → 版本」里的版本号，'
-          '连同出问题的页面名称一起记下来，交给分发这个应用的人。',
-          style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
+          '出错不会自动回传；只有你主动使用 AI 时才联网。',
+          style: LfText.bodySmall.copyWith(color: c.mutedForeground),
+        ),
+        const SizedBox(height: LfDimens.spaceMedium),
+        // 链接本身就是文案的一部分：用户能核对链接指向哪儿（不是藏在一个
+        // 「点我」后面）。
+        Text(
+          SettingsPage.feedbackIssueUrl,
+          key: const Key('feedback-issue-url'),
+          style: LfText.caption.copyWith(color: c.mutedForeground),
+        ),
+        const SizedBox(height: LfDimens.spaceMedium),
+        LfPrimaryButton(
+          key: const Key('feedback-open-issue'),
+          label: '去 GitHub 提 issue',
+          icon: Icons.open_in_new,
+          onPressed: () => unawaited(onOpenIssue()),
+        ),
+        const SizedBox(height: LfDimens.spaceSmall),
+        LfTextButton(
+          key: const Key('feedback-copy-env'),
+          label: '复制环境信息',
+          icon: Icons.copy_all_outlined,
+          onPressed: () => unawaited(onCopyEnv()),
         ),
       ],
     );
@@ -2679,31 +3133,88 @@ class _AchievementsCard extends StatelessWidget {
 class _DangerFooter extends StatelessWidget {
   const _DangerFooter({required this.appVersion});
 
+  /// 版本号（已解析）：组件不再自己判「有没有」，[resolveAppVersion] 保证非空。
   final String? appVersion;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    final version = appVersion == null ? '' : 'v$appVersion';
+    final version = 'v${resolveAppVersion(injected: appVersion)}';
+    // 【2026-11-02 用户：文字说明太多，只留标签】页脚只保留版本；清除后果
+    // 已在确认弹层里完整说明，品牌句是装饰性文案，整段退场。
+    return Text(
+      'LocalFit AI $version',
+      textAlign: TextAlign.center,
+      style: LfText.caption.copyWith(color: c.mutedForeground),
+    );
+  }
+}
+
+/// 局域网更新地址弹层：controller 由本 State 持有并在 dispose 释放
+/// （不能在 `showStateful` 返回后立刻 dispose——退场动画还在重建输入框）。
+class _LanUpdateSheet extends StatefulWidget {
+  const _LanUpdateSheet({required this.initialUrl, required this.onDone});
+
+  final String initialUrl;
+  final ValueChanged<String> onDone;
+
+  @override
+  State<_LanUpdateSheet> createState() => _LanUpdateSheetState();
+}
+
+class _LanUpdateSheetState extends State<_LanUpdateSheet> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialUrl,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
+      key: const Key('lan-update-sheet'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '清除数据后不可恢复，请谨慎操作',
-          textAlign: TextAlign.center,
-          style: LfText.caption.copyWith(color: c.errorText),
+          '填电脑上跑下载服务的地址，例如 http://10.26.8.28:8080/。'
+          '配置后「检查更新」会先走局域网，失败再回 GitHub。',
+          style: LfText.caption.copyWith(color: context.lf.mutedForeground),
         ),
         const SizedBox(height: LfDimens.spaceSmall),
-        Text(
-          version.isEmpty ? 'LocalFit AI' : 'LocalFit AI $version',
-          textAlign: TextAlign.center,
-          style: LfText.caption.copyWith(color: c.mutedForeground),
+        LfTextField(
+          fieldKey: const Key('lan-update-url'),
+          label: '地址',
+          hintText: 'http://10.26.8.28:8080/',
+          controller: _controller,
+          onChanged: (_) {},
         ),
-        // A `.page-end` 的品牌句（`app.js:271`）：原来页脚只有版本行。
-        const SizedBox(height: 2),
-        Text(
-          '让每一次记录，回到你自己。',
-          textAlign: TextAlign.center,
-          style: LfText.caption.copyWith(color: c.mutedForeground),
+        const SizedBox(height: LfDimens.spaceMedium),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            LfTextButton(label: '取消', onPressed: () => Navigator.pop(context)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LfTextButton(
+                  key: const Key('lan-update-clear'),
+                  label: '清除',
+                  onPressed: () => widget.onDone(''),
+                ),
+                const SizedBox(width: LfDimens.spaceSmall),
+                LfPrimaryButton(
+                  key: const Key('lan-update-save'),
+                  label: '保存',
+                  onPressed: () => widget.onDone(_controller.text.trim()),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );

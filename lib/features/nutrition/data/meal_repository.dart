@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
+import 'package:localfit_ai/features/nutrition/domain/nutrition_target_override.dart';
 
 final class MealRepository {
   const MealRepository({
@@ -125,41 +128,122 @@ final class MealRepository {
   Future<MealRecord?> delete(String id) async {
     final existing = await getById(id);
     if (existing == null) return null;
-    final deleted = await (database.delete(
-      database.meals,
-    )..where((row) => row.id.equals(id))).go();
+    final deleted = await database.transaction(() async {
+      // Recognition results reference meals with a restrictive FK; unlink the
+      // snapshot before deleting the meal so user deletion cannot fail.
+      await (database.delete(
+        database.recognitionResults,
+      )..where((row) => row.mealId.equals(id))).go();
+      return (database.delete(
+        database.meals,
+      )..where((row) => row.id.equals(id))).go();
+    });
     return deleted == 1 ? existing : null;
   }
 
+  /// 删除一条餐记录里的**指定食物**（2026-10-31 用户：逐食物勾选删除）。
+  ///
+  /// 返回删除前的完整记录供撤销；没有命中任何 item 返回 null。只删部分食物时
+  /// 保留餐记录与其余食物；全部被选中时才移除餐记录本身。整个过程一个事务，
+  /// 不会出现「食物没了但空餐还留着」的中间态。
+  Future<MealRecord?> deleteItems(String mealId, Set<String> itemIds) async {
+    if (itemIds.isEmpty) return null;
+    final existing = await getById(mealId);
+    if (existing == null) return null;
+    final remaining = [
+      for (final item in existing.items)
+        if (!itemIds.contains(item.id)) item,
+    ];
+    if (remaining.length == existing.items.length) return null;
+    await database.transaction(() async {
+      if (remaining.isEmpty) {
+        await (database.delete(
+          database.meals,
+        )..where((row) => row.id.equals(mealId))).go();
+      } else {
+        await (database.delete(
+              database.mealItems,
+            )..where((row) => row.mealId.equals(mealId) & row.id.isIn(itemIds)))
+            .go();
+        await (database.update(database.meals)
+              ..where((row) => row.id.equals(mealId)))
+            .write(MealsCompanion(updatedAt: Value(clock.nowUtc())));
+      }
+    });
+    return existing;
+  }
+
+  /// 撤销删除：恢复原记录及原 item id。
+  ///
+  /// 对「只删了部分食物」的撤销同样成立：餐记录还在时用 upsert 补回缺失
+  /// item，而不是再插一条同名餐。`insertOrReplace` 也保证重复点撤销幂等；
+  /// 不打乱撤销之后用户新增的其他食物。
   Future<void> restore(MealRecord record) async {
     _validate(record.toDraft());
-    await database.saveConfirmedMeal(
-      meal: _mealCompanion(
-        id: record.id,
-        draft: record.toDraft(),
-        source: record.source,
-        eatenAt: record.eatenAt,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-      ),
-      items: record.items
-          .map(
-            (item) => MealItemsCompanion.insert(
-              id: item.id,
-              mealId: record.id,
-              foodId: Value(item.foodId),
-              foodNameSnapshot: item.foodName,
-              grams: item.grams,
-              kcalSnapshot: item.nutrition.kcal,
-              proteinSnapshot: item.nutrition.proteinGrams,
-              carbsSnapshot: item.nutrition.carbsGrams,
-              fatSnapshot: item.nutrition.fatGrams,
-              createdAt: item.createdAt,
-              updatedAt: item.updatedAt,
+    final foodIds = {
+      for (final item in record.items)
+        if (item.foodId != null) item.foodId!,
+    };
+    final existingFoodIds = foodIds.isEmpty
+        ? <String>{}
+        : (await (database.select(
+                database.foods,
+              )..where((row) => row.id.isIn(foodIds))).get())
+              .map((row) => row.id)
+              .toSet();
+    await database.transaction(() async {
+      await database
+          .into(database.meals)
+          .insertOnConflictUpdate(
+            _mealCompanion(
+              id: record.id,
+              draft: record.toDraft(),
+              source: record.source,
+              eatenAt: record.eatenAt,
+              createdAt: record.createdAt,
+              updatedAt: record.updatedAt,
             ),
-          )
-          .toList(growable: false),
-    );
+          );
+      await database.batch((batch) {
+        batch.insertAll(
+          database.mealItems,
+          record.items
+              .map(
+                (item) => MealItemsCompanion.insert(
+                  id: item.id,
+                  mealId: record.id,
+                  // A source food may have been deleted during the undo
+                  // snackbar. Preserve the meal snapshot without restoring a
+                  // dangling FK.
+                  foodId: Value(
+                    item.foodId != null && existingFoodIds.contains(item.foodId)
+                        ? item.foodId
+                        : null,
+                  ),
+                  foodNameSnapshot: item.foodName,
+                  grams: item.grams,
+                  kcalSnapshot: item.nutrition.kcal,
+                  proteinSnapshot: item.nutrition.proteinGrams,
+                  carbsSnapshot: item.nutrition.carbsGrams,
+                  fatSnapshot: item.nutrition.fatGrams,
+                  sourceType: Value(item.sourceType),
+                  sourceId: Value(item.sourceId),
+                  cookingMethod: Value(item.cookingMethod),
+                  estimateMinGrams: Value(item.estimateMinGrams),
+                  estimateMaxGrams: Value(item.estimateMaxGrams),
+                  supplyId: Value(item.supplyId),
+                  nutritionRevisionId: Value(item.nutritionRevisionId),
+                  servings: Value(item.servings),
+                  servingGrams: Value(item.servingGrams),
+                  createdAt: item.createdAt,
+                  updatedAt: item.updatedAt,
+                ),
+              )
+              .toList(growable: false),
+          mode: InsertMode.insertOrReplace,
+        );
+      });
+    });
   }
 
   Future<String> reuse(
@@ -294,6 +378,13 @@ final class MealRepository {
             ),
             sourceType: item.sourceType,
             sourceId: item.sourceId,
+            cookingMethod: item.cookingMethod,
+            estimateMinGrams: item.estimateMinGrams,
+            estimateMaxGrams: item.estimateMaxGrams,
+            supplyId: item.supplyId,
+            nutritionRevisionId: item.nutritionRevisionId,
+            servings: item.servings,
+            servingGrams: item.servingGrams,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
           ),
@@ -346,20 +437,88 @@ final class MealRepository {
           fatSnapshot: item.nutrition.fatGrams,
           sourceType: Value(item.sourceType),
           sourceId: Value(item.sourceId),
+          cookingMethod: Value(item.cookingMethod),
+          estimateMinGrams: Value(item.estimateMinGrams),
+          estimateMaxGrams: Value(item.estimateMaxGrams),
+          supplyId: Value(item.supplyId),
+          nutritionRevisionId: Value(item.nutritionRevisionId),
+          servings: Value(item.servings),
+          servingGrams: Value(item.servingGrams),
           createdAt: now,
           updatedAt: now,
         ),
       )
       .toList(growable: false);
 
+  /// 读某天适用的**手动**营养目标（未设置 / 生效日在它之后 ⇒ null）。
+  Future<NutritionTargetOverride?> readManualTargetForDate(
+    String localDate,
+  ) async {
+    final row =
+        await (database.select(database.appSettings)..where(
+              (row) => row.key.equals(NutritionTargetOverride.settingsKey),
+            ))
+            .getSingleOrNull();
+    final raw = row?.value;
+    if (raw == null) return null;
+    final decoded = _decodeManualTarget(raw);
+    if (decoded == null) return null;
+    if (decoded.effectiveDate.compareTo(localDate) > 0) return null;
+    return decoded;
+  }
+
+  /// 保存手动目标（从它自带的 `effectiveDate` 起生效）。
+  Future<void> saveManualTarget(NutritionTargetOverride value) async {
+    final problem = value.validate();
+    if (problem != null) throw FormatException(problem);
+    await database
+        .into(database.appSettings)
+        .insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+            key: NutritionTargetOverride.settingsKey,
+            value: jsonEncode(value.toJson()),
+          ),
+        );
+  }
+
+  /// 恢复按身体数据计算（清掉手动目标；公式那套行原样有效）。
+  Future<void> clearManualTarget() async {
+    await (database.delete(database.appSettings)
+          ..where((row) => row.key.equals(NutritionTargetOverride.settingsKey)))
+        .go();
+  }
+
+  static NutritionTargetOverride? _decodeManualTarget(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, Object?>
+          ? NutritionTargetOverride.fromJson(decoded)
+          : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
   Future<DailyNutritionTarget?> _targetForDate(String localDate) async {
+    // 【2026-10-26】手动指定的目标优先（用户：「营养摄入自己不能改」）。
+    // 只到生效日才套用：今天改目标不该改写过去几天的判定。
+    final manual = await readManualTargetForDate(localDate);
+    if (manual != null) return manual.toTarget();
     final query = database.select(database.dailyTargets)
       ..where((row) => row.effectiveDate.isSmallerOrEqualValue(localDate))
       ..orderBy([(row) => OrderingTerm.desc(row.effectiveDate)])
       ..limit(1);
     final row = await query.getSingleOrNull();
     if (row == null) return null;
+    // 目标档位（`goals.type`）：需求 1 要在卡上标「依据」那一行，
+    // 公式之外还要说清「按哪个目标调整」。读不到就如实 null（不编档位）。
+    final goalRows =
+        await (database.select(database.goals)
+              ..where((goal) => goal.id.equals(row.goalId))
+              ..limit(1))
+            .getSingleOrNull();
     return DailyNutritionTarget(
+      goalType: goalRows?.type,
       calorieMinKcal: row.calorieMinKcal,
       calorieMaxKcal: row.calorieMaxKcal,
       proteinMinGrams: row.proteinMinGrams,
@@ -373,6 +532,7 @@ final class MealRepository {
 
   void _validate(MealDraft draft) {
     _validateDate(draft.localDate);
+    _rejectFutureDate(draft.localDate);
     if (draft.items.isEmpty) {
       throw const FormatException('请至少添加一种食物。');
     }
@@ -404,6 +564,28 @@ final class MealRepository {
     final parsed = DateTime(year, month, day);
     if (parsed.year != year || parsed.month != month || parsed.day != day) {
       throw const FormatException('餐食日期无效。');
+    }
+  }
+
+  /// 写入侧的未来日期与历史补记窗口守卫（docs/64 B-2/B-3）。
+  ///
+  /// 只在 `_validate` 里调用——`watchForDate` 等读路径不走这里，查未来日期
+  /// 只是空列表。`today` 从仓储持有的 clock 取，不用 `DateTime.now()`。
+  static const int backfillWindowDays = 30;
+
+  void _rejectFutureDate(String value) {
+    final nowLocal = clock.nowUtc().toLocal();
+    final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final parsed = DateTime(
+      int.parse(value.substring(0, 4)),
+      int.parse(value.substring(5, 7)),
+      int.parse(value.substring(8, 10)),
+    );
+    if (parsed.isAfter(today)) {
+      throw const FormatException('不能记录未来日期的餐食。');
+    }
+    if (today.difference(parsed).inDays > backfillWindowDays) {
+      throw const FormatException('餐食只能补记近 30 天。');
     }
   }
 

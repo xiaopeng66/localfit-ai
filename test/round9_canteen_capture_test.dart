@@ -390,6 +390,40 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  testWidgets('添加菜品弹层：320dp × 2.0× 份量字段可见、不溢出', (tester) async {
+    await tester.runAsync(loadRound7Fonts);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    configureView(tester, 320.0, 1800);
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: round7Boundary,
+        child: app(key: UniqueKey()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openDirectory(tester);
+    await tester.tap(find.byKey(Key('canteen-add-dish-$windowId')));
+    await settleBounded(tester);
+
+    expect(
+      find.byKey(const Key('canteen-dish-serving')),
+      findsOneWidget,
+      reason: '320dp × 2.0× 下份量字段必须仍在（不能被挤出弹层）',
+    );
+    expect(tester.takeException(), isNull);
+
+    await captureRound7(tester, 'canteen-dish-form-light-320-2.0');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
 }
 
 /// 合成占位图（16×16，双色斜带）。**不是菜品照片**：只用来让「照片槽真的画了

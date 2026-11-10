@@ -24,7 +24,10 @@ void main() {
   const colorBudget = <String, int>{
     'lib/app/design/widgets/design_card.dart': 1,
     'lib/app/design/widgets/lf_achievement_row.dart': 1,
-    'lib/app/design/widgets/lf_chat_bubbles.dart': 6,
+    // 【2026-10-25 删除（需求 3 看图层）】`lf_chat_bubbles.dart` 原本是 6。
+    // 新增的黑色遮罩 / 纯白前景与**原有三处同名用法**一并收进 `lf_tokens.dart`
+    // 的 `scrimSolid` / `onMedia`（看图不该随主题偏色）⇒ 该文件的颜色字面量
+    // 归零，按本测试「归零必须从白名单删除」的规则删掉这一条。
     'lib/app/design/widgets/lf_chat_input.dart': 1,
     'lib/app/design/widgets/lf_segmented_toggle.dart': 1,
     'lib/app/design/widgets/lf_toggle_switch.dart': 1,

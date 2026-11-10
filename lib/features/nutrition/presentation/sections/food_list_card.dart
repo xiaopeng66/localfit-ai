@@ -65,16 +65,32 @@ class FoodListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final divider = dividerKey;
     if (divider == null) return child;
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _FoodListDividerLine(key: divider),
-        ),
-      ],
+    // 【2026-10-29 实帧缺陷（capture 矩阵 320dp × 1.5×）】原型卡的名称比真行
+    // 长，大字档下原型换行（73dp）而真行不换行（56dp）：`SliverPrototypeExtentList`
+    // 给每格的是**固定高度**，真行顶部对齐 ⇒ 每行底下空 17dp、分隔线漂在
+    // 空白下面（行距 73 ≠ 行高 56）。
+    //
+    // 修法：槽位是**紧高度**（min == max，只有固定高度列表才会这样）时把行内容
+    // 填满槽位——内容在槽内垂直居中，行高 = 槽高 = 原型实测值，分隔线贴着
+    // 内容底部。原型测量那次拿到的是**松约束**（max = 视口剩余），照旧按内容
+    // 定高，行高语义（ANR 保护依赖的「原型实测」）不变。
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fillSlot =
+            constraints.hasBoundedHeight &&
+            constraints.minHeight == constraints.maxHeight;
+        return Stack(
+          children: [
+            if (fillSlot) Positioned.fill(child: child) else child,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _FoodListDividerLine(key: divider),
+            ),
+          ],
+        );
+      },
     );
   }
 }

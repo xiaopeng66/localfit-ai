@@ -4,15 +4,19 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_legacy_tab_shell.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_tab_bodies.dart';
+import 'package:localfit_ai/features/nutrition/presentation/sections/canteen_directory_fab.dart';
 import 'package:localfit_ai/app/design/widgets/record_fab.dart';
 import 'package:localfit_ai/app/placeholder_feature_page.dart';
 import 'package:localfit_ai/core/time/daily_rollover.dart';
 import 'package:localfit_ai/features/campus_menus/application/food_reference_service.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
+import 'package:localfit_ai/features/daily_plan/domain/planning_constraints.dart';
 import 'package:localfit_ai/features/nutrition/application/food_library_controller.dart';
+import 'package:localfit_ai/features/nutrition/application/swap_daily_set_with_ai.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/canteen_directory_page.dart';
@@ -27,20 +31,21 @@ import 'package:localfit_ai/features/retrieval/application/semantic_runtime.dart
 
 /// 饮食页（docs/21 §5.2 / §5.3 / §4.3）。
 ///
-/// **无 AppBar**：sub-tab 胶囊行是**页级唯一实例**，画在全部 tab 内容之上
-/// （用户 2026-10-03 要求：各界面的按钮必须落在同一个位置），页壳只做
-/// 编排。2026-10-04（docs/28 §6.1）：三项 tab（记录 / 菜单 / 食物库），
-/// 计划与食谱两项随该族功能下线。
+/// **无 AppBar**：sub-tab 胶囊行是页级唯一实例，画在全部 tab 内容之上
+/// （用户 2026-10-03：各界面的按钮必须落在同一个位置），页壳只做编排。
+/// 三项 tab：记录 / 菜单 / 食物库（docs/28 §6.1）。
 class NutritionPage extends StatefulWidget {
   const NutritionPage({
     super.key,
     this.repository,
     this.mealRepository,
+    this.loadDietaryConstraints,
     this.dishLibraryRepository,
     this.loadIntakeTrend,
     this.canteenRepository,
     this.onAnalyzeDishes,
     this.onAskAiForSet,
+    this.onSwapSetWithAi,
     this.pickDishImage,
     this.onAddDishToMeal,
     this.foodLibraryController,
@@ -49,19 +54,22 @@ class NutritionPage extends StatefulWidget {
     this.now,
     this.foodReferenceService,
     this.semanticRuntime,
+    this.supplyCatalog,
   });
 
+  /// 食堂供应读取口（docs/67 §6.4）：记餐与食堂流程共用。
+  final SupplyCatalogRepository? supplyCatalog;
   final FoodRepository? repository;
   final MealRepository? mealRepository;
+  final Future<PlanningConstraints> Function()? loadDietaryConstraints;
 
-  /// 语义检索（docs/43 A1）：菜单页搜索用它拿语义名次；null＝退关键词+标签。
+  /// 语义检索（docs/43 A1）；null＝退关键词+标签。
   final SemanticRuntime? semanticRuntime;
 
-  /// 建食堂菜的「参考食物库」匹配服务（docs/40 §3.1）；null＝流程关闭。
+  /// 「引用食物库」匹配服务（docs/67 §3.3）；null＝流程关闭。
   final FoodReferenceService? foodReferenceService;
 
-  /// 菜品库仓储（docs/21 §5.3「菜单页唯一主来源」）。未接线时菜单页只渲染
-  /// hero 与空态，不退回拿 `MenuItems` 冒充菜品。
+  /// 菜品库仓储（旧只读视图）。未接线时菜单页只渲染 hero 与空态。
   final DishLibraryRepository? dishLibraryRepository;
 
   /// 近 7 日摄入趋势（记录页趋势卡 + 营养分析卡共用）。未接线时两卡不渲染。
@@ -74,22 +82,22 @@ class NutritionPage extends StatefulWidget {
   /// 「AI 分析这些菜品」：由路由层接线到工作台任务（预填 + 打开详情）。
   final Future<void> Function(List<CanteenDish> dishes)? onAnalyzeDishes;
 
-  /// 「换一整套」在 AI 已配置时的分支（D3）：见
-  /// `MenuDishList.onAskAiForSet`（`true` = 已交给 AI）。
+  /// 「换一整套」的 AI 分支（D3）；`true` = 已交给 AI。
   final Future<bool> Function()? onAskAiForSet;
+
+  /// 【R-4】「换一整套」的内联 AI 重配（不跳页、只换推荐表、只取食堂目录）。
+  final Future<MenuSetSwapResult?> Function()? onSwapSetWithAi;
 
   /// 菜品照片取图（docs/29 §P7 需求 16）；null＝菜品表单不渲染照片字段。
   final Future<String?> Function(bool fromCamera)? pickDishImage;
 
-  /// 菜单页「加入」：把一道菜记成一餐（docs/21 §5.3 `cta-add-meal-<n>`）。
-  /// 未接线时按钮不渲染（宁可没有入口，也不给点了没反应的按钮）。
+  /// 菜单页「加入」：把一道菜记成一餐（`cta-add-meal-<n>`）；未接线不渲染。
   ///
-  /// [slotOverride] 由「按菜品记录」入口给（今日页「记录晚餐」→ 按菜品）：
-  /// 用户刚说的餐次优先于菜品库里记的餐次。
+  /// [slotOverride] 由「按菜品记录」入口给：用户刚说的餐次优先。
   final Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
   onAddDishToMeal;
 
-  /// 食物库 50k 搜索控制器（2.0-6f；有值时食物库 tab 走主库+分片合并）。
+  /// 食物库搜索控制器（有值时食物库 tab 走主库+分片合并）。
   final FoodLibraryController? foodLibraryController;
 
   /// 下一餐决策主卡控制器（2.0-6i）。记录页把它作为「今天」的置顶卡渲染。
@@ -97,9 +105,7 @@ class NutritionPage extends StatefulWidget {
   /// 切到菜单 tab。null = 无外部请求，页面自己管理 chip。
   final ValueListenable<int>? menuTabRequest;
 
-  /// 「打开餐食编辑」一次性意向（Round7 阶段 2 决策 D9）：今日页的
-  /// 「记录饮食/记录晚餐」与记录页槽位卡头「+」经它落到本页的弹层。
-  /// **消费一次即清空**（`take()`），重复进入本页不会再弹一次。
+  /// 「打开餐食编辑」一次性意向（D9）：**消费一次即清空**（`take()`）。
   final MealAddIntent? mealAddRequest;
   final DateTime? now;
 
@@ -113,14 +119,15 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
   String _query = '';
   int _revision = 0;
   int _tab = NutritionTabs.recordIndex;
+
+  /// 记录页多选操作条在屏 ⇒ 右下加号 FAB 隐藏（2026-10-31 用户）。
+  bool _recordSelectionMode = false;
   late DateTime _selectedDate;
   StreamSubscription<void>? _foodChanges;
 
   /// 动作层（docs/07 §9.3）：每次取用都是无状态对象，日期从页面按需读取。
-  ///
-  /// 「按菜品记录」那条路复用页面已接线的 `onAddDishToMeal`（菜单页「加入」
-  /// 的同一份用例），不在这里另建一个 `AddDishToMeal`——两份写入路径一定会
-  /// 漂（docs/40 §3：所有路径最终都落到同一个 `MealRepository.create`）。
+  /// 「按菜品记录」复用页面已接线的 `onAddDishToMeal`，不另建一份——两份
+  /// 写入路径一定会漂（docs/40 §3：所有路径最终都落到同一个 create）。
   NutritionActions get _actions => NutritionActions(
     context: context,
     selectedDate: () => _selectedDate,
@@ -131,6 +138,7 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
     // （它们不进菜品库，但用户要搜得到）。分析与食堂目录页同一个回调。
     canteenRepository: widget.canteenRepository,
     onAnalyzeDishes: widget.onAnalyzeDishes,
+    supplyCatalog: widget.supplyCatalog,
   );
 
   DateTime get _now => widget.now ?? DateTime.now();
@@ -196,7 +204,7 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
     final foods = widget.repository;
     final meals = widget.mealRepository;
     if (foods == null || meals == null || !mounted) return;
-    _actions.chooseRecordEntry(foods, meals, initialSlot: request.slot);
+    _actions.editMeal(foods, meals, initialSlot: request.slot);
   }
 
   /// 外部（今日页决策卡「查看菜单」）请求切到菜单 tab；页面常驻
@@ -264,12 +272,31 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
               ),
             ],
           ),
-          // 记录页 FAB（docs/21 §5.2 `nutrition-record-fab`）。
-          // 2026-10-18（docs/41 §7）：点开先问「按食材 / 按菜品」——两个入口
-          // 的存在本身是需求，混在一个搜索框里时食物库在日常路径上等于不存在。
-          if (_tab == NutritionTabs.recordIndex && meals != null)
+          // 记录页 FAB（docs/21 §5.2）：点开先问「按食材 / 按菜品」
+          // （docs/41 §7）；【2026-10-31】多选操作条在屏时隐藏（盖住删除所选）。
+          if (_tab == NutritionTabs.recordIndex &&
+              meals != null &&
+              !_recordSelectionMode)
             PositionedRecordFab(
-              onPressed: () => _actions.chooseRecordEntry(foods, meals),
+              onPressed: () => _actions.editMeal(foods, meals),
+            ),
+          // 【需求 13a（2026-10-25）】菜单 tab 的「管理食堂目录」= 右下浮动
+          // 钮（原页尾 list-link）；构造在 `sections/canteen_directory_fab.dart`
+          // （页只留一行挂载：本文件有 400 行维护性预算）。
+          if (_tab == NutritionTabs.menuIndex &&
+              widget.canteenRepository != null)
+            PositionedCanteenDirectoryFab(
+              onOpen: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CanteenDirectoryPage(
+                    repository: widget.canteenRepository!,
+                    now: _now,
+                    foodReferenceService: widget.foodReferenceService,
+                    onAnalyzeDishes: widget.onAnalyzeDishes,
+                    pickDishImage: widget.pickDishImage,
+                  ),
+                ),
+              ),
             ),
         ],
       ),
@@ -292,19 +319,20 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
     child: child,
   );
 
-  /// 菜单 tab（docs/21 §5.3）：hero + 菜品卡列表。
-  ///
-  /// 食堂目录（地点→窗口→菜品三级自建）与「今日推荐」按 docs/22 裁决 ②
-  /// 收进**二级入口**：首屏只画菜品卡，目录从 hero 右上角进入。
+  /// 菜单 tab（docs/21 §5.3）：hero + 菜品卡列表；食堂目录与「今日推荐」
+  /// 按 docs/22 裁决 ② 收进二级入口，首屏只画菜品卡。
   Widget _menuBody() {
     final canteen = widget.canteenRepository;
     return MenuDishList(
       repository: widget.dishLibraryRepository,
+      supplyCatalog: widget.supplyCatalog,
       mealRepository: widget.mealRepository,
+      loadDietaryConstraints: widget.loadDietaryConstraints,
       now: _now,
       semantic: widget.semanticRuntime,
       onAddToMeal: widget.onAddDishToMeal,
       onAskAiForSet: widget.onAskAiForSet,
+      onSwapSetWithAi: widget.onSwapSetWithAi,
       onOpenCanteen: canteen == null
           ? null
           : () => Navigator.of(context).push(
@@ -338,16 +366,22 @@ class _NutritionPageState extends State<NutritionPage> with DailyRollover {
       selectedDate: _selectedDate,
       now: _now,
       onSelectDate: (date) => setState(() => _selectedDate = date),
-      onEditMeal: (meal) => _actions.editMeal(foods, meals, initial: meal),
-      onDeleteMeal: (meal) => _actions.deleteMeal(meal, meals),
+      // 【2026-10-31 用户】整卡点击 = 合并编辑该槽位全部记录（逐条编辑已退役）。
+      onEditSlotMeals: (records) =>
+          _actions.editSlotMeals(foods, meals, records: records),
+      // 2026-10-26 用户：「营养摄入自己不能改」——热量卡的「依据」格就是
+      // 目标的可改入口（弹层里能手动指定区间，也能恢复按身体数据计算）。
+      onEditTarget: () => _actions.editNutritionTarget(meals),
       onDeleteSelected: (deleted) => _actions.deleteMeals(deleted, meals),
-      onReuseHistory: () => _actions.reuseMeal(meals),
-      // 槽位头加号(A `data-slot`,仅今天渲染)走既有 editMeal 通道(D19)。
+      // 【2026-10-31 用户】多选操作条在屏 ⇒ 页面隐藏加号 FAB（不再盖按钮）。
+      onSelectionModeChanged: (active) =>
+          setState(() => _recordSelectionMode = active),
+      // 槽位头加号(仅今天)——【N-2】直接开统一记录弹层（双库搜索 + 手动
+      // 添加 + 已添加项同屏编辑），预选餐次不变（D9）；编辑既有餐食同弹层。
       onAddToSlot: (slot) => _actions.editMeal(foods, meals, initialSlot: slot),
       loadTrend: trend == null ? null : _loadRecordTrend,
-      // 2026-10-24 用户（`docs/56` R4）：「记录页删『下一餐详情』入口与其内容，
-      // 不留死码」——`leading` 不再传 `NextMealEntryCard`（该族已整族退役，
-      // 见 docs/58 B3 R4-4a / B6 R4-4b）。
+      // 2026-10-24 用户（`docs/56` R4）：「下一餐详情」入口整族退役不留死码
+      // ——`leading` 不再传 `NextMealEntryCard`（docs/58 B3 R4-4a / B6 R4-4b）。
     );
   }
 

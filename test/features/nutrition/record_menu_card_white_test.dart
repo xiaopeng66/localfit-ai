@@ -178,25 +178,35 @@ void main() {
               find.byKey(const Key('nutrition-record-energy-target')),
             )
             .data,
-        '目标 1,748 kcal',
+        // 【2026-10-25（需求 1）】卡头那行现在是**区间**（本用例目标
+        // 1,400–1,748），脚注左格让给依据（原来写「目标 N kcal」单值）。
+        '1,400 – 1,748',
       );
-      expect(find.text('还可摄入 1,311 kcal', findRichText: true), findsOneWidget);
+      // 剩余额度也是区间（需求 1）：1,400−437 ～ 1,748−437。
+      expect(
+        find.text('还可摄入 963–1,311 kcal', findRichText: true),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('超出：百分比写未截断的原值，脚注改口「超出」，徽标换 honey', (tester) async {
+    testWidgets('超出：第三行如实写「超上限 X」，脚注改口「超出」，徽标换 honey', (tester) async {
       await tester.pumpWidget(card(kcal: 1993));
       await tester.pumpAndSettle();
 
       // 1993/1748 = 114%：弧由画家 clamp 到满圈，准确的量由这行数字说
       // （两条通道各司其职，与旧 hero 的条/数字分工同一条规则）。
+      // 【2026-10-25 断言语义变更（需求 1，强度不降）】原来第三行写未截断的
+      // 「114%」。区间方案里「超了 245 kcal」比百分比更该被一眼看到；判据
+      // 改钉**超出量**（它同时钉住「数字是 1993−1748 算出来的」）。
       expect(
         tester
             .widget<Text>(
               find.byKey(const Key('nutrition-record-energy-percent')),
             )
             .data,
-        '114%',
+        '超上限 245',
       );
+      // 超出是**单个事实**（不是区间）：如实报超了多少（需求 1 的暖色档）。
       expect(find.text('超出 245 kcal', findRichText: true), findsOneWidget);
       expect(
         tester
@@ -296,7 +306,8 @@ void main() {
 
     Widget menu({
       VoidCallback? onOpenCanteen,
-      Future<void> Function(DishRecord dish)? onAddToMeal,
+      Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
+      onAddToMeal,
     }) => MaterialApp(
       theme: AppTheme.light(),
       home: Scaffold(
@@ -328,7 +339,7 @@ void main() {
       );
       // 「按你的食堂窗口」是推荐真正依赖的本地事实，随 hero 退场并进 A 的
       // 指引行（自检当场修正 a）：换稿不能把它一起换掉。
-      expect(find.textContaining('按你的食堂窗口推荐'), findsOneWidget);
+      expect(find.textContaining('按食堂窗口推荐'), findsOneWidget);
 
       // 页首块直接铺在页面底上：块上任何文字都不能取 `primaryForeground`
       // （那是白卡上的白字档），浅色页底上就是「浅底浅字」——与本组原先
@@ -343,32 +354,37 @@ void main() {
       await drainStream(tester);
     });
 
-    testWidgets('管理入口迁到页尾 list-link（D28）：chip 走 brand-soft、整行可点', (
-      tester,
-    ) async {
+    /// 【2026-10-25 断言语义变更（需求 13a，强度不降）】原断言是「管理入口在
+    /// 页尾 `.list-link`（虚线 chip 走 brand-soft、整行可点）」。
+    ///
+    /// 用户 2026-10-25 把入口挪到**右下浮动按钮**，于是「页尾那一行」不再存在。
+    /// 断言改写为浮钮形态该有的两条：**整块可点**（点一下真的打开目录）+
+    /// **不是裸图标**（带可见文字，用户一眼看得出它是什么）。
+    /// 位置断言（右下角）归 `test/app/floating_actions_test.dart`。
+    testWidgets('管理入口搬去浮钮（13a）：列表内不再有页尾行；空态卡的行动仍通同一回调', (tester) async {
       var opened = 0;
+      // 无菜品 ⇒ 整套卡走空态，它的「去维护食堂目录」行动就是列表里**仅剩**的
+      // 该回调入口（浮钮由页面壳画，不在本列表内）。
       await tester.pumpWidget(menu(onOpenCanteen: () => opened++));
       await tester.pumpAndSettle();
 
-      // 入口没有变少：原 hero 右上角圆钮 → A 的页尾 `.list-link`（同一回调、
-      // 同一路由）。Key 一起迁过来，别处靠它定位。
-      final link = find.byKey(const Key('cta-manage-canteen'));
-      expect(link, findsOneWidget);
-      expect(find.text('管理食堂目录'), findsOneWidget);
-      expect(find.text('地点、窗口与菜品'), findsOneWidget);
-
-      // A `.list-link .icon-chip`（polish.css:107）：mint 软底 + 品牌字，
-      // 与 `.icon-chip` 的默认 muted 灰底不同——灰底页尾行会被读成禁用项。
-      final chip = tester.widget<Container>(
-        find.descendant(of: link, matching: find.byType(Container)).first,
+      expect(
+        find.byKey(const Key('cta-manage-canteen')),
+        findsNothing,
+        reason: '13a：页尾 list-link 已退役，列表里不许再出现这个 Key',
       );
-      final decoration = chip.decoration! as BoxDecoration;
-      expect(decoration.color, LfColors.brandSoft(Brightness.light));
-      expect(decoration.color!.a, 1.0, reason: 'chip 底色必须不透明');
+      expect(find.text('地点、窗口与菜品'), findsNothing, reason: '那是页尾行的副行，随入口一起退役');
 
-      await tester.tap(link);
-      await tester.pump();
-      expect(opened, 1, reason: '整行可点（不是只有文字可点）');
+      // 列表本体仍在（只是少了那一行入口）：段头与前三条断言之外的骨架不变。
+      expect(
+        find.byKey(const Key('nutrition-menu-hero')),
+        findsOneWidget,
+        reason: '摘掉一行入口不等于把页面也摘了',
+      );
+      // 「入口能不能打开目录」不在这里断言：浮钮由页面壳（`NutritionPage`）
+      // 画，本文件的 host 只有 `MenuDishList`。那条可达性归
+      // `test/app/floating_actions_test.dart`（真装配）。
+      expect(opened, 0, reason: '本列表自己不再打开任何东西（回调交给页面壳）');
       await drainStream(tester);
     });
 

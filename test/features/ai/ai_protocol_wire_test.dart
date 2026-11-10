@@ -149,6 +149,47 @@ void main() {
       ]);
     });
 
+    // 【2026-11-03 根治「不按协议输出 JSON」】信封编译请求在供应商侧强制
+    // JSON；普通对话绝不加（用户聊天不该被强制成 JSON）。
+    test('信封编译：chat 带 response_format，Responses 带 text.format，普通对话不带', () {
+      final messages = <ConversationWireMessage>[
+        (role: 'user', text: '编译这封', image: null),
+      ];
+      final chat = AiProviderProtocol.chatCompletions.conversationRequestBody(
+        model: 'm',
+        maxTokens: 50,
+        systemPrompt: 'SYS',
+        systemContext: 'CTX',
+        messages: messages,
+        reasoning: AiReasoningMode.disabled,
+        forceJson: true,
+      );
+      expect(chat['response_format'], {'type': 'json_object'});
+
+      final responses = AiProviderProtocol.responses.conversationRequestBody(
+        model: 'm',
+        maxTokens: 50,
+        systemPrompt: 'SYS',
+        systemContext: 'CTX',
+        messages: messages,
+        reasoning: AiReasoningMode.disabled,
+        forceJson: true,
+      );
+      expect(responses['text'], {
+        'format': {'type': 'json_object'},
+      });
+
+      final normal = AiProviderProtocol.chatCompletions.conversationRequestBody(
+        model: 'm',
+        maxTokens: 50,
+        systemPrompt: 'SYS',
+        systemContext: 'CTX',
+        messages: messages,
+        reasoning: AiReasoningMode.disabled,
+      );
+      expect(normal.containsKey('response_format'), isFalse);
+    });
+
     // 2026-10-16（S1，用户：「我的模型可以识图的」）：对话消息可以带一张图
     // ——按各协议的图片块形状出；纯文本消息的形状与历史**逐字节一致**。
     test('对话请求体：带图消息出多模态块（三协议），纯文本消息形状不变', () {

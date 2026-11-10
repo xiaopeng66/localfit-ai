@@ -7,6 +7,7 @@ import 'package:localfit_ai/core/errors/app_failure.dart';
 import 'package:localfit_ai/features/ai/data/ai_protocol_wire.dart';
 import 'package:localfit_ai/features/ai/domain/ai_transport.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_protocol.dart';
+import 'package:localfit_ai/features/settings/domain/open_ai_compatible_endpoint.dart';
 
 /// Shared HTTP behaviour for all three BYOK protocols: fixed endpoint, header-only
 /// key, no redirects, bounded request/response sizes, total deadline, cancellation,
@@ -160,12 +161,20 @@ final class OpenAiCompatibleAiTransport implements AiTransport {
   }
 
   void _validateEndpoint(Uri uri) {
-    if (uri.scheme != 'https' ||
+    // 与 `OpenAiCompatibleEndpoint.tryParse` 同一条口径：https（443）；
+    // 明文只回环（本机模型网关，端口任意）。
+    final scheme = uri.scheme.toLowerCase();
+    final allowedScheme =
+        scheme == 'https' ||
+        (scheme == 'http' && OpenAiCompatibleEndpoint.isLoopbackHost(uri.host));
+    if (!allowedScheme ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
-        (uri.hasPort && uri.port != 443)) {
+        (uri.hasPort &&
+            uri.port != 443 &&
+            !OpenAiCompatibleEndpoint.isLoopbackHost(uri.host))) {
       throw const ValidationFailure('AI Base URL 配置无效，请在设置中更新。');
     }
   }

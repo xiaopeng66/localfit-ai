@@ -75,6 +75,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 数据管理二级弹层：备份/恢复/三个导出现在都收在「备份与导出」里。
+  Future<void> openBackupHub(WidgetTester tester) async {
+    await scrollTo(tester, const Key('settings-backup-hub'));
+    await tester.tap(find.byKey(const Key('settings-backup-hub')));
+    await tester.pumpAndSettle();
+  }
+
   /// 「食材库」组内的行标题（按渲染顺序）。
   ///
   /// 注意 `titleKey` 挂在组**标题的 Text** 上，不是组容器；所以按
@@ -114,7 +121,7 @@ void main() {
     useTallViewport(tester);
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
-    await scrollTo(tester, const Key('cta-export-csv'));
+    await openBackupHub(tester);
 
     expect(find.text('导出饮食记录'), findsOneWidget);
     expect(find.text('导出训练记录'), findsOneWidget);
@@ -150,17 +157,17 @@ void main() {
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
 
-    await scrollTo(tester, const Key('cta-export-csv'));
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('cta-export-csv')));
     await tester.pumpAndSettle();
     expect(fileStore.saved.last.name, startsWith('localfit-meals-'));
 
-    await scrollTo(tester, const Key('backup-export-training-csv'));
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('backup-export-training-csv')));
     await tester.pumpAndSettle();
     expect(fileStore.saved.last.name, startsWith('localfit-training-'));
 
-    await scrollTo(tester, const Key('backup-export-foods-csv'));
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('backup-export-foods-csv')));
     await tester.pumpAndSettle();
     expect(fileStore.saved.last.name, startsWith('localfit-foods-'));

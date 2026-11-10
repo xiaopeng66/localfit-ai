@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 // 生成的 AppDatabase 也导出一个 ConversationMessage 行类：用前缀避开歧义。
 import 'package:localfit_ai/data/database/app_database.dart' as db;
 import 'package:localfit_ai/features/ai_conversation/data/drift_conversation_message_repository.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_registry.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 
 /// 聊天记录落库（docs/21 §7.2 契约 / 表 `ConversationMessages`）。
@@ -225,6 +228,156 @@ void main() {
     expect(loaded, hasLength(1));
     expect(loaded.single.text, '完整回复');
     expect(loaded.single.status, ConversationMessageStatus.sent);
+  });
+
+  // ── docs/66 §5.8：dismissed 与 raw 的落库回环（新缺陷修复的守护）────────
+  group('dismissed 与 raw 落库回环（docs/66 §5.8）', () {
+    ChatEditTurn waterTurn({
+      ChatEditRowStatus status = ChatEditRowStatus.proposed,
+      Map<String, Object> args = const {'amountMl': 250.0},
+      Map<Object?, Object?>? rawArgsOverride,
+    }) {
+      final registry = ChatEditCommandRegistry();
+      final spec = registry.specOf('water.add')!;
+      final command = ChatEditCommand(spec: spec, args: args);
+      final rawArgs = rawArgsOverride ?? Map<Object?, Object?>.of(args);
+      return ChatEditTurn(
+        reply: '好的，帮你记一笔。',
+        rows: [
+          ChatEditTurnItem(
+            index: 0,
+            raw: {'action': 'water.add', 'args': rawArgs},
+            command: status == ChatEditRowStatus.proposed ? command : null,
+            status: status,
+          ),
+        ],
+      );
+    }
+
+    test('历史相同命令不压缩，逐行 outcomes 重载仍按原下标对位', () async {
+      final turn = parseChatEditTurn(
+        '{"reply":"旧卡。","edits":['
+        '{"action":"water.add","args":{"amountMl":250}},'
+        '{"action":"water.add","args":{"amountMl":250}},'
+        '{"action":"water.add","args":{"amountMl":250}}],'
+        '"outcomes":['
+        '{"index":0,"status":"applied","message":"第一条已应用"},'
+        '{"index":1,"status":"failed","message":"第二条失败"},'
+        '{"index":2,"status":"dismissed","message":"第三条忽略"}]}',
+        ChatEditCommandRegistry(),
+      )!;
+      expect(turn.rows, hasLength(3));
+      await repository.save(
+        ConversationMessage(
+          id: 'historical-duplicates',
+          role: ConversationRole.assistant,
+          text: turn.reply,
+          createdAt: DateTime.utc(2026, 11, 7, 15),
+          kind: ConversationMessageKind.editProposal,
+          editTurn: turn,
+        ),
+      );
+      final restored = (await repository.loadRecent()).single.editTurn!;
+      expect(restored.rows.map((row) => row.index), [0, 1, 2]);
+      expect(restored.rows.map((row) => row.status), [
+        ChatEditRowStatus.applied,
+        ChatEditRowStatus.failed,
+        ChatEditRowStatus.dismissed,
+      ]);
+      expect(restored.rows.map((row) => row.resultMessage), [
+        '第一条已应用',
+        '第二条失败',
+        '第三条忽略',
+      ]);
+      expect(restored.rows.map((row) => row.command!.args['amountMl']), [
+        250.0,
+        250.0,
+        250.0,
+      ]);
+    });
+
+    test('dismissed 行落库后仍是 dismissed，不复活成 proposed', () async {
+      final message = ConversationMessage(
+        id: 'm-dismissed',
+        role: ConversationRole.assistant,
+        text: '好的，帮你记一笔。',
+        createdAt: DateTime.utc(2026, 11, 7, 15),
+        kind: ConversationMessageKind.editProposal,
+        editTurn: waterTurn(status: ChatEditRowStatus.dismissed),
+      );
+      await repository.save(message);
+      final loaded = await repository.loadRecent();
+
+      final restored = loaded.single.editTurn!.rows.single;
+      expect(restored.status, ChatEditRowStatus.dismissed);
+      // 再落库一次仍稳定（不因往返翻转）。
+      await repository.save(loaded.single);
+      final again = (await repository.loadRecent()).single;
+      expect(again.editTurn!.rows.single.status, ChatEditRowStatus.dismissed);
+    });
+
+    test('日期钉进 raw 后往返不丢（args 与 raw 都是钉定日期）', () async {
+      final turn = waterTurn(
+        args: {'amountMl': 250.0, 'localDate': '2026-11-06'},
+        rawArgsOverride: {'amountMl': 250.0, 'localDate': '2026-11-06'},
+      );
+      await repository.save(
+        ConversationMessage(
+          id: 'm-pinned',
+          role: ConversationRole.assistant,
+          text: turn.reply,
+          createdAt: DateTime.utc(2026, 11, 7, 15),
+          kind: ConversationMessageKind.editProposal,
+          editTurn: turn,
+        ),
+      );
+      final loaded = await repository.loadRecent();
+      final row = loaded.single.editTurn!.rows.single;
+      expect(row.command!.args['localDate'], '2026-11-06');
+      final rawArgs = row.raw['args'] as Map;
+      expect(rawArgs['localDate'], '2026-11-06');
+    });
+
+    test('选择卡重放改写 raw 后往返：引用与 command 一致', () async {
+      final registry = ChatEditCommandRegistry();
+      final spec = registry.specOf('meal.create')!;
+      const envelope =
+          '{"reply":"帮你记午餐。","edits":[{"action":"meal.create",'
+          '"args":{"slot":"午餐","items":[{"food":"米饭","grams":200}]}}]}';
+      final turn = parseChatEditTurn(envelope, registry)!;
+      final row = turn.rows.single;
+      final rewrittenItems = [
+        {'food': '[dish:d1]', 'grams': 200.0},
+      ];
+      final repairedRow = row.copyWith(
+        command: ChatEditCommand(
+          spec: spec,
+          args: {...row.command!.args, 'items': rewrittenItems},
+        ),
+        raw: {
+          ...row.raw,
+          'args': {...(row.raw['args'] as Map), 'items': rewrittenItems},
+        },
+      );
+      await repository.save(
+        ConversationMessage(
+          id: 'm-replay',
+          role: ConversationRole.assistant,
+          text: turn.reply,
+          createdAt: DateTime.utc(2026, 11, 7, 15),
+          kind: ConversationMessageKind.editProposal,
+          editTurn: ChatEditTurn(reply: turn.reply, rows: [repairedRow]),
+        ),
+      );
+      final loaded = await repository.loadRecent();
+      final restored = loaded.single.editTurn!.rows.single;
+      expect((restored.command!.args['items'] as List).single, {
+        'food': '[dish:d1]',
+        'grams': 200.0,
+      });
+      final rawItems = (restored.raw['args'] as Map)['items'] as List;
+      expect((rawItems.single as Map)['food'], '[dish:d1]');
+    });
   });
 }
 

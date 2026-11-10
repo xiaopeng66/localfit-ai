@@ -72,9 +72,10 @@ void main() {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
       final path = entity.path.replaceFirst('$root/', '').replaceAll('\\', '/');
       final source = entity.readAsStringSync();
-      // 注释里记来源出处是**允许**的（`food_seed_count.g.dart`、`food_brands*.g.dart`
-      // 等生成文件都写着种子路径与 sha256，那是历史交代），所以这里只找代码里的
-      // 东西：资产的带引号字面量，以及退役导入器的类名。
+      // 注释里记来源出处是**允许**的（`food_brands*.g.dart` 等生成文件都写着
+      // 种子路径与 sha256，那是历史交代），所以这里只找代码里的东西：资产的
+      // 带引号字面量，以及退役导入器的类名。
+      // （2026-11-09：`food_seed_count.g.dart` 已作为孤儿生成物删除。）
       if (source.contains('FoodSeedImporter') ||
           source.contains("'assets/seed/foods") ||
           source.contains('"assets/seed/foods')) {

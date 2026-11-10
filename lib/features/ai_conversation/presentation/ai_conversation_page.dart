@@ -1,21 +1,28 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
+import 'package:localfit_ai/app/design/widgets/app_button_states.dart';
 import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
 import 'package:localfit_ai/app/design/widgets/app_snack_bar.dart';
+import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_chat_bubbles.dart';
 import 'package:localfit_ai/app/design/widgets/lf_chat_input.dart';
 import 'package:localfit_ai/app/design/widgets/lf_top_bar.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_coordinator.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_dependency.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_repair.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
 import 'package:localfit_ai/features/ai_conversation/application/conversation_controller.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_intent.dart';
 import 'package:localfit_ai/features/ai_conversation/application/pick_chat_image.dart';
 import 'package:localfit_ai/features/ai/domain/ai_connectivity_monitor.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/ai_conversation_service.dart';
@@ -28,6 +35,7 @@ import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 import 'package:localfit_ai/features/ai_conversation/presentation/chat_edit_card.dart';
+import 'package:localfit_ai/features/ai_conversation/presentation/catalog_choice_sheet.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message_repository.dart';
 import 'package:localfit_ai/features/ai_memory/application/ai_memory_candidates.dart';
 import 'package:localfit_ai/features/ai_memory/application/memory_extraction_queue.dart';
@@ -73,6 +81,7 @@ class AiConversationPage extends StatefulWidget {
     this.foodRepository,
     this.dishLibraryRepository,
     this.onAddDishToMeal,
+    this.manualCardGeneration = false,
     super.key,
   });
 
@@ -101,6 +110,10 @@ class AiConversationPage extends StatefulWidget {
   final DishLibraryRepository? dishLibraryRepository;
   final Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
   onAddDishToMeal;
+
+  /// 【docs/66】按需生成应用卡片（v2 方案）。默认 false = 既有自动弹卡行为
+  /// （测试与未接线嵌入点不变）；正式入口由 app_router 显式传 true。
+  final bool manualCardGeneration;
 
   /// 聊天记录仓储（docs/21 §5.7 新增域）。null = 不落库，重启不留历史。
   final ConversationMessageRepository? historyRepository;
@@ -178,9 +191,33 @@ class _AiConversationPageState extends State<AiConversationPage> {
   late final ScrollController _scrollController;
   final FocusNode _inputFocus = FocusNode();
 
-  ChatImage? _pendingImage;
+  // 【R-10（2026-10-29 用户：希望能多加图片，而不是只能加一张、新加入的
+  // 替换上一个）】待发图片从「一个槽位」改成**列表**：选图是追加不是替换，
+  // 每张可单独移除。本版消息表只存单图（schema 30 不动）——发送时第一张
+  // 随消息发出、其余留在输入区继续发，界面上一行小字如实说明。
+  final List<ChatImage> _pendingImages = [];
+
+  /// 待发图片上限（2026-11-07 用户要「图片多选」：3 → 9，仍防误选整相册）。
+  static const int _maxPendingImages = 9;
+
+  /// 有图片正在后台处理时，发送键**置灰不可点**（2026-11-07 用户要求）：
+  /// 副本就绪前发出去，聊天记录里存的会是系统缓存路径。处理完成后自动恢复。
+  bool get _imagesPreparing => _materializing.isNotEmpty;
+
+  /// 正在后台处理（缩放/重编码/落盘）的占位预览 → 完成信号。
+  ///
+  /// 【2026-11-07 用户：选中后要等一秒缩略图才出现】原链路把「读字节 → isolate
+  /// 解码 → 重编码 → 写副本」全部做完才上屏。现在**先把原图挂上预览**，重活放
+  /// 后台；完成后再把占位换成文档目录的副本（长期保留的是副本）。
+  final Map<String, Future<void>> _materializing = {};
   bool _pickingImage = false;
   bool _extractingMemory = false;
+
+  /// 「起手随附照片」在飞的解码（需求 4）。
+  ///
+  /// 文字消费要 await 它，才能保证「文字 + 照片一次发出」；`null` = 当前没有
+  /// 在解码的起手照片（相册选图走另一条路，不经这里）。
+  Future<void>? _starterImageLoad;
 
   /// 本次对话是否已被用户显式结束（`RV4-P2-05`）。
   ///
@@ -198,6 +235,19 @@ class _AiConversationPageState extends State<AiConversationPage> {
   /// 已请求过建议的消息 id（每条只请求一次，避免重复计费）。
   final Set<String> _suggestionRequested = {};
 
+  /// 消息定位键（docs/66 §6.4）：挂卡成功后 `Scrollable.ensureVisible` 用它
+  /// 把目标卡片滚进视口（只在必要时最小滚动，不拽到会话底部）。
+  final Map<String, GlobalKey> _messageKeys = {};
+
+  /// 滚动隔离（§6.4）：新模式下只对「消息条数变化 / 发送状态切换」滚到底，
+  /// 单纯的消息内容替换（同一条消息挂卡）不滚。旧模式保留原行为
+  /// （任何状态变化都滚到底，不让回滚路径的行为变）。
+  int _lastScrollMessageCount = 0;
+  bool _lastScrollIsReplying = false;
+
+  /// 上一次状态里的编辑卡 id 集合（挂卡增量检测）。
+  Set<String> _lastEditProposalIds = const {};
+
   @override
   void initState() {
     super.initState();
@@ -207,10 +257,16 @@ class _AiConversationPageState extends State<AiConversationPage> {
       clock: widget.clock,
       chatEdit: widget.chatEdit,
       connectivity: widget.aiConnectivity,
+      manualCardGeneration: widget.manualCardGeneration,
+      // 需求 6d：应用记餐前若发现「缺食材 + 同卡有创建」，由页面弹一次确认
+      // （控制器不持有 BuildContext；弹层在页面这一层画）。
+      editDependencyConfirm: _confirmEditDependency,
+      // docs/66 §6.5：应用前发现非今天日期时由页面确认（同一分工）。
+      confirmEditDates: _confirmEditDates,
     );
     _textController = TextEditingController();
     _scrollController = ScrollController();
-    _controller.addListener(_scrollToBottom);
+    _controller.addListener(_onControllerChanged);
     _controller.addListener(_reportPersistError);
     _controller.addListener(_maybeRequestSuggestions);
     unawaited(_controller.loadHistory());
@@ -229,10 +285,27 @@ class _AiConversationPageState extends State<AiConversationPage> {
   ///
   /// 尺寸要在挂上前解出来（`ChatImage` 需要宽高）；读不到/解码失败就当作没有
   /// 这张图——**不发半张**，也不谎报「已添加」。
-  Future<void> _consumePendingStarterImage() async {
+  ///
+  /// 【需求 4（2026-10-25）：文字与照片必须**一次发出**】食堂菜「AI 分析」把
+  /// 菜名与照片一起写进 pending，而解码是真异步的。所以：
+  /// * 在飞的解码记在 [_starterImageLoad] 上，[Future] 可重入——文字消费那边
+  ///   能 await 它，不会出现「文字先出去、照片留在输入区」的错序（那正是用户
+  ///   实测的现象：「点击后只会发送文本，图片需要再点一次」）；
+  /// * 解码完只**挂**在输入区（不自己发送）：没有 pending 文字时它仍等用户按
+  ///   发送键，与相册选图一致。
+  Future<void> _consumePendingStarterImage() {
+    final inFlight = _starterImageLoad;
+    if (inFlight != null) return inFlight;
     final path = widget.pendingStarterImage?.value;
-    if (path == null || path.isEmpty || !mounted) return;
+    if (path == null || path.isEmpty || !mounted) return Future<void>.value();
     widget.pendingStarterImage?.value = null;
+    final load = _loadStarterImage(path)
+        .whenComplete(() => _starterImageLoad = null);
+    _starterImageLoad = load;
+    return load;
+  }
+
+  Future<void> _loadStarterImage(String path) async {
     try {
       final bytes = await File(path).readAsBytes();
       final decoded = await decodeImageFromList(bytes);
@@ -241,11 +314,13 @@ class _AiConversationPageState extends State<AiConversationPage> {
       decoded.dispose();
       if (!mounted) return;
       setState(
-        () => _pendingImage = ChatImage(
-          path: path,
-          fileName: path.split(RegExp(r'[\/]')).last,
-          width: width,
-          height: height,
+        () => _pendingImages.add(
+          ChatImage(
+            path: path,
+            fileName: path.split(RegExp(r'[\/]')).last,
+            width: width,
+            height: height,
+          ),
         ),
       );
     } on Object {
@@ -256,10 +331,18 @@ class _AiConversationPageState extends State<AiConversationPage> {
 
   /// 消费一次启动提示词：空闲时**自动发送**；正在回复时只预填（不打断）。
   void _consumePendingStarter() {
+    unawaited(_consumePendingStarterAsync());
+  }
+
+  Future<void> _consumePendingStarterAsync() async {
     final prompt = widget.pendingStarter?.value;
     if (prompt == null || prompt.display.isEmpty || !mounted) return;
     // 消费即清空：同一请求只生效一次（回退再进不会重发）。
     widget.pendingStarter?.value = null;
+    // 【需求 4】先把同一批的随附照片解码挂好，再决定「发」还是「预填」。
+    // 顺序反了就是用户实测的缺陷：文字单独先发出去，照片留在输入区等他再点一次。
+    await _consumePendingStarterImage();
+    if (!mounted) return;
     if (_controller.isReplying) {
       // 守卫：进行中的回复不打断——预填给用户，由他自己决定何时发。
       // 预填的是**显示版**（用户看到的就是他将会看到的气泡文本）。
@@ -270,7 +353,7 @@ class _AiConversationPageState extends State<AiConversationPage> {
       _snack('正在回复上一条，已把内容填进输入框。');
       return;
     }
-    unawaited(_sendStarterPrompt(prompt.display, prompt.send));
+    await _sendStarterPrompt(prompt.display, prompt.send);
   }
 
   /// 发送启动提示词：**显示文本与发送文本可能不同**（`RV4-P2-03` / D5）。
@@ -283,10 +366,17 @@ class _AiConversationPageState extends State<AiConversationPage> {
     // 分离路径：不走 `_sendCurrent`（它只读输入框），直接交给控制器。
     if (_controller.isReplying) return;
     _textController.clear();
-    final image = _pendingImage;
-    setState(() => _pendingImage = null);
+    final image = _pendingImages.isEmpty ? null : _pendingImages.first;
+    if (image != null) setState(() => _pendingImages.removeAt(0));
     if (image != null) {
-      await _controller.sendImageMessage(image: image, caption: display);
+      // 带图时**同样**要把 `send`（含 `[canteen-dish:<id>]` 定位）交给模型：
+      // 否则照片发了、模型却不知道这道菜是哪一条目录项，`canteen.dish.nutrition`
+      // 只能靠菜名猜。
+      await _controller.sendImageMessage(
+        image: image,
+        caption: display,
+        wireText: send,
+      );
     } else {
       await _controller.sendMessageWithWire(display, wireText: send);
     }
@@ -308,6 +398,134 @@ class _AiConversationPageState extends State<AiConversationPage> {
     });
   }
 
+  /// 控制器状态变化 → 是否滚到底（docs/66 §6.4）：
+  /// * 旧模式：任何变化都滚（2115 行为不变）；
+  /// * 新模式：只有**消息条数变化**（新气泡）或**回复开始/结束**（输入栏
+  ///   状态切换）才滚；手动生成状态走独立 notifier 本来就不进这里，挂卡
+  ///   造成的内容替换也不滚——正在翻历史的用户不被拽走。
+  void _onControllerChanged() {
+    if (!widget.manualCardGeneration) {
+      _scrollToBottom();
+      return;
+    }
+    final count = _controller.state.messages.length;
+    final replying = _controller.isReplying;
+    final shouldScroll =
+        count != _lastScrollMessageCount || replying != _lastScrollIsReplying;
+    _lastScrollMessageCount = count;
+    _lastScrollIsReplying = replying;
+    if (shouldScroll) {
+      _scrollToBottom();
+      return;
+    }
+    // 挂卡成功 = 消息条数不变、但编辑卡集合出现新成员：定位到目标卡片
+    // （§6.4：只在卡片不在视口内时最小滚动，不跳会话底部）。
+    final attached = _detectNewlyAttachedCard();
+    if (attached != null) _ensureCardVisible(attached);
+  }
+
+  /// 对比两次状态之间的编辑卡 id 集合；返回本次新出现的（至多一条）。
+  String? _detectNewlyAttachedCard() {
+    final current = {
+      for (final message in _controller.state.messages)
+        if (message.isEditProposal) message.id,
+    };
+    final added = current.difference(_lastEditProposalIds);
+    _lastEditProposalIds = current;
+    if (added.isEmpty) return null;
+    return added.first;
+  }
+
+  /// 挂卡成功 → `Scrollable.ensureVisible` 定位到目标消息（§6.4）：
+  /// 只在目标不在视口内时滚动（最小滚动），不跳会话底部。
+  void _ensureCardVisible(String messageId) {
+    final key = _messageKeys[messageId];
+    final context = key?.currentContext;
+    if (context == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        alignment: 0.15,
+      );
+    });
+  }
+
+  /// 需求 6d：「记一餐要用到的新食材还没建」时的确认（一次列全）。
+  ///
+  /// 用户原话：「我点击鸡蛋水煮的应用的时候，应该弹窗提示是否应用创建食材
+  /// 鸡蛋水煮，我选择确认后又可以继续应用该早餐添加」。所以这里问的是
+  /// **一整批**（可能缺两三样），确认后由协调器先建再记。
+  ///
+  /// Key：`chat-edit-dependency-confirm`（层）/`-ok`（确认）/`-cancel`（拒绝）。
+  Future<bool> _confirmEditDependency(
+    List<ChatEditFoodDependency> missing,
+  ) async {
+    final names = missing.map((d) => d.foodName).toList(growable: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('chat-edit-dependency-confirm'),
+        title: const Text('要先创建食材吗？'),
+        content: Text(
+          '这一餐用到的食材${names.map((n) => '「$n」').join('、')}'
+          '食物库里还没有。\n\n'
+          '点「创建并记入」会先把'
+          '${names.length > 1 ? '它们' : '它'}建进食物库，再记这一餐。',
+        ),
+        actions: [
+          LfTextButton(
+            key: const Key('chat-edit-dependency-confirm-cancel'),
+            label: '先不记',
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          LfPrimaryButton(
+            key: const Key('chat-edit-dependency-confirm-ok'),
+            label: '创建并记入',
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  /// docs/66 §6.5：应用前**日期确认**——本次要执行的命令里有非今天的
+  /// `localDate` 时弹一次（文案写清每个目标日期）。确认才执行；拒绝 /
+  /// 弹层异常都按 false 处理（控制器侧绝不静默应用）。
+  ///
+  /// Key：`chat-edit-date-confirm`（层）/`-ok`（确认）/`-cancel`（拒绝）。
+  Future<bool> _confirmEditDates(Set<String> dates) async {
+    if (dates.isEmpty) return true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('chat-edit-date-confirm'),
+        title: const Text('记录到其他日期？'),
+        content: Text(
+          '这张卡记录的是 ${dates.join('、')}，'
+          '应用后会写到那一天（不是今天）。',
+        ),
+        actions: [
+          LfTextButton(
+            key: const Key('chat-edit-date-confirm-cancel'),
+            label: '取消',
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          LfPrimaryButton(
+            key: const Key('chat-edit-date-confirm-ok'),
+            label: '仍要应用',
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   /// 落库失败也要说（消息在屏幕上但重启会丢）。
   void _reportPersistError() {
     final message = _controller.takePersistError();
@@ -327,6 +545,71 @@ class _AiConversationPageState extends State<AiConversationPage> {
   ///
   /// 四类都只预填「名字」，其余字段留给用户：App 不替用户编营养值、时间、
   /// 分类这些事实。未接线的种类给诚实提示（与其它未接线入口同一口径）。
+  ///
+  /// 【2026-11-05 选择卡】`chooseCatalog`（同名双库）先查候选，弹食物/菜品
+  /// 选择层；选中后控制器把该行的引用改写成 `[food:id]`/`[dish:id]` 并重放。
+  Future<void> _openEditRepair(
+    String messageId,
+    ChatEditRepair repair, {
+    int? rowIndex,
+  }) async {
+    if (repair.kind == ChatEditRepairKind.chooseCatalog) {
+      await _openCatalogChoice(messageId, repair, rowIndex: rowIndex);
+      return;
+    }
+    await _openRepairForm(repair);
+  }
+
+  Future<void> _openCatalogChoice(
+    String messageId,
+    ChatEditRepair repair, {
+    int? rowIndex,
+  }) async {
+    ConversationMessage? message;
+    for (final item in _controller.state.messages) {
+      if (item.id == messageId) {
+        message = item;
+        break;
+      }
+    }
+    final turn = message?.editTurn;
+    if (rowIndex == null && turn != null) {
+      for (final row in turn.rows) {
+        if (row.status == ChatEditRowStatus.failed &&
+            row.repair?.kind == ChatEditRepairKind.chooseCatalog &&
+            row.repair?.name == repair.name) {
+          rowIndex = row.index;
+          break;
+        }
+      }
+    }
+    final targetRow = rowIndex;
+    if (targetRow == null) {
+      _snack('找不到要重放的那一行，请重新发一次。');
+      return;
+    }
+
+    final candidates = await _controller.resolveCatalogCandidates(repair.name);
+    if (!mounted) return;
+    if (candidates == null || candidates.isEmpty) {
+      _snack('现在查不到「${repair.name}」的候选，稍后再试。');
+      return;
+    }
+    final pick = await showCatalogChoiceSheet(context, candidates: candidates);
+    if (!mounted || pick == null) return;
+    final reference = switch (pick.kind) {
+      CatalogPickKind.food => '[food:${pick.id}]',
+      CatalogPickKind.supply => '[canteen-dish:${pick.id}]',
+      CatalogPickKind.dish => '[dish:${pick.id}]',
+    };
+    await _controller.retryEditRowWithReference(
+      messageId: messageId,
+      rowIndex: targetRow,
+      originalReference: repair.name,
+      newReference: reference,
+    );
+  }
+
   Future<void> _openRepairForm(ChatEditRepair repair) async {
     switch (repair.kind) {
       case ChatEditRepairKind.createFood:
@@ -358,6 +641,9 @@ class _AiConversationPageState extends State<AiConversationPage> {
           return;
         }
         await open(venueId, repair.name);
+      case ChatEditRepairKind.chooseCatalog:
+        // 已在上层 _openEditRepair 分流（需要 messageId，不在这里处理）。
+        return;
     }
   }
 
@@ -382,7 +668,7 @@ class _AiConversationPageState extends State<AiConversationPage> {
   void dispose() {
     widget.pendingStarter?.removeListener(_consumePendingStarter);
     widget.pendingStarterImage?.removeListener(_consumePendingStarterImage);
-    _controller.removeListener(_scrollToBottom);
+    _controller.removeListener(_onControllerChanged);
     _controller.removeListener(_reportPersistError);
     _inputFocus.dispose();
     _scrollController.dispose();
@@ -393,11 +679,34 @@ class _AiConversationPageState extends State<AiConversationPage> {
 
   // ---- 发送 ------------------------------------------------------------
 
+  /// 发送**在途**标志（2026-11-07 复查补的并发守卫）。
+  ///
+  /// `_sendCurrent` 中间有 `await _awaitPendingImages()`：等待窗口内按钮虽已
+  /// 灰，但快捷 chip / 建议气泡等入口仍能触发第二次发送——两次都穿过开头的
+  /// `isReplying` 检查（第一次还没真正发出去），就会同一条消息发两遍。
+  bool _sendInFlight = false;
+
   Future<void> _sendCurrent() async {
-    if (_controller.isReplying) return;
+    if (_sendInFlight || _controller.isReplying) return;
+    _sendInFlight = true;
+    try {
+      // 后台还在处理刚选的图片：等它换成文档目录副本再发（否则聊天记录里
+      // 存的是系统缓存路径，重启/系统清理后图就没了）。通常已经完成，无感。
+      await _awaitPendingImages();
+      if (!mounted || _controller.isReplying) return;
+      await _sendNow();
+    } finally {
+      _sendInFlight = false;
+    }
+  }
+
+  /// 真正的发送（读输入框/待发图 → 清空 → 交给控制器）。入口守卫在
+  /// [_sendCurrent]。
+  Future<void> _sendNow() async {
     final text = _textController.text;
-    final image = _pendingImage;
-    if (image == null && text.trim().isEmpty) return;
+    // 【2026-10-31 用户：多张图片点击发送时一起发送】全部 pending 图一次发。
+    final images = List<ChatImage>.of(_pendingImages);
+    if (images.isEmpty && text.trim().isEmpty) return;
 
     // 【2026-10-25 缺陷修复】结束会话后**无法新开对话**：
     // `_sessionEnded` 只在「清空聊天记录」里被重置，发送时从不重置，于是
@@ -407,15 +716,16 @@ class _AiConversationPageState extends State<AiConversationPage> {
     final startingNewSession = _sessionEnded;
     _textController.clear();
     setState(() {
-      _pendingImage = null;
+      _pendingImages.clear();
       if (startingNewSession) {
         _sessionEnded = false;
         _sessionEndedAt = null;
       }
     });
-    if (image != null) {
-      // 图已作为消息发出：文件归消息所有，输入区不再持有它。
-      await _controller.sendImageMessage(image: image, caption: text);
+    if (images.isNotEmpty) {
+      // 图已作为消息发出：文件归消息所有，输入区不再持有它们。
+      // 多图一次发送 = N 条用户气泡 + **一条** AI 请求（控制器批量路径）。
+      await _controller.sendImageBatch(images: images, caption: text);
     } else {
       await _controller.sendMessage(text);
     }
@@ -439,6 +749,9 @@ class _AiConversationPageState extends State<AiConversationPage> {
           message.text.trim().isEmpty) {
         continue;
       }
+      // 自动催的中间气泡不渲染，别为它再发一次建议请求（否则每轮修改多打
+      // 一次模型，结果却没有任何界面承载）。
+      if (_controller.isHiddenRetryBubble(message.id)) return;
       if (_suggestionRequested.contains(message.id)) return;
       _suggestionRequested.add(message.id);
       unawaited(_requestSuggestions(message));
@@ -494,26 +807,146 @@ class _AiConversationPageState extends State<AiConversationPage> {
 
   // ---- 图片 ------------------------------------------------------------
 
-  Future<void> _pickImage() async {
+  /// 「+」= 三选弹层（2026-10-31 用户：点加号不再直接进相册）：
+  /// 拍照 / 从相册选择 / 发送文件（txt·md·csv）。
+  /// 【2026-11-02 用户】不要说明行：三个按钮横向排列，名称在图标下方。
+  Future<void> _onAddAttachment() async {
+    final choice = await AppSheet.show<_AttachmentSource>(
+      context,
+      title: '添加内容',
+      // 用弹层内 Builder 的 context 关自己：`AppSheet` 挂在根导航器上，
+      // 页面 context 会 pop 到分支导航器（2026-11-02 候选黑屏同源问题）。
+      // 【2026-11-07 用户（附截图）】三项做成**等宽大方块、占满一行**：
+      // 浅灰底、圆角、图标在上、两个字在下。原来三个圆图标被 Spacer 推开，
+      // 中间空得厉害。
+      content: Builder(
+        builder: (sheetContext) => Row(
+          children: [
+            for (var i = 0; i < _AttachmentSource.values.length; i++) ...[
+              if (i > 0) const SizedBox(width: LfDimens.spaceSmall),
+              Expanded(
+                child: _buildAttachmentTile(
+                  sheetContext,
+                  _AttachmentSource.values[i],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    switch (choice) {
+      case _AttachmentSource.camera:
+        await _pickImage(MealImageSource.camera);
+      case _AttachmentSource.gallery:
+        await _pickImage(MealImageSource.gallery);
+      case _AttachmentSource.file:
+        await _pickFile();
+    }
+  }
+
+  /// 单个附件入口：**等宽大方块**（浅灰底 16 圆角，图标 28 在上、两个字
+  /// 在下），整块可点（命中盒远大于 44dp）。
+  ///
+  /// 【2026-11-07 用户（附截图）】原实现是圆形图标块 + Spacer 推开，
+  /// 三个入口之间空得厉害；现在按截图做成三等分卡片。
+  Widget _buildAttachmentTile(
+    BuildContext sheetContext,
+    _AttachmentSource source,
+  ) {
+    final c = context.lf;
+    final (label, icon) = switch (source) {
+      _AttachmentSource.camera => ('拍照', Icons.photo_camera_outlined),
+      _AttachmentSource.gallery => ('相册', Icons.photo_outlined),
+      // 用户要求**两个字**：原「发送文件」缩成「文件」。
+      _AttachmentSource.file => ('文件', Icons.description_outlined),
+    };
+    void close() => Navigator.of(sheetContext).pop(source);
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: close,
+      child: InkWell(
+        key: Key('attachment-pick-${source.name}'),
+        onTap: close,
+        borderRadius: BorderRadius.circular(LfDimens.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceLarge),
+          decoration: BoxDecoration(
+            color: c.muted,
+            borderRadius: BorderRadius.circular(LfDimens.radiusLg),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 28, color: c.foreground),
+              const SizedBox(height: LfDimens.spaceSmall),
+              Text(
+                label,
+                style: LfText.body.copyWith(
+                  color: c.foreground,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 发送文件（一期 txt / md / csv）：读出文本预填进输入框——文件名注明，
+  /// 内容随消息正文发给 AI。超长内容截断并如实标注（prompt 预算保护）。
+  Future<void> _pickFile() async {
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const ['txt', 'md', 'csv'],
+      );
+      if (!mounted) return;
+      final path = file?.path;
+      if (path == null || file == null) return; // 用户取消
+      final raw = utf8.decode(await file.readAsBytes(), allowMalformed: true);
+      final body = raw.length > _maxFileChars
+          ? '${raw.substring(0, _maxFileChars)}\n…（文件过长，已截断）'
+          : raw;
+      _prefillInput('【文件：${file.name}】\n$body');
+    } on Object {
+      if (mounted) _snack('读取文件失败，请重试。');
+    }
+  }
+
+  Future<void> _pickImage(MealImageSource source) async {
     final picker = widget.chatImagePicker;
     if (picker == null) {
       _snack('图片选择尚未配置。');
       return;
     }
     if (_pickingImage) return;
+    final remaining = _maxPendingImages - _pendingImages.length;
+    if (remaining <= 0) {
+      _snack('最多先选 $_maxPendingImages 张；发送几张后再加。');
+      return;
+    }
     setState(() => _pickingImage = true);
-    final previous = _pendingImage;
     try {
-      final picked = await picker.pick();
+      // 【2026-11-07】支持多选的选图器：先拿路径立刻上屏，后台再处理。
+      if (picker.supportsFastPreview) {
+        final refs = await picker.pickRefs(source: source, limit: remaining);
+        if (!mounted) return;
+        if (refs.isEmpty) return; // 用户取消
+        _addPendingImages(picker, refs.take(remaining).toList());
+        return;
+      }
+      // 老链路（选图器不支持多选/路径）：仍等处理完成再上屏。
+      final picked = await picker.pick(source: source);
       if (!mounted) {
-        // 页面已销毁：刚存下的图不该变成孤儿，尽力删掉。
         if (picked != null) await _safeDiscard(picker, picked);
         return;
       }
-      if (picked == null) return; // 用户取消，不是错误
-      setState(() => _pendingImage = picked);
-      // 替换掉的那张立即删除（尽力而为，残留由全清兜底）。
-      if (previous != null) await _safeDiscard(picker, previous);
+      if (picked == null) return;
+      setState(() => _pendingImages.add(picked));
     } on MealImageFailure catch (failure) {
       if (mounted) _snack(failure.message);
     } on ChatImageFailure catch (failure) {
@@ -525,6 +958,82 @@ class _AiConversationPageState extends State<AiConversationPage> {
     }
   }
 
+  /// 把选中的原图**立刻**挂成预览，再在后台换成文档目录副本。
+  void _addPendingImages(
+    PickChatImage picker,
+    List<SelectedMealImageRef> refs,
+  ) {
+    if (refs.isEmpty) return;
+    final placeholders = [
+      for (final ref in refs)
+        ChatImage(
+          // 系统相册选出来的原路径 App 本来就可读；预览条按 cover 固定 56dp，
+          // 不依赖宽高，所以这里先给 0。
+          path: ref.path,
+          fileName: ref.fileName,
+          width: 0,
+          height: 0,
+        ),
+    ];
+    // 先把「处理中」登记上，再通知 UI：发送键在这一帧就该是灰的。
+    for (final ref in refs) {
+      _materializing[ref.path] = _materializeOne(picker, ref);
+    }
+    setState(() => _pendingImages.addAll(placeholders));
+  }
+
+  /// 处理单张（缩放/重编码/写副本），完成后把占位换成副本并放行发送键。
+  Future<void> _materializeOne(
+    PickChatImage picker,
+    SelectedMealImageRef ref,
+  ) async {
+    try {
+      final image = await picker.materialize(ref);
+      if (!mounted) {
+        unawaited(_safeDiscard(picker, image));
+        return;
+      }
+      final index = _pendingImages.indexWhere((item) => item.path == ref.path);
+      if (index < 0) {
+        // 处理期间用户已经移除了这张：副本没人要，删掉。
+        unawaited(_safeDiscard(picker, image));
+        return;
+      }
+      setState(() => _pendingImages[index] = image);
+    } on Object catch (error) {
+      if (!mounted) return;
+      // 处理失败：撤掉这张占位并如实说（不留一张发不出去的预览）。
+      setState(() {
+        _pendingImages.removeWhere((item) => item.path == ref.path);
+      });
+      _snack(
+        error is MealImageFailure
+            ? error.message
+            : error is ChatImageFailure
+            ? error.message
+            : '这张图片读不出来，已移除。',
+      );
+    } finally {
+      // 无论成败都要从「处理中」摘掉，按钮才会恢复可点。
+      if (mounted) {
+        // 注意：`Map<String, Future>.remove` 返回被移除的 Future，
+        // 不能写成 `setState(() => ...)`（setState 禁止回调返回 Future）。
+        setState(() {
+          _materializing.remove(ref.path);
+        });
+      } else {
+        _materializing.remove(ref.path);
+      }
+    }
+  }
+
+  /// 发送前等后台处理落地：聊天记录里要存**文档目录副本**，不能存系统缓存
+  /// 里的临时路径（重启或系统清理后图就没了）。
+  Future<void> _awaitPendingImages() async {
+    if (_materializing.isEmpty) return;
+    await Future.wait(_materializing.values.toList());
+  }
+
   Future<void> _safeDiscard(PickChatImage picker, ChatImage image) async {
     try {
       await picker.discard(image);
@@ -533,10 +1042,13 @@ class _AiConversationPageState extends State<AiConversationPage> {
     }
   }
 
-  Future<void> _removePendingImage() async {
-    final image = _pendingImage;
-    if (image == null) return;
-    setState(() => _pendingImage = null);
+  Future<void> _removePendingImage([int index = 0]) async {
+    if (index < 0 || index >= _pendingImages.length) return;
+    final image = _pendingImages.removeAt(index);
+    // 还在后台处理的占位：从登记表里摘掉，完成回调会发现原件已不在列表，
+    // 直接丢弃副本（不留孤儿文件）。
+    _materializing.remove(image.path);
+    setState(() {});
     final picker = widget.chatImagePicker;
     if (picker != null) await _safeDiscard(picker, image);
   }
@@ -810,7 +1322,10 @@ class _AiConversationPageState extends State<AiConversationPage> {
                 ),
               ),
             for (var index = 0; index < state.messages.length; index++)
-              _messageItem(index, state.messages[index]),
+              // 【2026-11-02 用户：AI 自动接话停不下来】自动催信封的中间气泡
+              // 不渲染——否则一次修改请求会多出两段重复的「我准备记…」。
+              if (!_controller.isHiddenRetryBubble(state.messages[index].id))
+                _messageItem(index, state.messages[index]),
             // `RV4-P2-05`：会话边界（不是消息，不入库）。
             for (final result in _localResults)
               Padding(
@@ -931,7 +1446,34 @@ class _AiConversationPageState extends State<AiConversationPage> {
       );
       return;
     }
-    final saved = await _showMemoryCandidateSheet(parse, repository);
+    // 【需求 16b（2026-10-25）】已有记忆的候选**不再列出来**：同一次会话里
+    // 再次提炼时，模型往往把上一轮已保存的又说一遍——候选层照原样列出来，
+    // 用户看到的是「我明明存过了，它又问一遍」。
+    //
+    // 判据用 `normalizeAiMemoryText`（仓储写入侧防重的同一把尺子）：
+    // **完全相同**的文本被滤掉；**相近但不同**的仍保留——那正是「要不要更新
+    // 旧记忆」的有效提示，滤掉它等于把功能做没了。
+    final existing = await repository.listActive();
+    if (!mounted) return;
+    final known = {
+      for (final memory in existing) normalizeAiMemoryText(memory.text),
+    };
+    final fresh = [
+      for (final candidate in parse.candidates)
+        if (!known.contains(normalizeAiMemoryText(candidate.text))) candidate,
+    ];
+    if (fresh.isEmpty) {
+      AppSnackBar.show(
+        context,
+        '这次提炼出的 ${parse.candidates.length} 条都已经在记忆里了。',
+        icon: AppSnackBar.infoIcon,
+      );
+      return;
+    }
+    final saved = await _showMemoryCandidateSheet(
+      AiMemoryCandidateParse(reply: parse.reply, candidates: fresh),
+      repository,
+    );
     if (!mounted) return;
     if (saved > 0) {
       AppSnackBar.show(context, '已保存 $saved 条记忆。');
@@ -1048,6 +1590,14 @@ class _AiConversationPageState extends State<AiConversationPage> {
     );
     if (confirmed != true || !mounted) return;
     final removed = await _controller.clearHistory();
+    // 清空后消息已不在列表，定位用的 GlobalKey 一并释放（否则长会话里
+    // 这些 key 会一直挂在页面上）。
+    _messageKeys.clear();
+    // 待发预览也要清：正在后台处理的占位被移除后，完成回调会把副本丢掉
+    // （不留孤儿）；已就绪的占位随聊天清空一并退场。
+    _pendingImages.clear();
+    _materializing.clear();
+    if (mounted) setState(() {});
     // 聊天图片副本一并清（聊天副本本来就是「随清全清」语义）。
     try {
       await widget.chatImageStore?.clearAll();
@@ -1123,6 +1673,10 @@ class _AiConversationPageState extends State<AiConversationPage> {
                     }),
                   ),
                 const SizedBox(height: LfDimens.spaceSmall),
+                // 16a（2026-10-25 用户：记忆弹窗里那两件贴在一起）：
+                // 两枚 `Expanded` 原来直接相邻 ⇒ 水平间距 **0dp**，两个按钮
+                // 连成一块，用户看到的是「一整条灰带」。插 `spaceSmallPlus`
+                // 让「取消」与「保存所选」各自成立（判据：间距 ≥ 10dp）。
                 Row(
                   children: [
                     Expanded(
@@ -1131,6 +1685,7 @@ class _AiConversationPageState extends State<AiConversationPage> {
                         label: '取消',
                       ),
                     ),
+                    const SizedBox(width: LfDimens.spaceSmallPlus),
                     Expanded(
                       child: LfPrimaryButton(
                         key: const Key('ai-memory-candidate-save'),
@@ -1271,13 +1826,18 @@ class _AiConversationPageState extends State<AiConversationPage> {
   }
 
   Widget _messageItem(int index, ConversationMessage message) {
-    return Padding(
-      key: Key('ai-chat-message-$index'),
-      padding: const EdgeInsets.only(bottom: LfDimens.spaceLarge),
-      child: switch (message.role) {
-        ConversationRole.assistant => _assistantItem(index, message),
-        ConversationRole.user => _userItem(index, message),
-      },
+    // 挂卡后 ensureVisible 的定位键（按消息 id，列表重排也稳定）。
+    final key = _messageKeys.putIfAbsent(message.id, GlobalKey.new);
+    return KeyedSubtree(
+      key: key,
+      child: Padding(
+        key: Key('ai-chat-message-$index'),
+        padding: const EdgeInsets.only(bottom: LfDimens.spaceLarge),
+        child: switch (message.role) {
+          ConversationRole.assistant => _assistantItem(index, message),
+          ConversationRole.user => _userItem(index, message),
+        },
+      ),
     );
   }
 
@@ -1308,7 +1868,11 @@ class _AiConversationPageState extends State<AiConversationPage> {
               onApplySuggestion: (suggestionIndex) => unawaited(
                 _controller.applySuggestion(message.id, suggestionIndex),
               ),
-              onRepair: (repair) => unawaited(_openRepairForm(repair)),
+              onRepair: (repair) =>
+                  unawaited(_openEditRepair(message.id, repair)),
+              onRepairAtRow: (rowIndex, repair) => unawaited(
+                _openEditRepair(message.id, repair, rowIndex: rowIndex),
+              ),
             ),
           ],
         ),
@@ -1335,7 +1899,8 @@ class _AiConversationPageState extends State<AiConversationPage> {
     }
     // 2026-10-16：这条是「用户要改数据、模型却只回文字」的残留态
     // （自动催过一次仍未给信封）⇒ 气泡下给一枚手动催的入口，别让对话
-    // 停在死文字上（用户原话：「而不是空回文字」）。
+    // 停在死文字上（用户原话：「而不是空回文字」）。新模式下这个入口恒为
+    // false（needsEnvelopeRetry 直接短路），换成「生成应用卡片」按钮。
     final offerRetry =
         !_controller.isReplying && _controller.needsEnvelopeRetry(message.id);
     return AiMessageRow(
@@ -1345,6 +1910,10 @@ class _AiConversationPageState extends State<AiConversationPage> {
           AiMessageBubble(
             text: message.text,
             onLongPress: () => unawaited(_copyMessage(message.text)),
+            // docs/66 §6.1：按钮在气泡内部底行、右对齐（仅新模式）。
+            footer: widget.manualCardGeneration
+                ? _generationFooter(index, message)
+                : null,
           ),
           // 2026-10-23 用户：「要 AI 聊天建议（2–3 个建议气泡点击直接发送）」。
           if (_suggestions[message.id] case final suggestions?
@@ -1365,9 +1934,13 @@ class _AiConversationPageState extends State<AiConversationPage> {
           ],
           if (offerRetry) ...[
             const SizedBox(height: LfDimens.spaceSmall),
-            _RequestEnvelopeChip(
-              key: Key('ai-chat-request-envelope-$index'),
-              onTap: () => unawaited(_controller.requestEnvelope(message.id)),
+            // 【2026-10-29（R-7 兜底卡）】词条升级为卡片：残留态必须足够显眼
+            // （用户原话「AI 总是不给我应用卡片」），且把模型原话亮出来供核对。
+            _EnvelopeFallbackCard(
+              key: Key('envelope-fallback-card-$index'),
+              replyText: message.text,
+              onRetry: () => unawaited(_controller.requestEnvelope(message.id)),
+              onDismiss: () => _controller.dismissEnvelopeRetry(message.id),
             ),
           ],
         ],
@@ -1380,15 +1953,171 @@ class _AiConversationPageState extends State<AiConversationPage> {
   /// 半截亮给用户。完成后的文本由 controller 落定，不受这里影响。
   bool _looksLikeEnvelope(String text) => text.trim().startsWith('{');
 
+  /// 「生成应用卡片」的**气泡内底行**（docs/66 §3.1 / §6.2）。
+  ///
+  /// 只由 `_assistantItem` 的普通文本分支传入（仅新模式）。状态机：
+  /// * `idle` — 有资格（`canGenerateCard`）时显示按钮 + 可选「尚未写入」提示；
+  /// * `generating` — 三点 loader + 「生成中…」 + 「取消」（不用
+  ///   `LfTextButton(busy:)`，那会把 label 换成三点 loader）；
+  /// * `empty` — 「重新检查」 + muted 原因；
+  /// * `failed` — retryable 时「重试生成」 + error 原因；不可重试只有原因
+  ///   （重试也不会变好，假按钮反而误导）。
+  ///
+  /// 只监听控制器独立的 `cardGeneration` notifier（§6.4）：生成状态不触发
+  /// 页面「滚到底」，按钮那一小块单独重建。
+  Widget _generationFooter(int index, ConversationMessage message) {
+    return ValueListenableBuilder<Map<String, CardGenerationState>>(
+      valueListenable: _controller.cardGeneration,
+      builder: (context, states, _) {
+        final state =
+            states[message.id] ??
+            const CardGenerationState(CardGenerationPhase.idle);
+        final c = context.lf;
+        final messageId = message.id;
+
+        Widget statusWrap(Widget child) => Container(
+          key: Key('ai-chat-card-generation-status-$index'),
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: child,
+        );
+
+        Widget hint() {
+          if (!_claimsUnwrittenChanges(message)) return const SizedBox.shrink();
+          return Padding(
+            key: Key('ai-chat-not-written-$index'),
+            padding: const EdgeInsets.only(right: LfDimens.spaceXSmall),
+            child: Text(
+              '尚未写入',
+              style: LfText.micro.copyWith(color: c.mutedForeground),
+            ),
+          );
+        }
+
+        final Widget? action;
+        if (state.phase == CardGenerationPhase.generating) {
+          action = statusWrap(
+            Semantics(
+              liveRegion: true,
+              label: '正在生成应用卡片',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 三点 loader 的自然宽度约 21px（3 点 + 2 间隔）；SizedBox
+                  // 只钳高度，宽度留足，避免窄盒溢出。
+                  SizedBox(width: 24, height: 14, child: AppButtonDotsLoader()),
+                  const SizedBox(width: LfDimens.spaceXSmall),
+                  Text(
+                    '生成中…',
+                    style: LfText.caption.copyWith(color: c.mutedForeground),
+                  ),
+                  LfTextButton(
+                    key: Key('ai-chat-generate-card-$index-cancel'),
+                    label: '取消',
+                    onPressed: () =>
+                        _controller.cancelCardGeneration(messageId),
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else if (state.phase == CardGenerationPhase.empty) {
+          action = statusWrap(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LfTextButton(
+                  key: Key('ai-chat-generate-card-$index'),
+                  label: '重新检查',
+                  onPressed: () =>
+                      unawaited(_controller.generateEditCard(messageId)),
+                ),
+                Text(
+                  state.message ?? '这条回复没有可应用的操作',
+                  textAlign: TextAlign.end,
+                  style: LfText.micro.copyWith(color: c.mutedForeground),
+                ),
+              ],
+            ),
+          );
+        } else if (state.phase == CardGenerationPhase.failed) {
+          action = statusWrap(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (state.retryable)
+                  LfTextButton(
+                    key: Key('ai-chat-generate-card-$index'),
+                    label: '重试生成',
+                    onPressed: () =>
+                        unawaited(_controller.generateEditCard(messageId)),
+                  ),
+                Text(
+                  state.message ?? '生成失败，请重试。',
+                  textAlign: TextAlign.end,
+                  style: LfText.micro.copyWith(color: c.errorText),
+                ),
+              ],
+            ),
+          );
+        } else {
+          // idle：只有有资格的消息才有入口（页面不自己拼条件，只调控制器）。
+          if (!_controller.canGenerateCard(messageId)) {
+            return const SizedBox.shrink();
+          }
+          // 【2026-11-09 审查修复】原来是 Row：2.0 字号下「尚未写入」提示
+          // 与按钮的自然宽超出气泡可用宽（360dp 溢 39px、320dp 溢 79px）。
+          // Wrap 让提示退到按钮上面一行，1.0 字号下观感与原来一致。
+          action = Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: LfDimens.spaceXSmall,
+            runSpacing: 2,
+            children: [
+              hint(),
+              LfTextButton(
+                key: Key('ai-chat-generate-card-$index'),
+                label: '生成应用卡片',
+                icon: Icons.auto_awesome_outlined,
+                onPressed: () =>
+                    unawaited(_controller.generateEditCard(messageId)),
+              ),
+            ],
+          );
+        }
+        return action;
+      },
+    );
+  }
+
+  /// §5.5 的「假完成态」判定：用户这条像修改请求（或带图）、回复命中
+  /// `replyClaimsChanges`、且这一轮没有卡 ⇒ 按钮旁显示中性提示「尚未写入」。
+  /// 这是诚实性保护：不改内容、不触发任何生成或写库。
+  bool _claimsUnwrittenChanges(ConversationMessage message) {
+    if (!replyClaimsChanges(message.text)) return false;
+    final messages = _controller.state.messages;
+    final index = messages.indexWhere((m) => m.id == message.id);
+    if (index <= 0) return false;
+    for (var i = index - 1; i >= 0; i--) {
+      final user = messages[i];
+      if (user.role != ConversationRole.user) continue;
+      return user.kind == ConversationMessageKind.image ||
+          looksLikeModificationRequest(user.textForRequest);
+    }
+    return false;
+  }
+
   Widget _userItem(int index, ConversationMessage message) {
     switch (message.kind) {
       case ConversationMessageKind.image:
+        // 【2026-10-31 用户重定稿】只留图：原始宽高比 contain 完整显示，
+        // 无放大角标/文件名药丸/对勾徽章；点击打开全屏查看（root navigator）。
         return ImageMessage(
           key: Key('ai-chat-image-$index'),
           image: _imageWidget(message),
-          fileName: _imageFileName(message),
           caption: message.text,
-          sent: message.status == ConversationMessageStatus.sent,
+          onZoom: () => _openImageZoom(index, message),
         );
       case ConversationMessageKind.voice:
         // P10（需求 36）：语音输入已删，但历史库里的旧语音消息（D8 保留
@@ -1414,19 +2143,44 @@ class _AiConversationPageState extends State<AiConversationPage> {
     final path = message.imagePath;
     // 文件被系统/用户清掉时如实给「已清理」占位，而不是留一块假缩略图。
     if (path == null || !File(path).existsSync()) return _missingImage();
+    // 【2026-10-31 用户重定稿】原始宽高比完整显示（contain，不裁剪）——
+    // 外层的 ConstrainedBox 限宽 232 / 高 280，比例由图片自身决定。
     return Image.file(
       File(path),
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       errorBuilder: (_, _, _) => _missingImage(),
     );
   }
 
-  String? _imageFileName(ConversationMessage message) {
+  /// 全屏看大图（需求 3）。
+  ///
+  /// 【为什么用 `useRootNavigator: true`】对话页挂在 shell 的**分支导航器**上，
+  /// 分支导航器的高度不含底栏 ⇒ 用默认导航器打开的全屏层会被底栏切掉一截
+  /// （与 `_showMemoryCandidateSheet` 同一理由，docs/21 附录 D8）。
+  ///
+  /// 【关掉后再点还能开】每次点击都新建一个路由，没有缓存层——图片是只读的，
+  /// 不持有任何状态，重复打开不会串味。
+  Future<void> _openImageZoom(int index, ConversationMessage message) {
     final path = message.imagePath;
-    if (path == null) return null;
-    final normalized = path.replaceAll('\\', '/');
-    final index = normalized.lastIndexOf('/');
-    return index == -1 ? normalized : normalized.substring(index + 1);
+    final hasImage = path != null && File(path).existsSync();
+    return showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierColor: LfColors.scrimSolid,
+      builder: (dialogContext) => ChatImageZoomView(
+        key: Key('ai-chat-image-zoom-$index'),
+        caption: message.text,
+        // 大图与缩略图用**同一个 builder**：两处不会出现「缩略有图、大图空白」
+        // 的分叉；文件期间被清掉时大图也如实说「图片已清理」。
+        image: hasImage
+            ? Image.file(
+                File(path),
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => _missingImage(),
+              )
+            : _missingImage(),
+      ),
+    );
   }
 
   Widget _missingImage() {
@@ -1453,9 +2207,31 @@ class _AiConversationPageState extends State<AiConversationPage> {
     return text.isEmpty ? '发送失败，点击重试。' : '$text\n\n发送失败，点击重试。';
   }
 
+  /// 【2026-10-31 用户：缩略图需要能点击放大】全屏查看**待发送**图片。
+  ///
+  /// 【2026-11-09 全量审查】原来这里是第二个全屏实现（`Dialog.fullscreen`
+  /// + `Colors.black` + 裸 `TextStyle`），与对话里看大图的 `ChatImageZoomView`
+  /// 各写一套：关闭键用 `Positioned(top: 32)` 没有 `SafeArea`（刘海/状态栏
+  /// 高的机器上会压到系统区域）、配色绕过 `LfColors.scrimSolid`、且没有
+  /// `Semantics`（读屏只念到一个无名可点节点）。现在复用同一个共享件。
+  Future<void> _showImageFull(ChatImage image) async {
+    await showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierColor: LfColors.scrimSolid,
+      builder: (dialogContext) => ChatImageZoomView(
+        key: const Key('ai-chat-attachment-zoom'),
+        image: Image.file(
+          File(image.path),
+          errorBuilder: (_, _, _) => _missingImage(),
+        ),
+      ),
+    );
+  }
+
   Widget _inputSection(BuildContext context, {required double bottomGap}) {
     final c = context.lf;
-    final image = _pendingImage;
+    final hasImage = _pendingImages.isNotEmpty;
     return Container(
       decoration: BoxDecoration(
         color: c.card,
@@ -1465,20 +2241,21 @@ class _AiConversationPageState extends State<AiConversationPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ChatQuickChips(onChipTap: _onChipTap),
-          if (image != null)
+          // 【2026-10-31 用户：预览条在最顶】待发图悬浮在快捷 chips 之上
+          // （整个输入区最顶），不是夹在 chips 和输入框中间。
+          if (hasImage)
             ImagePreviewStrip(
-              fileName: image.fileName,
-              thumbnail: Image.file(
+              images: _pendingImages,
+              onRemove: (index) => unawaited(_removePendingImage(index)),
+              // 【2026-10-31 用户：缩略图需要能点击放大】点缩略图开全屏查看。
+              onInspect: (image) => unawaited(_showImageFull(image)),
+              thumbnailBuilder: (image, index) => Image.file(
                 File(image.path),
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => _missingImage(),
               ),
-              onRemove: () => unawaited(_removePendingImage()),
-              onAdd: () => unawaited(_pickImage()),
             ),
-          // 有图时如实披露目的地（2026-10-16，S1）：图会真的发出去。
-          if (image != null) const ImageSendDisclosure(),
+          ChatQuickChips(onChipTap: _onChipTap),
           // 必须在监听回调里现读：写在外层 build 会把值「定住」，
           // 回复结束后发送键就再也换不回来（阶段 G 测试抓到的缺陷）。
           ListenableBuilder(
@@ -1487,8 +2264,10 @@ class _AiConversationPageState extends State<AiConversationPage> {
               controller: _textController,
               focusNode: _inputFocus,
               onSendText: (_) => unawaited(_sendCurrent()),
-              onPickImage: () => unawaited(_pickImage()),
+              onPickImage: () => unawaited(_onAddAttachment()),
               sending: _controller.isReplying,
+              // 图片副本还没就绪 ⇒ 发送键置灰（就绪后自动恢复）。
+              canSend: !_imagesPreparing,
               onStop: () => unawaited(_controller.cancel()),
               // `RV4-P2-05`：会话结束后占位改为「开始新对话…」（可见变化之一）。
               hintText: _sessionEnded ? '开始新对话…' : null,
@@ -1500,6 +2279,12 @@ class _AiConversationPageState extends State<AiConversationPage> {
     );
   }
 }
+
+/// 「+」三选弹层的选项（2026-10-31）。
+enum _AttachmentSource { camera, gallery, file }
+
+/// 文件预填进正文的字符上限（超出截断并如实标注）。
+const int _maxFileChars = 20000;
 
 /// 「AI 聊天建议」气泡（2026-10-23 用户）：一句用户口吻的短回复，点一下
 /// 直接发送。形态与快捷 chip 同级（描边胶囊），但内容是**这一轮回复**的
@@ -1526,7 +2311,12 @@ class _SuggestionBubble extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 14, color: c.primary),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 14,
+              // 2026-11-09 审查：白卡上 primary 只有 2.36:1，图标用文字档。
+              color: LfColors.mintText(Theme.of(context).brightness),
+            ),
             const SizedBox(width: LfDimens.spaceTiny),
             Flexible(
               child: Text(
@@ -1541,39 +2331,86 @@ class _SuggestionBubble extends StatelessWidget {
   }
 }
 
-/// 「让 AI 给出可应用的修改」词条（2026-10-16）。
+/// 兜底卡（2026-10-29，R-7：AI 声称改了数据却没给出可执行指令）。
 ///
-/// 形态与输入区快捷 chip 同级（描边胶囊 + 图标 + 文案），但语义不同：
-/// 它修的是**这一次回答**（再要一次信封），不是开新流程。
-class _RequestEnvelopeChip extends StatelessWidget {
-  const _RequestEnvelopeChip({super.key, required this.onTap});
+/// 【为什么是卡不是词条】词条（描边胶囊）太不显眼，用户的实测体感是「AI 总是
+/// 不给我应用卡片」。残留态必须**一眼看到 + 一键处理**：卡片里亮出模型原话
+/// （供核对它声称了什么）、「重新生成可应用指令」走既有的加强催链路
+/// （`requestEnvelope` → 拿到真信封 → 常规应用卡 → 用户核对后才写库），
+/// 「知道了」收卡（`dismissEnvelopeRetry`，防重启复活）。
+class _EnvelopeFallbackCard extends StatelessWidget {
+  const _EnvelopeFallbackCard({
+    super.key,
+    required this.replyText,
+    required this.onRetry,
+    required this.onDismiss,
+  });
 
-  final VoidCallback onTap;
+  final String replyText;
+  final VoidCallback onRetry;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(LfDimens.radiusFull),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(LfDimens.radiusFull),
-          border: Border.all(color: c.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.refresh, size: 14, color: c.primary),
-            const SizedBox(width: LfDimens.spaceTiny),
-            Text(
-              '让 AI 给出可应用的修改',
-              style: LfText.captionStrong.copyWith(color: c.foreground),
-            ),
-          ],
-        ),
+    return DesignCard(
+      padding: const EdgeInsets.all(LfDimens.spaceMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 18, color: c.warningText),
+              const SizedBox(width: LfDimens.spaceXSmall),
+              Expanded(
+                child: Text(
+                  // 2026-11-03：模型并不一定说过「改好了」（也可能只是反问
+                  // 要不要生成 / 引用了不存在的应用卡），标题改为中性描述，
+                  // 不再替它编一句它没说过的话。
+                  '这条回复没有可应用的操作',
+                  style: LfText.bodyStrong.copyWith(color: c.foreground),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: LfDimens.spaceXSmall),
+          Text(
+            '这段回复里没有可应用的指令（点「应用」才能真正记上）。'
+            'AI 的原话如下：',
+            style: LfText.caption.copyWith(color: c.mutedForeground),
+          ),
+          const SizedBox(height: LfDimens.spaceXSmall),
+          Text(
+            replyText.trim(),
+            key: const Key('envelope-fallback-reply'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: LfText.caption.copyWith(color: c.foreground),
+          ),
+          const SizedBox(height: LfDimens.spaceSmall),
+          // 【2026-11-09 审查修复】Row + spaceBetween 在窄屏/大字号下会把
+          // 「重新生成可应用指令」挤出卡外（自然宽约 384dp @2.0×）。
+          // OverflowBar 放不下时自动竖排。
+          OverflowBar(
+            alignment: MainAxisAlignment.end,
+            overflowAlignment: OverflowBarAlignment.end,
+            spacing: LfDimens.spaceSmall,
+            overflowSpacing: LfDimens.spaceXSmall,
+            children: [
+              LfTextButton(
+                key: const Key('envelope-fallback-dismiss'),
+                label: '知道了',
+                onPressed: onDismiss,
+              ),
+              LfConfirmButton(
+                key: const Key('envelope-fallback-retry'),
+                label: '重新生成可应用指令',
+                expand: false,
+                onPressed: onRetry,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

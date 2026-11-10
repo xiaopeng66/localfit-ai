@@ -45,6 +45,7 @@ class DashboardWeightCard extends StatefulWidget {
     required this.onRecord,
     required this.endLocalDate,
     this.onAdd,
+    this.onOpenRecords,
   });
 
   final WeightOverview overview;
@@ -63,11 +64,23 @@ class DashboardWeightCard extends StatefulWidget {
   /// 行为与旧版一致：都弹同一个记录弹层）。
   final VoidCallback? onAdd;
 
+  /// 卡头 ⋮（`weight-records-menu`）：看已有记录 / 删一条（A-2，docs/64）。
+  ///
+  /// 需求 32 去掉的是**整卡可点**（滑趋势会误触），不是「看记录」这件事；
+  /// 入口收在一枚 44dp 图标钮里，误触面最小。不给则不画。
+  final VoidCallback? onOpenRecords;
+
   @override
   State<DashboardWeightCard> createState() => _DashboardWeightCardState();
 }
 
 class _DashboardWeightCardState extends State<DashboardWeightCard> {
+  /// 卡头预算（纯算术，1.0×，dp）：标题「体重趋势」4 CJK @15px = 60；
+  /// 固定件（不随字号）= 周/月轨道 92（44×2 段 + 4 内衬）+ 间隙 8 +
+  /// ⋮ 44 + 间隙 4 + 添加 44 = 192。判据：`宽 ≥ 60×字号倍率 + 192`。
+  static const double _headerTitleNeed = 60;
+  static const double _headerFixedNeed = 192;
+
   WeightRange _range = WeightRange.week;
 
   /// 相对当前周期的偏移（0 = 本周 / 本月，1 = 上一周 / 上一月）。
@@ -145,19 +158,43 @@ class _DashboardWeightCardState extends State<DashboardWeightCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
+          // 卡头（2026-10-28 重设计）：单行放不下时**两行降级**——上行
+          // 「标题 + ⋮ + 添加」，周/月分段挪到下方独占一行（它与周期导航行
+          // 相邻，都是「看哪一段」的控件，分组仍合理）。
+          // 预算（纯算术，1.0×）：标题「体重趋势」4 CJK @15px = 60（随字号）；
+          // 固定件（不随字号）= 周/月轨道 92（44×2 段 + 4 内衬）+ 间隙 8 +
+          // ⋮ 44 + 间隙 4 + 添加 44 = 192。320dp 卡内 256：1.0× 单行
+          // （256 ≥ 252）；2.0× 单行需 60×2+192 = 312 > 256，降级
+          // （取帧复核：旧版卡头在 320dp × 2.0× 整行换行、按钮被挤）。
+          // 注意这里**不能**套 [fitsRow]：那套判据把整个预算乘字号倍率，
+          // 而本行只有标题缩放、其余是固定宽控件，按真实算式手判。
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final heading = Expanded(
                 child: Text(
                   title,
                   style: LfText.title.copyWith(color: c.cardForeground),
                 ),
-              ),
-              // A `.weight-tools`：先 mini-tabs，后「添加」图标钮。
+              );
+              final menuButton = widget.onOpenRecords == null
+                  ? null
+                  : LfIconButton(
+                      key: const Key('weight-records-menu'),
+                      icon: Icons.more_vert,
+                      semanticLabel: '查看体重记录',
+                      onPressed: widget.onOpenRecords,
+                    );
+              final addButton = LfIconButton(
+                key: const Key('dashboard-weight-add'),
+                icon: Icons.add,
+                semanticLabel: '添加体重',
+                onPressed: widget.onAdd ?? widget.onRecord,
+              );
+              // A `.weight-tools`：mini-tabs（周/月）。
               // 需求 39：统一轨道 + 内嵌滑块（形态照用户第二张图）。
               // Key 全保留（`dashboard-weight-range` 落在整组上、
               // `-week`/`-month` 落在各自那一段上），既有断言因此不必改写。
-              LfSegmentedToggle(
+              final rangeToggle = LfSegmentedToggle(
                 key: const Key('dashboard-weight-range'),
                 segments: const [
                   WeightRange.week,
@@ -173,17 +210,40 @@ class _DashboardWeightCardState extends State<DashboardWeightCard> {
                   _periodOffset = 0;
                 }),
                 semanticLabel: '体重图范围',
-              ),
-              const SizedBox(width: LfDimens.spaceSmall),
-              // 需求 44：纯图标（36dp 视觉圆 / 44dp 命中盒）。
-              // 语义标签仍是「添加体重」——读屏不因视觉精简而失语。
-              LfIconButton(
-                key: const Key('dashboard-weight-add'),
-                icon: Icons.add,
-                semanticLabel: '添加体重',
-                onPressed: widget.onAdd ?? widget.onRecord,
-              ),
-            ],
+              );
+              final fitsHeader =
+                  constraints.maxWidth >=
+                  _headerTitleNeed * bodyTextScale(context) + _headerFixedNeed;
+              if (fitsHeader) {
+                return Row(
+                  children: [
+                    heading,
+                    rangeToggle,
+                    const SizedBox(width: LfDimens.spaceSmall),
+                    if (menuButton != null) ...[
+                      menuButton,
+                      const SizedBox(width: LfDimens.spaceXSmall),
+                    ],
+                    addButton,
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      heading,
+                      ?menuButton,
+                      const SizedBox(width: LfDimens.spaceXSmall),
+                      addButton,
+                    ],
+                  ),
+                  const SizedBox(height: LfDimens.spaceXSmall),
+                  rangeToggle,
+                ],
+              );
+            },
           ),
           const SizedBox(height: LfDimens.spaceTiny),
           // A `.weight-caption`：左「值 26 + kg」；右「最近记录（+ 增减量）」
@@ -315,8 +375,9 @@ class _DashboardWeightCardState extends State<DashboardWeightCard> {
           // 里的上月记录会让 `ordered` 非空，但本月七格/五箱其实一个值都没有
           // ——那时画一张空图比说「本月还没有记录」更糟。
           if (points.every((p) => p.isEmpty))
-            _EmptyChart(
+            _EmptyWeightPrompt(
               onRecord: widget.onRecord,
+              latest: latest,
               title: switch ((_range, _periodOffset > 0)) {
                 (WeightRange.week, false) => '本周还没有记录',
                 (WeightRange.week, true) => '这一周还没有记录',
@@ -369,101 +430,100 @@ class _DashboardWeightCardState extends State<DashboardWeightCard> {
   }
 }
 
-/// 这一档视图里一条记录都没有时的诚实空态 + 记录入口。
+/// 这一档视图没有记录时的紧凑提示（不是一张空图）。
 ///
-/// 与柱图**同一套骨架**（左侧轴列 + 三条与刻度对齐的虚线），在其上内嵌一句
-/// 说明与紧凑记录钮 —— 整卡与有数据时的形态一致，不会「从图突然变成一句话」。
-/// 虚线位置沿用 [WeightBarChart] 的默认轴（0 / 50% / 100%），与柱图的网格
-/// 同一条口径。
-class _EmptyChart extends StatelessWidget {
-  const _EmptyChart({required this.onRecord, required this.title});
+/// 【2026-11-02 用户】旧空态是「图表同款空白网格 + 中间一句标题 + 记录按钮」：
+/// 实际渲染出来是一大块白底、一条孤零零的横向网格线，既不像有数据，也不像
+/// 正常空态。现在改成一块 muted 底的信息块：
+/// * 有历史记录时，同时给出「最近一次 X kg · 日期」——用户能看到自己的记录，
+///   而不是被一张空白图挡住；
+/// * 真的没有任何记录时，才写「记录第一条，开始看趋势」。
+/// 记录按钮仍是 B6 文字按钮，Key 全部沿用。
+class _EmptyWeightPrompt extends StatelessWidget {
+  const _EmptyWeightPrompt({
+    required this.onRecord,
+    required this.latest,
+    required this.title,
+  });
 
   final VoidCallback onRecord;
 
+  /// 最近一次记录（可能属于当前视图之外的周期）。null = 完全还没有记录。
+  final WeightMeasurement? latest;
+
   /// 空态标题：周视图/月视图各说各的（「本周还没有记录」/「本月还没有记录」）。
-  /// 月视图曾一律写「还没有体重记录」，但用户是在**本月**这一档里看不到柱
-  /// ——说清楚是哪一档没有，比一句笼统的「没有记录」有用。
   final String title;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    return SizedBox(
-      // 与柱图同高：上内边距 + 柱区 + 标签行（A `.weight-chart{height:150px}`）。
-      height:
-          LfDimens.weightChartTopPadding +
-          LfDimens.weightChartHeight +
-          LfDimens.weightChartLabelRowHeight,
-      child: Stack(
+    final brightness = Theme.of(context).brightness;
+    final last = latest;
+    return MutedBlock(
+      padding: const EdgeInsets.symmetric(
+        horizontal: LfDimens.spaceMedium,
+        vertical: LfDimens.spaceSmallPlus,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                left: LfDimens.weightChartAxisWidth + LfDimens.spaceXSmall,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: LfColors.brandSoft(brightness),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.monitor_weight_outlined,
+                  size: LfDimens.iconMd,
+                  color: LfColors.mintText(brightness),
+                ),
               ),
-              child: CustomPaint(painter: _EmptyGridPainter(grid: c.border)),
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 文案带卡片色衬底：网格虚线不该从字中间穿过（设计稿渲染
-                // 时看着脏，2026-10-09 v2 稿实测）。
-                DecoratedBox(
-                  decoration: BoxDecoration(color: c.card),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: LfDimens.spaceSmallPlus,
-                    ),
-                    child: Text(
+              const SizedBox(width: LfDimens.spaceSmallPlus),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       title,
                       key: const Key('dashboard-weight-empty'),
-                      textAlign: TextAlign.center,
+                      style: LfText.bodyStrong.copyWith(
+                        color: c.cardForeground,
+                      ),
+                    ),
+                    const SizedBox(height: LfDimens.spaceMicro),
+                    Text(
+                      last == null
+                          ? '记录第一条，开始看趋势。'
+                          : '最近一次 ${last.weightKg.toStringAsFixed(1)} kg'
+                                ' · ${_shortDate(last.localDate)}',
                       style: LfText.caption.copyWith(color: c.mutedForeground),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: LfDimens.spaceXSmall),
-                // 空态行动一律 B6 文字按钮（§3.8 硬规则）。原先是
-                // `FilledButton.tonal` 且没设颜色——走回落链 `secondaryContainer
-                // ?? secondary`，与实心主按钮同色的 mint-600，正是用户
-                // 2026-10-03 点名的那颗。
-                LfTextButton(
-                  key: const Key('dashboard-weight-record'),
-                  label: '记录第一条',
-                  onPressed: onRecord,
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: LfDimens.spaceSmall),
+          LfTextButton(
+            key: const Key('dashboard-weight-record'),
+            label: '记录第一条',
+            onPressed: onRecord,
           ),
         ],
       ),
     );
   }
-}
 
-/// 空态网格：与 [WeightBarChart] 同款三条水平虚线（0 / 50% / 100%）。
-class _EmptyGridPainter extends CustomPainter {
-  const _EmptyGridPainter({required this.grid});
-
-  final Color grid;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = grid
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    for (final t in const [0.0, 0.5, 1.0]) {
-      final y = t == 0 ? 0.5 : (t == 1.0 ? size.height - 0.5 : size.height * t);
-      final path = Path()
-        ..moveTo(0, y)
-        ..lineTo(size.width, y);
-      canvas.drawPath(path, paint);
-    }
+  static String _shortDate(String localDate) {
+    final parts = localDate.split('-');
+    if (parts.length != 3) return localDate;
+    return '${int.tryParse(parts[1]) ?? parts[1]}/'
+        '${int.tryParse(parts[2]) ?? parts[2]}';
   }
-
-  @override
-  bool shouldRepaint(_EmptyGridPainter oldDelegate) => oldDelegate.grid != grid;
 }

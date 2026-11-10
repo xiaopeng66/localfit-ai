@@ -196,7 +196,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(
-      find.byKey(const Key('meal-entry-chooser')),
+      // 【N-2】chooser 退役：记一餐直接开统一记录弹层。
+      find.byKey(const Key('meal-food-search')),
       findsOneWidget,
       reason: '复用 B3 的 launcher（不新增第三条记录路径）',
     );

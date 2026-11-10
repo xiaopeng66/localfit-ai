@@ -58,6 +58,7 @@ void main() {
     void Function()? onOpenRecord,
     void Function(MealSlot? slot)? onLogMeal,
     bool wholePage = false,
+    DateTime? clock,
   }) async {
     // `wholePage`：把视口拉高到能一次装下整页——`ListView` 只为可见区域
     // 建 element，靠下的卡片（下一餐/餐次/AI 入口）不这样就在树里找不到。
@@ -78,7 +79,8 @@ void main() {
           onOpenAiWorkbench: () {},
           onOpenRecord: onOpenRecord ?? () {},
           onLogMeal: onLogMeal ?? (_) {},
-          now: now,
+          // `clock` 只用于下一餐卡的时刻口径（默认 = 本文件的 now，09:00）。
+          now: clock ?? now,
         ),
       ),
     );
@@ -236,10 +238,16 @@ void main() {
         const Size(120, 120),
       );
 
-      // foot：目标 + 还可摄入。
-      // A：`.energy-foot` 左格 `'目标 '+format(goal)+' kcal'`，`format()`
-      // 是 `toLocaleString` ⇒ 四位数起千分位。
-      expect(find.text('目标 1,800 kcal'), findsOneWidget);
+      // 【2026-10-25（需求 1）】目标移到**卡头大号区间行**（原来在 foot 左格
+      // 写单值 `目标 1,800 kcal`）：`1,500 – 1,800`（区间写法）。
+      // 【2026-10-28】foot 左格说明撤下（用户：换行难看），今日页不接编辑
+      // 入口 ⇒ foot 只剩「还可摄入」一句，恒单行。
+      expect(find.text('1,500 – 1,800'), findsOneWidget);
+      expect(
+        find.textContaining('Mifflin–St Jeor'),
+        findsNothing,
+        reason: '公式说明已撤下（2026-10-28 用户），依据由 docs/60 §9 承担',
+      );
       expect(find.textContaining('还可摄入'), findsOneWidget);
     });
 
@@ -318,7 +326,8 @@ void main() {
         5,
         reason: 'A 卡内轨道 `.data-track{height:5px}`（宽度随列宽）',
       );
-      expect(find.textContaining('/ 60 g'), findsOneWidget);
+      // 【2026-10-25（需求 1）】三宏量右端改成**区间**（50–60 g）。
+      expect(find.textContaining('/ 50–60 g'), findsOneWidget);
     });
   });
 
@@ -425,7 +434,10 @@ void main() {
   });
 
   group('2A 下一餐预算卡（A `.next-meal`）', () {
-    dashboardTest('剩余额度 + 笔数 + 目标 + 「记录晚餐」', (tester) async {
+    /// 2026-10-31 用户两条改动后的口径：
+    /// 1. 下一餐按时刻动态（9:00 → 午餐，本文件的 `now`）；
+    /// 2. 「N 笔已记」「目标 N」两行退役，空态「记一餐」也退役。
+    dashboardTest('剩余额度 + 动态餐次 + 「记录午餐」（旧统计行已删）', (tester) async {
       await seedProfile();
       await seedMeal(kcal: 800, slot: MealSlot.lunch);
       await seedMeal(kcal: 300, slot: MealSlot.breakfast);
@@ -436,7 +448,7 @@ void main() {
         onLogMeal: (slot) => requested = slot,
       );
 
-      expect(find.text('下一餐，留给晚餐'), findsOneWidget);
+      expect(find.text('下一餐 · 午餐'), findsOneWidget);
       expect(
         tester
             .widget<Text>(
@@ -446,29 +458,41 @@ void main() {
             .toPlainText(),
         contains('700'),
       );
-      expect(find.textContaining('2 笔已记'), findsOneWidget);
-      expect(find.text('目标 1,800'), findsOneWidget);
-      // 键锚点（docs/21 §5）：卡片五处都要能被机械找到。
+      // 键锚点（docs/21 §5）：卡上保留的三处都要能被机械找到。
       expect(find.byKey(const Key('dashboard-next-meal-chip')), findsOneWidget);
       expect(find.byKey(const Key('dashboard-next-meal-note')), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('dashboard-next-meal-count')),
-          matching: find.text('2 笔已记'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('dashboard-next-meal-goal')),
-          matching: find.text('目标 1,800'),
-        ),
-        findsOneWidget,
-      );
+      // 用户原话：「删除下方 N 笔已记和目标 N」——两行连 Key 一起退役。
+      expect(find.textContaining('笔已记'), findsNothing);
+      expect(find.byKey(const Key('dashboard-next-meal-count')), findsNothing);
+      expect(find.byKey(const Key('dashboard-next-meal-goal')), findsNothing);
+      expect(find.text('目标 1,800'), findsNothing);
 
-      await tester.tap(find.byKey(const Key('cta-log-dinner')));
-      expect(requested, MealSlot.dinner, reason: 'A `data-slot="晚餐"`');
+      await tester.tap(find.byKey(const Key('cta-log-next-meal')));
+      expect(requested, MealSlot.lunch, reason: '09:00 属于午餐时段');
     });
+
+    /// 四个时段各自的标题与预选餐次。这是本卡**唯一**的时段真相——
+    /// 边界本身（08:59/09:00/13:59/14:00/19:59/20:00/23:59）由纯函数用例
+    /// `next_meal_slot_test.dart` 穷举，这里验证接线（标题、图标、按钮）。
+    for (final (hour, slot, title) in [
+      (7, MealSlot.breakfast, '下一餐 · 早餐'),
+      (11, MealSlot.lunch, '下一餐 · 午餐'),
+      (18, MealSlot.dinner, '下一餐 · 晚餐'),
+      (21, MealSlot.snack, '下一餐 · 加餐'),
+    ]) {
+      dashboardTest('$hour 点：$title，按钮预选${slot.label}', (tester) async {
+        MealSlot? requested;
+        await pump(
+          tester,
+          wholePage: true,
+          clock: DateTime(2026, 10, 13, hour),
+          onLogMeal: (slot) => requested = slot,
+        );
+        expect(find.text(title), findsOneWidget);
+        await tester.tap(find.byKey(const Key('cta-log-next-meal')));
+        expect(requested, slot);
+      });
+    }
 
     dashboardTest('未设目标：不编剩余额度', (tester) async {
       await pump(tester, wholePage: true);
@@ -504,7 +528,7 @@ void main() {
             body: DashboardNextMealCard(
               consumedKcal: 1025,
               targetKcal: 2300,
-              mealCount: 4,
+              slot: MealSlot.dinner,
             ),
           ),
         ),

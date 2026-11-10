@@ -20,6 +20,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Build
+import androidx.core.content.FileProvider
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
@@ -27,11 +28,27 @@ import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 
 class MainActivity : FlutterActivity() {
 
     private val channelName = "localfit/steps"
     private val scaleChannelName = "localfit/scale"
+
+    /**
+     * 平台能力（需求 17e，2026-10-25）：**开外链**与**设备标识**。
+     *
+     * 【为什么不引 url_launcher】那是新第三方依赖，与「不新增依赖」的约束
+     * 冲突。开浏览器本来就是三行 Intent，自己挂一条通道即可（与 steps /
+     * scale 同一种做法）。
+     *
+     * `openUrl` 只在 http/https 上生效：其它 scheme（file:// / intent://）
+     * 一律拒绝——这条路是**给用户看帮助与反馈**的，不是通用跳转口。
+     *
+     * `deviceInfo` 给反馈用：机型 + Android 版本（用户报问题时最需要的两件
+     * 事实）。**不读任何标识符**（没有 IMEI / ANDROID_ID / 序列号）。
+     */
+    private val platformChannelName = "localfit/platform"
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -112,6 +129,119 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, platformChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "openUrl" -> openExternalUrl(call.argument<String>("url"), result)
+                    "deviceInfo" -> result.success(deviceInfo())
+                    "installApk" -> installApk(call.argument<String>("path"), result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** 用系统浏览器打开 http/https 链接（需求 17e）。 */
+    private fun openExternalUrl(url: String?, result: MethodChannel.Result) {
+        if (url.isNullOrBlank() || !(url.startsWith("https://") || url.startsWith("http://"))) {
+            result.success(false)
+            return
+        }
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            result.success(true)
+        } catch (_: Exception) {
+            // 没有浏览器 / 系统拒绝：如实回 false，由 Dart 侧改走「复制链接」。
+            result.success(false)
+        }
+    }
+
+    /**
+     * 反馈用的设备事实（机型 / Android 版本 / 本包 versionCode / ABI）；
+     * **不含任何标识符**。
+     *
+     * `versionCode` 与 `abi` 是**在线更新**（需求 17b）的判据：更新要比
+     * 「本包与新版包谁更新」，而 versionCode 是**每个 ABI 一个号**
+     * （arm32 +1000 / arm64 +2000 / x86_64 +4000，见 docs/09 §D.1）——
+     * 直接从系统读本包的号最准，不靠构建期注入的字符串。
+     */
+    private fun deviceInfo(): Map<String, Any?> {
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+        val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: ""
+        return mapOf(
+            "model" to "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
+            "androidVersion" to Build.VERSION.RELEASE,
+            "sdkInt" to Build.VERSION.SDK_INT,
+            "versionCode" to versionCode,
+            "abi" to abi,
+        )
+    }
+
+    /**
+     * 把下载好的 APK 交给系统安装器（需求 17b）。
+     *
+     * 三条如实结局（Dart 侧据此说人话）：
+     * * `started`：安装器起来了（用户在系统界面上确认安装）；
+     * * `needPermission`：本应用还没被允许「安装未知应用」⇒ 先跳那个系统页；
+     * * `failed`：其余失败（文件不在、没有安装器、系统拒绝）。
+     *
+     * **必须走 FileProvider**：Android 7.0+ 直接给 `file://` URI 会抛
+     * `FileUriExposedException`（真实崩溃，不是警告）。
+     */
+    private fun installApk(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) {
+            result.success("failed")
+            return
+        }
+        val file = File(path)
+        if (!file.exists()) {
+            result.success("failed")
+            return
+        }
+        // API 26+ 的「安装未知应用」是**按应用**授权的；没授权时先把这个应用
+        // 的设置页推给用户，别让 startActivity 抛一个看不懂的异常。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            try {
+                startActivity(
+                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:$packageName")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                )
+            } catch (_: Exception) {
+                // 连设置页都打不开：如实回 failed，由页面说清。
+                result.success("failed")
+                return
+            }
+            result.success("needPermission")
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(
+                this,
+                "$packageName.fileprovider",
+                file,
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+            result.success("started")
+        } catch (_: Exception) {
+            result.success("failed")
+        }
     }
 
     override fun onDestroy() {

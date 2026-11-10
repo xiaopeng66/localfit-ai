@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/time/app_clock.dart';
+import 'package:localfit_ai/data/database/legacy_nutrition_converter.dart';
 import 'package:localfit_ai/data/database/tables.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -59,6 +62,8 @@ part 'app_database.g.dart';
     // schema 28（docs/41 §11）：派生向量索引 + 通用后台任务队列。
     EmbeddingIndex,
     BackgroundJobs,
+    // schema 31（docs/67）：旧实体 → 统一主库的迁移台账。
+    LegacyEntityMappings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -93,7 +98,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -739,6 +744,123 @@ class AppDatabase extends _$AppDatabase {
               await customStatement('ALTER TABLE foods DROP COLUMN $column');
             }
           }
+        }
+      }
+      if (from < 31) {
+        // 2026-11-09 docs/67（用户授权 P0–P5）：**统一每 100g 营养主库 +
+        // 食堂供应引用**。纯加法：主食物生效修订指针/变体/做法说明/归档、
+        // 修订口径与来源证据列、供应主引用与份量可信度、餐条目快照来源列、
+        // 旧实体迁移台账表。
+        //
+        // 全部按列/表存在性守卫：从中间版本升上来的库、以及裁剪过表的迁移
+        // 夹具都能走。
+        await _addColumnIfMissing(migrator, foods, foods.currentRevisionId);
+        await _addColumnIfMissing(migrator, foods, foods.variantOfFoodId);
+        await _addColumnIfMissing(migrator, foods, foods.cookingNote);
+        await _addColumnIfMissing(migrator, foods, foods.archivedAt);
+
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.nutritionBasis,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.basisServingGrams,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.basisAssumed,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.origin,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.isEstimated,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.fiberPer100g,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.sodiumMgPer100g,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.vitaminDMcgPer100g,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.rawValuesJson,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          foodNutritionRevisions,
+          foodNutritionRevisions.conversionVersion,
+        );
+
+        await _addColumnIfMissing(migrator, menuItems, menuItems.foodId);
+        await _addColumnIfMissing(
+          migrator,
+          menuItems,
+          menuItems.servingGramsStatus,
+        );
+        await _addColumnIfMissing(
+          migrator,
+          menuItems,
+          menuItems.servingGramsSource,
+        );
+
+        await _addColumnIfMissing(migrator, mealItems, mealItems.supplyId);
+        await _addColumnIfMissing(
+          migrator,
+          mealItems,
+          mealItems.nutritionRevisionId,
+        );
+        await _addColumnIfMissing(migrator, mealItems, mealItems.servings);
+        await _addColumnIfMissing(migrator, mealItems, mealItems.servingGrams);
+
+        if (!await _tableExists('legacy_entity_mappings')) {
+          await migrator.createTable(legacyEntityMappings);
+        }
+
+        // 份量可信度回填：历史 `serving_grams` 里的数字没有称重依据，
+        // 一律标 estimated / legacy_unverified；NULL 是 unknown。
+        // **这不改变任何数值**，只让界面和推荐能区分"知道份量"和"猜的"。
+        if (await _tableExists('menu_items')) {
+          await customStatement(
+            "UPDATE menu_items SET serving_grams_status = 'estimated', "
+            "serving_grams_source = 'legacy_unverified' "
+            "WHERE serving_grams IS NOT NULL AND serving_grams > 0",
+          );
+          await customStatement(
+            "UPDATE menu_items SET serving_grams_status = 'unknown', "
+            "serving_grams_source = 'legacy_unknown' "
+            'WHERE serving_grams IS NULL OR serving_grams <= 0',
+          );
+        }
+
+        // 统一主库归一：与旧 `.lfb` 恢复走**同一份**规则实现
+        // （`LegacyNutritionConverter`）。表不全的裁剪夹具跳过。
+        if (await _tableExists('foods') &&
+            await _tableExists('food_nutrition_revisions') &&
+            await _tableExists('legacy_entity_mappings')) {
+          await LegacyNutritionConverter(
+            database: this,
+            idGenerator: const UuidV7Generator(),
+            clock: const SystemAppClock(),
+          ).run();
         }
       }
     },

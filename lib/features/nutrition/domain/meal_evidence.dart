@@ -1,5 +1,3 @@
-import 'package:flutter/widgets.dart' show Key;
-
 import 'package:localfit_ai/app/design/widgets/lf_evidence_badge.dart';
 
 /// 餐食来源 → 证据徽标文案（docs/21 §3.3 / §7.3「证据分级必须贯穿」）。
@@ -33,22 +31,4 @@ String evidenceLabelForSource(String source) =>
       LfEvidenceGrade.confirmed => '已确认',
       LfEvidenceGrade.estimated => 'AI 估算',
       LfEvidenceGrade.incomplete => '待补全',
-    };
-
-/// 直接产出徽标。[LfEvidenceBadge] 的三个构造器是命名的，调用点各自写
-/// switch 会把这个映射抄成三份、日后漏改一处。
-LfEvidenceBadge evidenceBadgeForSource(String source, {Key? key}) =>
-    switch (evidenceGradeForSource(source)) {
-      LfEvidenceGrade.confirmed => LfEvidenceBadge.confirmed(
-        key: key,
-        text: evidenceLabelForSource(source),
-      ),
-      LfEvidenceGrade.estimated => LfEvidenceBadge.estimated(
-        key: key,
-        text: evidenceLabelForSource(source),
-      ),
-      LfEvidenceGrade.incomplete => LfEvidenceBadge.incomplete(
-        key: key,
-        text: evidenceLabelForSource(source),
-      ),
     };

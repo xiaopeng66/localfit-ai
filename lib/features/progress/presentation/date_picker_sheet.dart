@@ -179,7 +179,9 @@ class _DatePickerSheetState extends State<DatePickerSheet> {
               width: 36,
               height: 36,
               child: Material(
-                color: isSelected ? c.primary : Colors.transparent,
+                color: isSelected
+                    ? LfColors.brandStrong(Theme.of(context).brightness)
+                    : Colors.transparent,
                 shape: const CircleBorder(),
                 child: InkWell(
                   key: Key('date-picker-day-$iso'),
@@ -192,7 +194,9 @@ class _DatePickerSheetState extends State<DatePickerSheet> {
                       '$dayNumber',
                       style: LfText.body.copyWith(
                         color: isSelected
-                            ? c.primaryForeground
+                            ? LfColors.onBrandStrong(
+                                Theme.of(context).brightness,
+                              )
                             : selectable
                             ? c.cardForeground
                             : c.mutedForeground.withValues(alpha: 0.5),

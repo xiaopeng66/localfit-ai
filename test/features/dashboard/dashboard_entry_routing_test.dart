@@ -67,7 +67,8 @@ void main() {
   }
 
   // 【语义变更，不是删断言换绿】`RV4-P1-04`（docs/56 R2）改的就是这个行为：
-  // 主页「记录晚餐」不再把用户带到饮食页，而是**在本页开抽屉**。
+  // 主页下一餐卡的记录按钮（`cta-log-next-meal`，餐次随时刻）不再把用户
+  // 带到饮食页，而是**在本页开抽屉**。
   //
   // 原断言对象（「落到饮食页记录 Tab 且点亮它」）**不存在了**——那不是缺陷
   // 修掉了，而是产品行为被裁决改掉（docs/56 §4 D9 之后的 R2：「退出也回不去
@@ -78,10 +79,11 @@ void main() {
   // 本文件保留其余路由断言（AI 卡、菜单入口等）。
   testWidgets('今日页记录入口 → 本页开抽屉（不再跳饮食页，RV4-P1-04）', (tester) async {
     await pumpDashboard(tester);
-    await tapCta(tester, 'cta-log-dinner');
+    await tapCta(tester, 'cta-log-next-meal');
 
     // 抽屉起来了。
-    expect(find.byKey(const Key('meal-entry-chooser')), findsOneWidget);
+    // 【N-2】chooser 退役：统一记录弹层直接开（搜索框在场即证）。
+    expect(find.byKey(const Key('meal-food-search')), findsOneWidget);
     // 底栏没被点亮 = 没跳页。两个 tab 都在树上（shell 常驻）。
     for (final key in ['nutrition-tab-record', 'nutrition-tab-menu']) {
       final finder = find.byKey(Key(key));

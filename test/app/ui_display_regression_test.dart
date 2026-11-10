@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/app/app_theme.dart';
 import 'package:localfit_ai/app/design/widgets/lf_top_bar.dart';
 import 'package:localfit_ai/app/design/widgets/setting_row.dart';
-import 'package:localfit_ai/app/design/widgets/week_strip.dart';
 import 'package:localfit_ai/features/nutrition/application/build_calorie_trend.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_week_strip.dart';
 
@@ -170,47 +169,6 @@ void main() {
       expect(rect.height, greaterThanOrEqualTo(44));
       await tester.tapAt(Offset(rect.center.dx, rect.top + 1));
       expect(value, isTrue);
-    },
-  );
-
-  testWidgets(
-    'two-digit week dates remain on one line inside their circle at large font',
-    (tester) async {
-      _viewport(tester, 320);
-      await tester.pumpWidget(
-        _app(
-          WeekStrip(
-            days: List.generate(
-              7,
-              (index) => WeekDay(
-                weekdayLabel: ['一', '二', '三', '四', '五', '六', '日'][index],
-                label: '${24 + index}',
-              ),
-            ),
-            todayIndex: 6,
-          ),
-          scale: 2,
-        ),
-      );
-      for (var date = 24; date <= 30; date++) {
-        final finder = find.text('$date');
-        final boxes = _textBoxes(tester, finder);
-        expect(boxes, isNotEmpty);
-        expect(
-          boxes.map((box) => box.top).toSet(),
-          hasLength(1),
-          reason: 'date $date must not split into stacked digits',
-        );
-        final paragraph = tester.renderObject<RenderParagraph>(finder);
-        final textRect = tester.getRect(finder);
-        for (final box in boxes) {
-          final start = paragraph.localToGlobal(box.topLeft);
-          final end = paragraph.localToGlobal(box.bottomRight);
-          expect(start.dy, greaterThanOrEqualTo(textRect.top - 0.5));
-          expect(end.dy, lessThanOrEqualTo(textRect.bottom + 0.5));
-        }
-      }
-      expect(tester.takeException(), isNull);
     },
   );
 

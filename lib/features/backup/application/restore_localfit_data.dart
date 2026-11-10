@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
+import 'package:localfit_ai/data/database/legacy_nutrition_converter.dart';
 import 'package:localfit_ai/features/backup/application/backup_table_registry.dart';
 import 'package:localfit_ai/features/backup/application/clear_all_local_data.dart';
 import 'package:localfit_ai/features/retrieval/application/index_coordinator.dart';
@@ -10,14 +13,32 @@ import 'package:localfit_ai/features/retrieval/application/index_coordinator.dar
 /// JSON backup. The whole restore runs inside one transaction: any validation
 /// or write failure leaves the existing data untouched.
 final class RestoreLocalFitData {
-  RestoreLocalFitData(this.database, {IndexCoordinator? indexCoordinator})
-    : clearAll = ClearAllLocalData(database),
-      _index = indexCoordinator ?? IndexCoordinator(database: database);
+  RestoreLocalFitData(
+    this.database, {
+    IndexCoordinator? indexCoordinator,
+    IdGenerator idGenerator = const UuidV7Generator(),
+    AppClock clock = const SystemAppClock(),
+    this.runLegacyConversion = true,
+  }) : clearAll = ClearAllLocalData(database),
+       _index = indexCoordinator ?? IndexCoordinator(database: database),
+       _converter = LegacyNutritionConverter(
+         database: database,
+         idGenerator: idGenerator,
+         clock: clock,
+       );
 
   static const supportedVersion = 1;
 
   final AppDatabase database;
   final IndexCoordinator _index;
+  final LegacyNutritionConverter _converter;
+
+  /// 旧 `.lfb` 恢复与数据库升级共用同一份归一规则（docs/67 §7.4）。
+  /// 两者只在"原始行适配"上不同；转换、台账、幂等和事务边界完全一样。
+  final bool runLegacyConversion;
+
+  /// 恢复时跑过一次归一的报告（新包已带台账时为空跑）。
+  LegacyConversionReport? lastConversionReport;
 
   Future<void> restore(Uint8List backupJson) async {
     final document = _parse(backupJson);
@@ -29,6 +50,11 @@ final class RestoreLocalFitData {
     await database.transaction(() async {
       await clearAll.clearDatabaseRowsOnly();
       await _insertAll(tables);
+      if (runLegacyConversion) {
+        // 与新库升级**同一份**规则实现：旧包里的 dish_library / 未链接供应
+        // 在这里归一进主库；新包已经带台账时按幂等直接返回。
+        lastConversionReport = await _converter.run();
+      }
     });
     // G14（docs/41 D7）：**向量不进备份**，恢复后派生索引必须重建——
     // 旧向量属于旧库的文本（`textHash` 对不上），留着就是错的。

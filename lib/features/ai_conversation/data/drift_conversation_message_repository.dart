@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:localfit_ai/data/database/app_database.dart' as db;
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_registry.dart';
+import 'package:localfit_ai/features/ai_conversation/data/meal_item_labels.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message_repository.dart';
@@ -40,7 +41,7 @@ final class DriftConversationMessageRepository
       ])
       ..limit(limit);
     final rows = await query.get();
-    return [for (final row in rows.reversed) _map(row)];
+    return [for (final row in rows.reversed) await _map(row)];
   }
 
   @override
@@ -94,12 +95,33 @@ final class DriftConversationMessageRepository
     return encodeChatEditTurn(turn);
   }
 
-  ConversationMessage _map(db.ConversationMessage row) {
+  Future<ConversationMessage> _map(db.ConversationMessage row) async {
     // 编辑卡只可能是助手消息：用户消息里就算贴了形似信封的 JSON 也按
     // 纯文本处理，绝不被当成编辑卡（防伪造 + 防误解）。
     if (row.role == 'assistant' && row.imagePath == null) {
-      final turn = parseChatEditTurn(row.textContent, _editRegistry);
-      if (turn != null) {
+      final parsedTurn = parseChatEditTurn(row.textContent, _editRegistry);
+      if (parsedTurn != null) {
+        var turn = parsedTurn;
+        // 重启后卡片也要说人话：`[food:id]` → 食物名（只读查询）。
+        // 查询失败就保持原样，绝不因为展示名让消息读不出来。
+        try {
+          final labels = await MealItemLabels.resolve(database, [
+            for (final row in turn.rows)
+              if (row.command?.args['items'] case final List items) ...items,
+          ]);
+          if (labels.isNotEmpty) {
+            turn = ChatEditTurn(
+              reply: turn.reply,
+              suggestions: turn.suggestions,
+              warnings: turn.warnings,
+              rows: [
+                for (final row in turn.rows) row.copyWith(itemLabels: labels),
+              ],
+            );
+          }
+        } on Object {
+          // 见上。
+        }
         return ConversationMessage(
           id: row.id,
           role: ConversationRole.assistant,

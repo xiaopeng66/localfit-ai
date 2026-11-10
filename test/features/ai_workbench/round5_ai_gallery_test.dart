@@ -141,19 +141,9 @@ void main() {
     // `daily_plan` 整族退役（docs/58 D1）已不存在，那句话在给用户承诺一个
     // 没有的功能（用户实测：「明明那个描述说加入计划，计划这个功能已经删除了」）。
     // 改为如实描述**现在的真实行为**：产出一张可应用的编辑卡。
-    expect(
-      byId['daily-menu-plan'],
-      '用本地菜单候选和目标先算一遍，再让 AI 只在这些候选里选；'
-      '结果是一张可应用的卡片——点「应用」才记进当天餐记录。',
-    );
-    expect(
-      byId['dish-guidance'],
-      '只解释怎么吃：份量、搭配与可替换方向；营养由本地目录计算，AI 不提供营养数字，也不写入任何记录。',
-    );
-    expect(
-      byId['meal-pairing'],
-      '你点名的本地食材 → AI 只在这些食材里组织搭配 → 本地重算营养（只读建议）。不上传餐食历史。',
-    );
+    expect(byId['daily-menu-plan'], '只从本地候选中选，应用后才记入当天。');
+    expect(byId['dish-guidance'], '只给份量与搭配建议，不提供营养数字。');
+    expect(byId['meal-pairing'], '只用你点名的本地食材，本地重算营养。');
     // 兜底判据：描述不许停在子句分隔符上——那正是被截断的痕迹。
     for (final starter in aiStarters) {
       expect(

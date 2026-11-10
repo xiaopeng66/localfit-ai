@@ -6,6 +6,7 @@ import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_dependency.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_proposal_audit.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_repair.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
@@ -33,6 +34,7 @@ class ChatEditCard extends StatelessWidget {
     required this.onDismiss,
     required this.onApplySuggestion,
     required this.onRepair,
+    this.onRepairAtRow,
   });
 
   /// 消息在列表里的下标（Key 命名沿用本页 `btn-*-<index>` 惯例）。
@@ -52,6 +54,10 @@ class ChatEditCard extends StatelessWidget {
   /// （页面按 kind 开对应弹层并预填名称）。表单里的其余字段仍由用户填，
   /// App 不替用户编数据。
   final ValueChanged<ChatEditRepair> onRepair;
+
+  /// 带行下标的修复回调（同名多行时用它定位**用户点的那一行**）。
+  /// null = 退回 [onRepair]（既有测试/嵌入点不受影响）。
+  final void Function(int rowIndex, ChatEditRepair repair)? onRepairAtRow;
 
   /// 计划草案行渲染成共享计划卡的动作名（docs/23 §2 注册表里的那一条）。
   static const String workoutPlanCreateAction = 'workout.plan.create';
@@ -81,69 +87,173 @@ class ChatEditCard extends StatelessWidget {
           // 过去找不到「这次到底要改什么」。分块是 B 的核心。
           for (final group in _groups) ...[
             const SizedBox(height: LfDimens.spaceSmall),
-            _GroupHeader(
-              group: group,
-              cardIndex: index,
-              busy: _busy,
-              onApplyRows: onApplyRows,
-            ),
-            const SizedBox(height: LfDimens.spaceXSmall),
+            // 【2026-11-07 去挤】整卡只有一条命令时不画组头：卡头已经写着
+            // 「1 条修改」和摘要，组头再重复一遍「记一笔饮水 1 条」纯属噪音。
+            // 多组（记餐+新建食材+记忆…）时组头是**必需的**归类线索，保留。
+            if (_turn.rows.length > 1) ...[
+              _GroupHeader(
+                group: group,
+                cardIndex: index,
+                busy: _busy,
+                showGroupApply: _groups.length > 1,
+                onApplyRows: onApplyRows,
+              ),
+              const SizedBox(height: LfDimens.spaceXSmall),
+            ],
             MutedBlock(
               key: Key('chat-edit-block-$index-${group.kind.name}'),
               padding: const EdgeInsets.symmetric(
                 horizontal: LfDimens.spaceMedium,
                 vertical: LfDimens.spaceSmall,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 设计稿 B 的行是**一个食物**（米饭 150g / 鸡胸肉 150g /
-                  // 牛奶 200ml 三行），不是一条命令。所以这里把一条命令
-                  // **展开成它的子条目**；非记餐命令仍是一行。
-                  //
-                  // 用户裁决：按钮只在组级——执行器按命令粒度，行内给
-                  // 「应用」会让三行都实现同一个动作，误导用户。
-                  for (var i = 0; i < group.items.length; i++)
-                    for (
-                      var j = 0;
-                      j < _subItemsOf(group.items[i]).length;
-                      j++
-                    ) ...[
-                      if (i > 0 || j > 0)
-                        // 设计稿 `divide-y`：极淡分隔线。
+              child: Builder(
+                builder: (blockContext) {
+                  // 每条命令的结果说明怎么挂（2026-11-07 用户：别堆在卡片末尾，要
+                  // 看不出哪句对应哪个）：
+                  // * 执行器给了**按食物**的说明（`itemNotes`）→ 按子条目标题对位，
+                  //   各挂各的食物行下面；
+                  // * 没给按食物说明、但这条命令只渲染成**一行**（记饮水/记体重/
+                  //   新建食材…）→ 结果整句挂那一行下面；
+                  // * 多食物且没有按食物说明（如记餐失败点名缺食材）→ 留在组尾兜底。
+                  final rowNotes = <Key, ({String text, bool failed})>{};
+                  final leftovers = <({String text, bool failed})>[];
+                  for (final item in group.items) {
+                    final hasResult =
+                        (item.status == ChatEditRowStatus.applied ||
+                            item.status == ChatEditRowStatus.failed) &&
+                        (item.resultMessage ?? '').trim().isNotEmpty;
+                    if (!hasResult && item.itemNotes.isEmpty) continue;
+                    final failed = item.status == ChatEditRowStatus.failed;
+                    final subs = _subItemsOf(_turn, item);
+                    if (item.itemNotes.isNotEmpty) {
+                      for (final entry in item.itemNotes.entries) {
+                        final idx = subs.indexWhere(
+                          (s) => s.title == entry.key,
+                        );
+                        if (idx >= 0) {
+                          rowNotes[Key(
+                            'chat-edit-row-result-$index-${item.index}-$idx',
+                          )] = (
+                            text: entry.value,
+                            failed: failed,
+                          );
+                        } else {
+                          leftovers.add((text: entry.value, failed: failed));
+                        }
+                      }
+                    } else if (hasResult && subs.length == 1) {
+                      rowNotes[Key(
+                        'chat-edit-row-result-$index-${item.index}-0',
+                      )] = (
+                        text: item.resultMessage!.trim(),
+                        failed: failed,
+                      );
+                    } else if (hasResult) {
+                      leftovers.add((
+                        text: item.resultMessage!.trim(),
+                        failed: failed,
+                      ));
+                    }
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 设计稿 B 的行是**一个食物**（米饭 150g / 鸡胸肉 150g /
+                      // 牛奶 200ml 三行），不是一条命令。所以这里把一条命令
+                      // **展开成它的子条目**；非记餐命令仍是一行。
+                      //
+                      // 用户裁决：按钮只在组级——执行器按命令粒度，行内给
+                      // 「应用」会让三行都实现同一个动作，误导用户。
+                      for (var i = 0; i < group.items.length; i++)
+                        for (
+                          var j = 0;
+                          j < _subItemsOf(_turn, group.items[i]).length;
+                          j++
+                        ) ...[
+                          if (i > 0 || j > 0)
+                            // 设计稿 `divide-y`：极淡分隔线。
+                            Divider(
+                              height: LfDimens.spaceMedium,
+                              thickness: 1,
+                              color: c.border.withValues(alpha: 0.5),
+                            ),
+                          // 每个子条目都要有自己的 Key（设计稿：一食物一行）。
+                          // 旧的行级 Key 另用 `KeyedSubtree` 挂在**主**子条目上，
+                          // 既有测试与页面定位不受影响。
+                          KeyedSubtree(
+                            key: j == 0
+                                ? Key(
+                                    'chat-edit-row-$index-'
+                                    '${group.items[i].index}',
+                                  )
+                                : null,
+                            child: _EditRow(
+                              key: Key(
+                                'chat-edit-subitem-$index-${group.items[i].index}-$j',
+                              ),
+                              item: group.items[i],
+                              cardIndex: index,
+                              subIndex: j,
+                              subItem: _subItemsOf(_turn, group.items[i])[j],
+                              ordinal: _globalOrdinal(_turn, group, i, j),
+
+                              repairKey: Key(
+                                'chat-edit-repair-$index-${group.items[i].index}',
+                              ),
+                              onRepair: (repair) {
+                                final atRow = onRepairAtRow;
+                                if (atRow != null) {
+                                  atRow(group.items[i].index, repair);
+                                } else {
+                                  onRepair(repair);
+                                }
+                              },
+                              busy: _busy,
+                              // 需求 19：本卡会新建的食材名（该行据此挂「新建」徽标）。
+                              newFoodNames: _newFoodNames,
+                              newFoodApplied: _newFoodApplied,
+                              // 挂在**这一行下面**的结果说明（2026-11-07 用户：
+                              // 每样食物各挂各的，不再堆在卡片末尾）。
+                              resultNote:
+                                  rowNotes[Key(
+                                    'chat-edit-row-result-$index-'
+                                    '${group.items[i].index}-$j',
+                                  )],
+                            ),
+                          ),
+                        ],
+                      // 组尾只留**没有行可挂**的兜底说明（多食物且没有按食物
+                      // 说明的失败整句等）；有行可挂的都已在各自行下。
+                      if (leftovers.isNotEmpty) ...[
                         Divider(
                           height: LfDimens.spaceMedium,
                           thickness: 1,
                           color: c.border.withValues(alpha: 0.5),
                         ),
-                      // 每个子条目都要有自己的 Key（设计稿：一食物一行）。
-                      // 旧的行级 Key 另用 `KeyedSubtree` 挂在**主**子条目上，
-                      // 既有测试与页面定位不受影响。
-                      KeyedSubtree(
-                        key: j == 0
-                            ? Key(
-                                'chat-edit-row-$index-'
-                                '${group.items[i].index}',
-                              )
-                            : null,
-                        child: _EditRow(
-                          key: Key(
-                            'chat-edit-subitem-$index-${group.items[i].index}-$j',
+                        for (var i = 0; i < leftovers.length; i++)
+                          Padding(
+                            padding: EdgeInsets.only(top: i == 0 ? 0 : 2),
+                            child: Text(
+                              leftovers[i].text,
+                              key: Key(
+                                'chat-edit-group-result-$index-'
+                                '${group.kind.name}-$i',
+                              ),
+                              style: LfText.micro.copyWith(
+                                // 同 1525 行的修复：文字档，不用填充档。
+                                color: leftovers[i].failed
+                                    ? c.errorText
+                                    : LfColors.mintText(
+                                        Theme.of(context).brightness,
+                                      ),
+                                height: 1.4,
+                              ),
+                            ),
                           ),
-                          item: group.items[i],
-                          cardIndex: index,
-                          subIndex: j,
-                          subItem: _subItemsOf(group.items[i])[j],
-                          ordinal: _globalOrdinal(group, i, j),
-                          repairKey: Key(
-                            'chat-edit-repair-$index-${group.items[i].index}',
-                          ),
-                          onRepair: onRepair,
-                          busy: _busy,
-                        ),
-                      ),
+                      ],
                     ],
-                ],
+                  );
+                },
               ),
             ),
           ],
@@ -234,6 +344,18 @@ class ChatEditCard extends StatelessWidget {
     if (_turn.rows.isEmpty) {
       return LfBadge.outlinedBrand('${_turn.suggestions.length} 个可选项');
     }
+    // 【2026-11-07 修正（docs/66 §5.4）】**全部行都失败时不能显示绿色
+    // 「已完成」**——那会被读成「这次修改生效了」。用中性「未应用」，
+    // 行里的失败原因与修复按钮照旧。
+    final anyApplied = _turn.rows.any(
+      (row) => row.status == ChatEditRowStatus.applied,
+    );
+    final anyFailed = _turn.rows.any(
+      (row) => row.status == ChatEditRowStatus.failed,
+    );
+    if (!anyApplied && anyFailed) {
+      return const LfBadge.neutral('未应用');
+    }
     return const LfBadge.mint('已完成');
   }
 
@@ -251,16 +373,45 @@ class ChatEditCard extends StatelessWidget {
   ///
   /// 组的顺序固定（`_EditGroupKind.values`），组内行保持信封原顺序——
   /// 同一份提议每次渲染的分组与顺序都一致，用户不会看到卡片「自己重排」。
+  /// 按命令类别分组：记一餐 / 新建食材 / 其他修改（需求 19 之后有例外）。
+  ///
+  /// 【需求 19（2026-10-25 用户）】「新建食材和新建菜品记录要合并，不要分开
+  /// 两个板块」：**服务于本卡某一餐**的 `food.create` 不再单独成组——它是那一餐
+  /// 的一部分（子条目上带「新建」徽标），用户点一次「应用本组」就够。
+  ///
+  /// **纯新建食材仍独立成组**（用户只说「加一个叫麻辣烫的食材」）：那种情况
+  /// 确实不属于任何一餐，合并反而会把入口吞掉。
+  ///
+  /// 判据与执行层共用同一份（`isFoodCreateUsedByMeal`）：呈现说「一个板块」，
+  /// 执行就得当成一件事做，两处不许各写一套匹配规则。
   List<_EditGroup> get _groups {
     final groups = <_EditGroup>[];
     for (final kind in _EditGroupKind.values) {
       final items = [
         for (final row in _turn.rows)
-          if (_kindOf(row) == kind) row,
+          if (_kindOf(row) == kind &&
+              !(kind == _EditGroupKind.food &&
+                  isFoodCreateUsedByMeal(_turn, row)))
+            row,
       ];
       if (items.isNotEmpty) groups.add(_EditGroup(kind, items));
     }
     return groups;
+  }
+
+  /// 本卡会新建的食材名（呈现层挂「新建」徽标用）。
+  Set<String> get _newFoodNames => foodCreateRowIndexByName(_turn).keys.toSet();
+
+  /// 「这个名字的创建行已经应用了吗」（徽标从「新建」变「已新建」）。
+  bool _newFoodApplied(String name) {
+    final index = foodCreateRowIndexByName(_turn)[name];
+    if (index == null) return false;
+    for (final row in _turn.rows) {
+      if (row.index == index) {
+        return row.status == ChatEditRowStatus.applied;
+      }
+    }
+    return false;
   }
 
   static _EditGroupKind _kindOf(ChatEditTurnItem item) {
@@ -273,10 +424,15 @@ class ChatEditCard extends StatelessWidget {
 
   /// 组内第 [itemIndex] 条命令、它的第 [subIndex] 个子条目的**全局序号**
   /// （组内从 1 连排）。设计稿序号是 1/2/3 一路排下来，不是每条命令都从 1 起。
-  static int _globalOrdinal(_EditGroup group, int itemIndex, int subIndex) {
+  static int _globalOrdinal(
+    ChatEditTurn turn,
+    _EditGroup group,
+    int itemIndex,
+    int subIndex,
+  ) {
     var n = 0;
     for (var i = 0; i < itemIndex; i++) {
-      n += _subItemsOf(group.items[i]).length;
+      n += _subItemsOf(turn, group.items[i]).length;
     }
     return n + subIndex + 1;
   }
@@ -292,22 +448,31 @@ final class _SubItem {
     required this.title,
     this.subtitle = '',
     this.isPrimary = false,
+    this.isNewFood = false,
     this.kcalPer100g,
     this.proteinPer100g,
     this.carbsPer100g,
     this.fatPer100g,
   });
 
-  /// 主标题：记餐是「米饭 · 150 g」；其它命令是命令标题（「记一笔饮水」）。
+  /// 主标题：记餐是食物名（「米饭」）；其它命令是命令标题（「记一笔饮水」）。
   final String title;
 
-  /// 副标题：记餐是餐次（「午餐」）；**方案 B 的食材行不用它**（改由
-  /// 热量块 + 三色点宏量表达）。
+  /// 副标题：记餐是「餐次 · 克数」（「午餐 · 150 g」）；**方案 B 的食材行
+  /// 不用它**（改由热量块 + 三色点宏量表达）。
   final String subtitle;
 
-  /// 是不是这条命令的"主"子条目（结果文案/修复按钮只挂在主条目上，
-  /// 免得同一个结果在三个食物行上各显示一遍）。
+  /// 是不是这条命令的"主"子条目（修复按钮只挂在主条目上，免得三个食物行
+  /// 各给一个同一个修复入口）。命令结果文案**不在这里挂**——它是命令粒度，
+  /// 由分组底部统一展示，避免只有第一条食材下面有绿字。
   final bool isPrimary;
+
+  /// 这是**本卡要新建、且已并进某一餐**的食材行（需求 19）。
+  ///
+  /// 只影响 Key 命名空间（`chat-edit-newfood-*`）：它比独立的 `food.create`
+  /// 行多一层子条目下标（一条记餐里可以有两样新食材），不能与后者共用
+  /// `chat-edit-food-*`——那样两行的定位点会撞在一起。
+  final bool isNewFood;
 
   // ── 方案 B（2026-10-25 用户选定）：食材行的营养四件套 ──────────────
   /// 每 100g 热量。非 null 表示这是**食材行**，渲染成方案 B
@@ -322,7 +487,12 @@ final class _SubItem {
 }
 
 /// 把一条命令展开成子条目列表（记餐 = 每个食物一条；其它 = 单条）。
-List<_SubItem> _subItemsOf(ChatEditTurnItem item) {
+///
+/// [turn] 是**整卡**：记餐行里那个食材若是同卡新建的（需求 19 已把它并进这一
+/// 餐），它的营养四件套要从那条 `food.create` 的参数里搬过来——看图复核抓到
+/// 的缺陷：合并把 `food.create` 那一行收掉后，「155.0 kcal/100g + 三色点」
+/// 也跟着消失了，用户反而看不出这个食材的热量与宏量（原来那行唯一的用处）。
+List<_SubItem> _subItemsOf(ChatEditTurn turn, ChatEditTurnItem item) {
   final command = item.command;
   if (command == null) {
     return [
@@ -372,18 +542,56 @@ List<_SubItem> _subItemsOf(ChatEditTurnItem item) {
     ];
   }
   final slotLabel = _mealSlotLabelOf(command.args['slot']);
+  final createCommands = _newFoodCommandsOf(turn);
+  // 引用 → 人话：模型按协议抄的是 `[food:uuid]` / `[canteen-dish:uuid]`，
+  // 卡片标题不能把这串 id 摆给用户（2026-11-10 真机反馈）。
+  String labelOf(String raw) => item.itemLabels[raw] ?? raw;
+
+  /// 记餐行里的一个食材 → 子条目。
+  ///
+  /// 【2026-11-06 用户复核】克数不再挤在标题里（「抹茶曲奇（梅花形） · 40 g」
+  /// 一长就只剩「抹茶曲奇（梅…」）：标题只放食物名，克数挪到第二行餐次后
+  /// （「加餐 · 40 g」），名称能完整显示，克数也不会被省略号吃掉。
+  _SubItem mealItem(String name, String grams, bool isPrimary) {
+    final subtitle = slotLabel.isEmpty ? grams : '$slotLabel · $grams';
+    return _SubItem(
+      title: name,
+      subtitle: subtitle,
+      isPrimary: isPrimary,
+      // 记餐里的新食材与已有食物统一成紧凑行：只多一个「新建」徽标。
+      // 每 100g 营养仍属于独立的 food.create 卡，不在记餐行里冒充这一份的热量。
+      isNewFood: createCommands.containsKey(name),
+    );
+  }
+
   return [
     for (var i = 0; i < raw.length; i++)
       if (raw[i] is Map)
-        _SubItem(
-          // 设计稿：「米饭 · 150 g」——食物名 + 中点 + 克数（带空格）。
-          title:
-              '${((raw[i] as Map)['food'] as String? ?? '').trim()} · '
-              '${_formatGrams((raw[i] as Map)['grams'], foodName: (raw[i] as Map)['food'] as String? ?? '')}',
-          subtitle: slotLabel,
-          isPrimary: i == 0,
+        mealItem(
+          labelOf(((raw[i] as Map)['food'] as String? ?? '').trim()),
+          _formatGrams(
+            (raw[i] as Map)['grams'],
+            foodName: (raw[i] as Map)['food'] as String? ?? '',
+          ),
+          i == 0,
         ),
   ];
+}
+
+/// 本卡会新建的食材：名字 → 那条 `food.create` 命令（取第一条同名）。
+///
+/// 与 `foodCreateRowIndexByName` 同一份口径（名字按 trim 匹配），只是这里
+/// **还要参数**（呈现层要把热量与三宏量搬到合并后的那一行上）。
+Map<String, ChatEditCommand> _newFoodCommandsOf(ChatEditTurn turn) {
+  final out = <String, ChatEditCommand>{};
+  for (final row in turn.rows) {
+    final command = row.command;
+    if (command == null || command.action != 'food.create') continue;
+    final name = (command.args['name'] as String? ?? '').trim();
+    if (name.isEmpty) continue;
+    out.putIfAbsent(name, () => command);
+  }
+  return out;
 }
 
 /// 方案 B 的三色点宏量（蛋白橙 / 碳水黄 / 脂肪紫）。
@@ -398,6 +606,7 @@ final class _MacroDots extends StatelessWidget {
     required this.cardIndex,
     required this.itemIndex,
     required this.subIndex,
+    required this.isNewFood,
     required this.protein,
     required this.carbs,
     required this.fat,
@@ -406,9 +615,20 @@ final class _MacroDots extends StatelessWidget {
   final int cardIndex;
   final int itemIndex;
   final int subIndex;
+
+  /// 这一行是**并进记餐的新食材**（需求 19）⇒ Key 走 `newfood` 命名空间。
+  final bool isNewFood;
+
   final double protein;
   final double carbs;
   final double fat;
+
+  /// Key 里的定位串：独立食材行是「卡-行」，合并行是「卡-行-子」——
+  /// 一条记餐里可以有两样新食材，只到「行」两个定位点会撞在一起。
+  String get _keyScope =>
+      isNewFood ? '$cardIndex-$itemIndex-$subIndex' : '$cardIndex-$itemIndex';
+
+  String get _keyKind => isNewFood ? 'newfood' : 'food';
 
   @override
   Widget build(BuildContext context) {
@@ -423,7 +643,7 @@ final class _MacroDots extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               DecoratedBox(
-                key: Key('chat-edit-food-dot-$cardIndex-$itemIndex-$i'),
+                key: Key('chat-edit-$_keyKind-dot-$_keyScope-$i'),
                 decoration: BoxDecoration(
                   color: entries[i].$1,
                   shape: BoxShape.circle,
@@ -433,7 +653,7 @@ final class _MacroDots extends StatelessWidget {
               const SizedBox(width: 3),
               Text(
                 _grams(entries[i].$2),
-                key: Key('chat-edit-food-macro-$cardIndex-$itemIndex-$i'),
+                key: Key('chat-edit-$_keyKind-macro-$_keyScope-$i'),
                 style: LfText.label.copyWith(
                   color: c.mutedForeground,
                   height: 1.3,
@@ -645,7 +865,18 @@ final class _CardHead extends StatelessWidget {
   ///
   /// 多于 3 条时只列前 3 条并加「等 N 项」——两行内读得完。
   String? get _summary {
+    // 【2026-11-07 去重】整卡只有一条命令、且它只占一行（记饮水/体重/记忆/
+    // 新建食材这类）：卡头明细与下面那一行说的是同一件事（「饮水 250.0ml」
+    // 出现两遍）。这种卡不显示明细行——信息全在行里。
+    // 记餐一条命令带多样食物时**不再是**"一行"，明细仍然有价值（列出全部
+    // 食物名），因此不受影响。
+    if (turn.rows.length == 1 &&
+        _subItemsOf(turn, turn.rows.first).length == 1) {
+      return null;
+    }
     final parts = <String>[];
+    // 本卡要新建的食材名（需求 19）：明细行里给它们标一次「（新建）」。
+    final newFoodNames = _newFoodCommandsOf(turn).keys.toSet();
     for (final kind in _EditGroupKind.values) {
       // 记餐类：设计稿的 meta 就是「米饭 150g、鸡胸肉 150g、牛奶 200ml」——
       // **直接列食物**，不是把 summarize() 整句拼起来（那会变成
@@ -654,7 +885,11 @@ final class _CardHead extends StatelessWidget {
         if (kind == _EditGroupKind.meal)
           for (final row in turn.rows)
             if (row.command != null && _kindOf(row) == kind)
-              ..._foodLabelsOf(row.command!),
+              ..._foodLabelsOf(
+                row.command!,
+                newFoodNames: newFoodNames,
+                labels: row.itemLabels,
+              ),
       ];
       if (foods.isNotEmpty) {
         parts.add(
@@ -669,7 +904,11 @@ final class _CardHead extends StatelessWidget {
       final foodsMeta = <String>[
         if (kind == _EditGroupKind.food)
           for (final row in turn.rows)
-            if (row.command != null && _kindOf(row) == kind)
+            if (row.command != null &&
+                _kindOf(row) == kind &&
+                // 需求 19：并进某一餐的那条已经由上面的「记餐类」分支列过
+                // 它的食物名，这里不再重复报一次（同一件事说两遍是噪音）。
+                !isFoodCreateUsedByMeal(turn, row))
               _foodCreateLabelOf(row.command!),
       ];
       if (foodsMeta.isNotEmpty) {
@@ -680,6 +919,12 @@ final class _CardHead extends StatelessWidget {
         for (final row in turn.rows)
           if (row.command != null &&
               _kindOf(row) == kind &&
+              // 需求 19（看图复核抓到的「说了两遍」）：并进某一餐的
+              // `food.create` 上面已经以「（新建）」说过一次，这里必须同样
+              // 排除——否则它会从这条通用分支再报一遍，而且报的正是用户
+              // 否掉的 `summarize()` 压缩写法（P13.0/C1.1/F10.6）。
+              !(kind == _EditGroupKind.food &&
+                  isFoodCreateUsedByMeal(turn, row)) &&
               row.command!.summarize().trim().isNotEmpty)
             row.command!.summarize().trim(),
       ];
@@ -704,14 +949,23 @@ final class _CardHead extends StatelessWidget {
   }
 
   /// 记餐命令的食物短标签（「米饭 150g」），meta 行用。
-  static List<String> _foodLabelsOf(ChatEditCommand command) {
+  ///
+  /// [newFoodNames] 非空时给本卡要新建的食材标一次「（新建）」——需求 19
+  /// 合并后 `food.create` 不再单独出现在明细行里，「这条要先建出来」这件事
+  /// 必须在明细里说得出来（否则用户以为它已经在库里）。
+  static List<String> _foodLabelsOf(
+    ChatEditCommand command, {
+    Set<String> newFoodNames = const {},
+    Map<String, String>? labels,
+  }) {
     final raw = command.args['items'];
     if (raw is! List) return const [];
     return [
       for (final item in raw)
         if (item is Map)
-          '${((item['food'] as String? ?? '').trim())}'
-              '${_gramsText(item['grams'])}',
+          '${labels?[((item['food'] as String? ?? '').trim())] ?? ((item['food'] as String? ?? '').trim())}'
+              '${_gramsText(item['grams'])}'
+              '${newFoodNames.contains(((item['food'] as String? ?? '').trim())) ? '（新建）' : ''}',
     ];
   }
 
@@ -743,7 +997,14 @@ final class _CardHead extends StatelessWidget {
     String? label;
     for (final row in turn.rows) {
       final command = row.command;
-      if (command == null || command.action != 'meal.create') return null;
+      if (command == null) return null;
+      // 需求 19：**服务于本餐的 `food.create` 不算「混合」**——它已经是这一餐
+      // 的一部分（并进同一个板块），此时仍该说「早餐 · N 条修改」。
+      if (command.action == 'food.create' &&
+          isFoodCreateUsedByMeal(turn, row)) {
+        continue;
+      }
+      if (command.action != 'meal.create') return null;
       final raw = command.args['slot'];
       if (raw is! String) return null;
       final slotLabel = switch (raw) {
@@ -787,6 +1048,19 @@ final class _EditGroup {
       if (item.status == ChatEditRowStatus.proposed && item.command != null)
         item.index,
   };
+
+  /// 已经有结果、且结果文案非空的命令。
+  ///
+  /// 【2026-11-06 用户复核】绿色结果文案是**命令粒度**（一条 `meal.create`
+  /// 可能带三样食物），旧实现只挂在第一样食物下面，于是同一组里「有的行
+  /// 有绿字、有的没有」。现在由分组底部统一列出，行内只保留状态徽标。
+  List<ChatEditTurnItem> get resultItems => [
+    for (final item in items)
+      if ((item.status == ChatEditRowStatus.applied ||
+              item.status == ChatEditRowStatus.failed) &&
+          (item.resultMessage ?? '').trim().isNotEmpty)
+        item,
+  ];
 }
 
 /// 分组头：组名 + 条数 + 「应用本组」（只有待应用行时才画按钮）。
@@ -795,12 +1069,16 @@ class _GroupHeader extends StatelessWidget {
     required this.group,
     required this.cardIndex,
     required this.busy,
+    required this.showGroupApply,
     required this.onApplyRows,
   });
 
   final _EditGroup group;
   final int cardIndex;
   final bool busy;
+
+  /// 只有一组时卡底已有「全部应用」，不再重复画「应用本组」。
+  final bool showGroupApply;
   final ValueChanged<Set<int>> onApplyRows;
 
   @override
@@ -840,7 +1118,7 @@ class _GroupHeader extends StatelessWidget {
             // 2026-10-24 用户先要「显眼一些」（当时是纯文本），随后选定方案 B：
             // 设计稿给了明确的档位，按稿实现。**触控高度仍保持 44**（视觉
             // 内边距小、命中区大），不破坏无障碍下限。
-            if (group.hasProposed && !busy)
+            if (showGroupApply && group.hasProposed && !busy)
               _GroupApplyButton(
                 buttonKey: Key(
                   'chat-edit-group-apply-$cardIndex-${group.kind.name}',
@@ -1015,15 +1293,21 @@ final class _SuggestionChip extends StatelessWidget {
                   ? Icons.more_horiz
                   : Icons.add_circle_outline,
               size: 14,
-              color: failed ? c.error : fg,
+              // 失败时图标也用文字档（14dp 图标对 3:1 达标即可，但同一行
+              // 文字已用 errorText，颜色不一致会更花）。
+              color: failed ? c.errorText : fg,
             ),
             const SizedBox(width: LfDimens.spaceTiny),
-            Text(
-              trailing == null
-                  ? suggestion.label
-                  : '${suggestion.label}（$trailing）',
-              style: LfText.captionStrong.copyWith(
-                color: proposed ? c.foreground : fg,
+            Flexible(
+              child: Text(
+                trailing == null
+                    ? suggestion.label
+                    : '${suggestion.label}（$trailing）',
+                style: LfText.captionStrong.copyWith(
+                  color: proposed ? c.foreground : fg,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1044,9 +1328,17 @@ class _EditRow extends StatelessWidget {
     required this.repairKey,
     required this.onRepair,
     required this.busy,
+    required this.newFoodNames,
+    required this.newFoodApplied,
+    this.resultNote,
   });
 
   final ChatEditTurnItem item;
+
+  /// 挂在**这一行下面**的结果说明（2026-11-07 用户）：记餐应用后每样食物
+  /// 各挂各的（「已记入今天的午餐」/「今天已记过，没有重复算」）；单行命令
+  /// 的整句结果也挂在这里。null = 该行没有说明（组尾兜底才有）。
+  final ({String text, bool failed})? resultNote;
 
   /// 卡片下标（Key 里带它，跨卡不冲突）。
   final int cardIndex;
@@ -1073,23 +1365,75 @@ class _EditRow extends StatelessWidget {
   /// 实际点哪个都是整条写入。
   final bool busy;
 
+  /// 本卡会新建的食材名（需求 19）。
+  final Set<String> newFoodNames;
+
+  /// 「这个食材的创建行应用了吗」——徽标文案据此从「新建」变「已新建」。
+  final bool Function(String name) newFoodApplied;
+
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
     final title = subItem.title;
     final summary = subItem.subtitle;
-    final resultMessage = subItem.isPrimary ? item.resultMessage : null;
     final repair = subItem.isPrimary ? item.repair : null;
+    // 【2026-11-07 实帧复核】2.0× 字号 + 320dp 时，行尾「待应用」徽标吃掉
+    // 近三分之一宽度，名称只剩「抹茶曲奇…」。超大字号下把徽标移到名称
+    // **下方**右对齐，名称拿回整行宽度（1.0× 不变，徽标仍在行尾）。
+    final stackBadges = MediaQuery.textScalerOf(context).scale(1) > 1.4;
+    // 徽标列（热量 → 状态 → 新建；限幅 1.3× 保证 2.0× 下也不挤）。
+    Widget badgeColumn() => MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (subItem.isFoodRow) ...[
+            Text(
+              _kcalText(subItem.kcalPer100g),
+              // 合并进记餐的新食材行（需求 19）走 `newfood` 命名空间：
+              // 它比独立食材行多一层子条目下标，Key 才不会与后者撞。
+              key: Key(
+                subItem.isNewFood
+                    ? 'chat-edit-newfood-kcal-$cardIndex-'
+                          '${item.index}-$subIndex'
+                    : 'chat-edit-food-kcal-$cardIndex-${item.index}',
+              ),
+              style: LfText.title.copyWith(
+                fontWeight: FontWeight.w700,
+                color: c.foreground,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(height: 2),
+          ],
+          _statusBadge,
+          if (_newFoodBadgeText != null) ...[
+            const SizedBox(height: 2),
+            LfBadge.outlinedBrand(
+              _newFoodBadgeText!,
+              key: Key(
+                'chat-edit-subitem-new-$cardIndex-'
+                '${item.index}-$subIndex',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 设计稿 B：序号是**白底 + 1px 描边的小方块**（18×18、R6、
           // 10.5px w700），不是裸数字。它在灰底分块上把「第几条」框出来。
+          // 【2026-11-07 实帧复核】序号框原来固定 18×18：2.0× 字号下数字
+          // 比框还高，被裁成半截（320dp 实帧抓到）。框随字号放大，上限 1.6×
+          // ——再大就会把名称挤成「抹茶曲…」。
           Container(
-            width: 18,
-            height: 18,
+            width: 18 * _ordinalScale(context),
+            height: 18 * _ordinalScale(context),
             margin: const EdgeInsets.only(top: 2),
             decoration: BoxDecoration(
               color: c.card,
@@ -1119,6 +1463,10 @@ class _EditRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 【2026-11-06 用户复核】标题行只放食物名。原来「新建」徽标
+                // 跟在名字后面、状态徽标占着行尾，两边一起挤名称（长名字只剩
+                // 「抹茶曲奇（梅…」）。现在两个徽标都移到行尾**上下排列**，
+                // 标题独占剩余宽度。
                 Text(
                   title,
                   key: Key(
@@ -1140,6 +1488,7 @@ class _EditRow extends StatelessWidget {
                       cardIndex: cardIndex,
                       itemIndex: item.index,
                       subIndex: subIndex,
+                      isNewFood: subItem.isNewFood,
                       protein: subItem.proteinPer100g ?? 0,
                       carbs: subItem.carbsPer100g ?? 0,
                       fat: subItem.fatPer100g ?? 0,
@@ -1150,6 +1499,10 @@ class _EditRow extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 1),
                     child: Text(
                       summary,
+                      key: Key(
+                        'chat-edit-subitem-summary-$cardIndex-'
+                        '${item.index}-$subIndex',
+                      ),
                       // 设计稿：12px muted、行高 1.45。
                       style: LfText.caption.copyWith(
                         color: c.mutedForeground,
@@ -1157,13 +1510,45 @@ class _EditRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (resultMessage != null)
-                  Text(
-                    resultMessage,
-                    style: LfText.micro.copyWith(
-                      color: item.status == ChatEditRowStatus.failed
-                          ? c.error
-                          : c.primary,
+                // 应用前提示（2026-11-07 下一版·重复可见化）：今天已有相同
+                // 记录时在**主行**下提醒（多食物命令共用同一句，只显示一次）。
+                if (item.duplicateHint case final hint?
+                    when subItem.isPrimary && resultNote == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      hint,
+                      key: Key(
+                        'chat-edit-row-hint-$cardIndex-'
+                        '${item.index}-$subIndex',
+                      ),
+                      style: LfText.micro.copyWith(
+                        color: c.warningText,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                // 结果说明（2026-11-07 用户）：紧贴自己这行，绿=成功、
+                // 红=失败；不再有「卡片末尾一排绿字看不出对应谁」的问题。
+                if (resultNote case final note?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      note.text,
+                      key: Key(
+                        'chat-edit-row-result-$cardIndex-'
+                        '${item.index}-$subIndex',
+                      ),
+                      style: LfText.micro.copyWith(
+                        // 【2026-11-09 审查修复】原来用 `c.primary`/`c.error`
+                        // 当 10px 文字：浅色主题实测 2.11:1 / 3.29:1（压 muted
+                        // 底），远低于 AA 4.5:1。改用文字专用档
+                        // mintText(5.00:1) / errorText(5.84:1)。
+                        color: note.failed
+                            ? c.errorText
+                            : LfColors.mintText(Theme.of(context).brightness),
+                        height: 1.3,
+                      ),
                     ),
                   ),
                 // 训练计划草案：这一行直接渲染**共享计划卡**（2026-10-16
@@ -1193,43 +1578,59 @@ class _EditRow extends StatelessWidget {
                         borderRadius: BorderRadius.circular(
                           LfDimens.radiusFull,
                         ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: c.muted,
-                            borderRadius: BorderRadius.circular(
-                              LfDimens.radiusFull,
+                        // 【2026-11-09 全量审查】内边距放在 InkWell **里面**：
+                        // 命中盒随内容一起长大（原 ≈29dp、2.0× 约 41dp，均低于
+                        // 44dp 触达下限）；视觉胶囊仍按自身 padding 画，外面多
+                        // 出来的是透明留白，卡片观感不变。
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                            border: Border.all(color: c.border),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.add_circle_outline,
-                                size: 14,
-                                color: c.primary,
+                            decoration: BoxDecoration(
+                              color: c.muted,
+                              borderRadius: BorderRadius.circular(
+                                LfDimens.radiusFull,
                               ),
-                              const SizedBox(width: LfDimens.spaceTiny),
-                              // 方案 B 把行收窄了（分块 + 序号 + 图标 + 状态
-                              // 徽标），修复按钮的长文案（「新建窗口「四号
-                              // 窗口」」）会顶破 1px。`Flexible` + 省略号吸收。
-                              Flexible(
-                                child: Text(
-                                  repair.label,
-                                  style: LfText.captionStrong.copyWith(
-                                    color: c.primary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                              border: Border.all(color: c.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline,
+                                  size: 14,
+                                  color: c.primary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: LfDimens.spaceTiny),
+                                // 方案 B 把行收窄了（分块 + 序号 + 图标 + 状态
+                                // 徽标），修复按钮的长文案（「新建窗口「四号
+                                // 窗口」」）会顶破 1px。`Flexible` + 省略号吸收。
+                                Flexible(
+                                  child: Text(
+                                    repair.label,
+                                    style: LfText.captionStrong.copyWith(
+                                      color: c.primary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
+                    ),
+                  ),
+                // 超大字号：徽标下移到名称块底部右对齐（名称拿回整行宽度）。
+                if (stackBadges)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: badgeColumn(),
                     ),
                   ),
               ],
@@ -1239,39 +1640,34 @@ class _EditRow extends StatelessWidget {
           // 三行各给一个「应用」会让用户以为能单独应用某个食物，实际点哪个
           // 都是整条写入。批量动作在组头，单条快照在组内序号——不需要行内按钮。
           //
-          // 状态徽标仍保留（待应用 / 已应用 / 失败 / 已忽略）：它是**状态**，
-          // 不是动作，放在行尾不会误导。
-          //
-          // 食材行（方案 B）也保留——2026-10-25 第一版为「不挤」把它去掉了，
-          // 结果用户看不出这一行到底应用了没有（既有测试也立刻抓到：
-          // 「已忽略」徽标少一个）。改为**热量块下方另起一行**：热量在上、
-          // 状态在下，两者都保得住。
-          const SizedBox(width: 8),
-          if (subItem.isFoodRow)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _kcalText(subItem.kcalPer100g),
-                  key: Key('chat-edit-food-kcal-$cardIndex-${item.index}'),
-                  style: LfText.title.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: c.foreground,
-                    height: 1.1,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: _statusBadge,
-                ),
-              ],
-            )
-          else
-            _statusBadge,
+          // 行尾徽标统一竖排（2026-11-06 用户二次复核）：
+          // * 行状态（待应用/已应用/已忽略）在上、「新建/已新建」在下——
+          //   两个徽标不再各占一段横向空间，名称拿到完整剩余宽度；
+          // * 食材行（方案 B）的热量仍在上，顺序是热量 → 状态 → 新建
+          //   （实际互斥，留好扩展位）。
+          if (!stackBadges) const SizedBox(width: 8),
+          if (!stackBadges) badgeColumn(),
         ],
       ),
     );
+  }
+
+  /// 序号框的缩放倍率（随系统字号，上限 1.6×）。
+  static double _ordinalScale(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+
+  /// 需求 19 的「新建」徽标文案；null = 这一行不是要新建的食材。
+  ///
+  /// 只有**记餐类**的子条目才判：`food.create` 自己的行不进这个分支
+  /// （它若服务于本餐，整条已经被并进那一餐，只剩食材行）。
+  String? get _newFoodBadgeText {
+    if (item.command?.action != 'meal.create') return null;
+    if (newFoodNames.isEmpty) return null;
+    final names = mealItemFoodNames(item);
+    if (subIndex < 0 || subIndex >= names.length) return null;
+    final name = names[subIndex];
+    if (!newFoodNames.contains(name)) return null;
+    return newFoodApplied(name) ? '已新建' : '新建';
   }
 
   /// `workout.plan.create` 的 `days` 参数 → 计划卡要的草案天列表。
@@ -1298,12 +1694,20 @@ class _EditRow extends StatelessWidget {
     ];
   }
 
-  /// 行状态徽标（文案与改造前的裸文字逐字一致，只是换了呈现）。  /// 行状态徽标（文案与改造前的裸文字逐字一致，只是换了呈现）。
-  LfBadge get _statusBadge => switch (item.status) {
-    ChatEditRowStatus.proposed => const LfBadge.neutral('待应用'),
-    ChatEditRowStatus.applying => const LfBadge.neutral('应用中…'),
-    ChatEditRowStatus.applied => const LfBadge.mint('已应用'),
-    ChatEditRowStatus.failed => const LfBadge.honey('失败'),
-    ChatEditRowStatus.dismissed => const LfBadge.dashed('已忽略'),
-  };
+  /// 行状态徽标（文案与改造前的裸文字逐字一致，只是换了呈现）。
+  ///
+  /// Key 带上子条目下标：一条记餐会展开成多行，页面/测试要能分别定位
+  /// 「第几个食物现在是待应用还是已应用」。
+  LfBadge get _statusBadge {
+    final statusKey = Key(
+      'chat-edit-subitem-status-$cardIndex-${item.index}-$subIndex',
+    );
+    return switch (item.status) {
+      ChatEditRowStatus.proposed => LfBadge.neutral('待应用', key: statusKey),
+      ChatEditRowStatus.applying => LfBadge.neutral('应用中…', key: statusKey),
+      ChatEditRowStatus.applied => LfBadge.mint('已应用', key: statusKey),
+      ChatEditRowStatus.failed => LfBadge.honey('失败', key: statusKey),
+      ChatEditRowStatus.dismissed => LfBadge.neutral('已忽略', key: statusKey),
+    };
+  }
 }

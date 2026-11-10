@@ -245,3 +245,18 @@ vision 请求体退回 chat。
   - 非 chat 协议的语音转写兼容层：不做（§6 诚实拒绝）。
   - 真机对真实第三方端点的走查：等用户提供 Base URL + Key 后在模拟器/真机
     实测（Key 只进 App 的加密存储，不进日志/截图/文档）。
+
+---
+
+## 11. 信封编译器上下文（docs/66 §5.2，2116）
+
+`AiEnvelopeCompiler.compileEnvelope` 在原 `userText` / `assistantReply` /
+`systemContext` 之外新增可选 `conversationContext`（目标回复**之前**的最近
+对话，≤6 条、单条 ≤600 字、总 ≤3000 字；图片用 `[图片]` 占位；只用于补指代，
+不是新请求）与 `targetLocalDate`（目标回复的本地日期，写进编译 prompt 避免
+「今晚」解析错位）。`OpenAiCompatibleConversationService._compile` 的编译
+prompt 按此结构组装，硬规则明确：只用出现过的实体和数字、不估算、不从
+推荐/科普里抽取命令、缺参数 edits 空并说原因、不输出 suggestions。旧调用
+（自动补跑路径）不传新参数，行为不变。请求体 64 KiB 闸门继续对最终 UTF-8
+JSON body（含转义与 system prompt 包装）兜底；控制器侧另做目标回复 6000 字
+符上限（超限直接失败、不静默截断）。

@@ -58,6 +58,7 @@ class _RetrievalDebugPageState extends State<RetrievalDebugPage> {
   List<String>? _semanticRanking;
   bool _semanticEnabled = true;
   bool _semanticAvailable = false;
+  bool _semanticLoading = false;
   int _indexedDishes = 0;
   int _indexingDone = 0;
   int _indexingTotal = 0;
@@ -67,7 +68,21 @@ class _RetrievalDebugPageState extends State<RetrievalDebugPage> {
   void initState() {
     super.initState();
     _semanticEnabled = widget.semantic?.settings != null;
-    unawaited(_bootstrapSemantic());
+    // 【2026-11-02 用户：搜索调试首次打开卡一下】不在这里加载模型/补索引：
+    // 首次打开只读开关状态，引擎与索引等用户点「加载 / 刷新索引」再做。
+    unawaited(_readSemanticStatus());
+  }
+
+  /// 只读开关与索引计数（不加载引擎、不写索引），保证首帧不被重活拖住。
+  Future<void> _readSemanticStatus() async {
+    final runtime = widget.semantic;
+    if (runtime == null) return;
+    final enabled = await runtime.enabled();
+    if (!mounted) return;
+    setState(() {
+      _semanticEnabled = enabled;
+      _semanticNote = '点「加载 / 刷新索引」';
+    });
   }
 
   /// 打开面板即补齐索引（有进度），再按当前查询算一次语义名次。
@@ -76,10 +91,11 @@ class _RetrievalDebugPageState extends State<RetrievalDebugPage> {
   /// 「不可用」，检索照常走关键词 + 标签（docs/39 §4.3 的降级）。
   Future<void> _bootstrapSemantic() async {
     final runtime = widget.semantic;
-    if (runtime == null) {
+    if (runtime == null || _semanticLoading) {
       if (mounted) setState(() => _semanticNote = '未接线');
       return;
     }
+    setState(() => _semanticLoading = true);
     final enabled = await runtime.enabled();
     if (mounted) setState(() => _semanticEnabled = enabled);
     try {
@@ -109,6 +125,8 @@ class _RetrievalDebugPageState extends State<RetrievalDebugPage> {
         _semanticAvailable = false;
         _semanticNote = '$error';
       });
+    } finally {
+      if (mounted) setState(() => _semanticLoading = false);
     }
     await _refreshSemantic();
   }
@@ -213,12 +231,26 @@ class _RetrievalDebugPageState extends State<RetrievalDebugPage> {
                     ],
                   ),
                   Text(
-                    _semanticAvailable
+                    _semanticLoading
+                        ? '正在加载索引…'
+                        : _semanticAvailable
                         ? '可用 · 已索引 $_indexedDishes 条'
                               '${_indexingTotal == 0 ? '' : '（本次 $_indexingDone/$_indexingTotal）'}'
-                        : '不可用（${_semanticNote ?? '加载中…'}）',
+                        : '未加载（${_semanticNote ?? '点「加载 / 刷新索引」'}）',
                     key: const Key('retrieval-debug-semantic-status'),
                     style: LfText.caption.copyWith(color: c.mutedForeground),
+                  ),
+                  const SizedBox(height: LfDimens.spaceXSmall),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: LfSoftButton(
+                      key: const Key('retrieval-debug-semantic-load'),
+                      label: _semanticLoading ? '正在加载…' : '加载 / 刷新索引',
+                      dense: true,
+                      onPressed: _semanticLoading
+                          ? null
+                          : () => unawaited(_bootstrapSemantic()),
+                    ),
                   ),
                   if (_semanticNote != null && _semanticAvailable)
                     Text(

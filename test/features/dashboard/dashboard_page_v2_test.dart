@@ -258,10 +258,13 @@ void main() {
       );
       // Round7 A：空态 = `.empty-state`（图标块 + 「从第一餐开始」+ 说明）。
       // 2026-10-22 用户：「今日吃了什么卡片不需要记录饮食的按钮」⇒ 按钮退场；
-      // 记餐入口仍在下一餐卡（cta-log-dinner）与饮食页 FAB。
+      // 记餐入口仍在下一餐卡（cta-log-next-meal）与饮食页 FAB；空态里那枚
+      // 「记一餐」（`dashboard-empty-action`）已于 2026-10-31 按用户要求退役。
       expect(find.byKey(const Key('dashboard-meals-empty')), findsOneWidget);
       expect(find.text('从第一餐开始'), findsOneWidget);
       expect(find.byKey(const Key('cta-log-meal')), findsNothing);
+      expect(find.byKey(const Key('dashboard-empty-action')), findsNothing);
+      expect(find.text('记一餐'), findsNothing);
     });
 
     dashboardTest('未接线饮水仓储时不崩，仍走空态', (tester) async {
@@ -283,11 +286,12 @@ void main() {
       await _recordMeal(mealRepository, localDate, kcal: 1248);
       await pump(tester);
 
-      // 已摄入 1,248 / 目标 1,800 → 剩余 552（A `format()` ⇒ 千分位）。
+      // 已摄入 1,248 / 目标区间 1,500–1,800 → 剩余 252–552（区间写法，
+      // 两侧都夹到 0；A `format()` ⇒ 千分位）。
       expect(find.text('1,248'), findsOneWidget);
       // 剩余行是 Text.rich（数字单独上色），plain text 是整行，按整行匹配。
       expect(
-        find.textContaining('还可摄入 552 kcal', findRichText: true),
+        find.textContaining('还可摄入 252–552 kcal', findRichText: true),
         findsOneWidget,
       );
       expect(find.text('69%'), findsOneWidget);
@@ -678,9 +682,9 @@ void main() {
         find.byKey(const Key('dashboard-ring-percent')),
       );
       expect(consumed.data, '640');
-      // D6：`dashboard-ring-target` 的锚点搬到卡片 foot，文案随 A 的
-      // `.energy-foot` 左格（含千分位）。
-      expect(target.data, '目标 1,800 kcal');
+      // D6 + 需求 1（2026-10-25）：`dashboard-ring-target` 的锚点在**卡头
+      // 大号区间行**上，内容从单值改成区间（本夹具目标 1,500–1,800）。
+      expect(target.data, '1,500 – 1,800');
       expect(percent.data, '36%');
     });
   });

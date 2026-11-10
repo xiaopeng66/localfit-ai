@@ -864,8 +864,20 @@ void main() {
           await tester.pumpAndSettle();
           // A legacy Tuesday session referring to a Monday-only plan.
           await f.sessions.start(localDate: '2026-10-13', planId: id);
+          // 【2026-10-31 稳健性修复】前一段把列表滚到了深处；底部让位加高
+          // 改变 maxScrollExtent 的估计后，恢复的滚动位置可能落进「估计窗口
+          // 之外」的空档——懒构建列表在那里什么都不物化（实测 listview 在、
+          // hero/banner 全不在）。这是测试自身的滚动脏状态，与产品行为无关：
+          // 先滚回顶部（hero/banner 都在列表头部），再找 banner。
           await tester.pumpWidget(f.page(textScale: scale));
           await tester.pumpAndSettle();
+          await tester.drag(find.byType(ListView).first, const Offset(0, 4000));
+          await tester.pumpAndSettle();
+          expect(
+            find.byType(TrainingActiveBanner),
+            findsOneWidget,
+            reason: '滚回顶部后 banner（列表头部第 2 项）应当物化',
+          );
           expect(tester.takeException(), isNull);
           for (final key in [
             'cta-continue-session',
@@ -978,17 +990,25 @@ Future<void> _openPlan(WidgetTester tester, String name, {int nth = 0}) async {
   // 2026-10-16：计划卡标题不再补「· 周一」（星期由右侧徽章承担），于是同名
   // 多日计划会有多张卡都写着同一个计划名。定位改为「名字匹配的第 nth 张卡」
   // ——计划卡按星期升序排列，nth=0 就是该计划第一训练日那张（本文件里即周一）。
-  final finder = find
-      .ancestor(of: find.text(name), matching: find.byType(TrainingPlanCard))
-      .at(nth);
-  if (finder.evaluate().isEmpty) {
+  //
+  // 【2026-10-26】训练页在计划卡之前多了一行「今天不是计划日 · 自由训练」，
+  // 360dp × 2.0× 下计划卡因此落到首屏外、**还没被构建**——原来先构造
+  // `.at(nth)` 再判断 `isEmpty` 的写法在空集上会直接抛 IndexError。
+  // 改成：先按名字滚动到它，再取第 nth 张。
+  final cards = find.ancestor(
+    of: find.text(name),
+    matching: find.byType(TrainingPlanCard),
+  );
+  if (cards.evaluate().length <= nth) {
     await tester.scrollUntilVisible(
-      finder,
+      find.text(name),
       250,
       scrollable: _verticalScrollable(),
       maxScrolls: 20,
     );
+    await tester.pumpAndSettle();
   }
+  final finder = cards.at(nth);
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);

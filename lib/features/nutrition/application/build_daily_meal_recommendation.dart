@@ -14,11 +14,14 @@ import 'package:localfit_ai/app/design/widgets/lf_evidence_badge.dart'
     show LfEvidenceGrade;
 import 'package:localfit_ai/features/daily_plan/application/menu_service_window.dart'
     show parseHhmmToMinute;
+import 'package:localfit_ai/features/daily_plan/domain/planning_constraints.dart';
+import 'package:localfit_ai/features/nutrition/application/dietary_constraint_matcher.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_evidence.dart'
     show evidenceGradeForSource;
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart'
     show MealRecord, MealSlot;
+import 'package:localfit_ai/features/retrieval/application/feedback_store.dart';
 
 /// 引擎负责的餐位：早 / 午 / 晚（加餐不进推荐位——它不是一顿饭）。
 const mealRecommendationSlots = <MealSlot>[
@@ -53,6 +56,14 @@ const mealBandLabels = <MealSlot, String>{
   MealSlot.dinner: '14:00–20:30',
 };
 
+/// 某个推荐餐位的时段是否还没结束（AI 换一套与本地推荐共用）。
+///
+/// 与 `_mealBands` 同源，不另写边界：早餐 ≤09:30、午餐 ≤14:00、晚餐 ≤20:30。
+bool isMealRecommendationSlotOpen(MealSlot slot, int nowMinute) {
+  final band = _mealBands[slot];
+  return band != null && nowMinute <= band.$2;
+}
+
 /// 每餐最多给几个备选（「查看候选 N 道」里的 N）。
 const mealAlternativeLimit = 5;
 
@@ -65,6 +76,7 @@ final class MealRecommendation {
     this.primary,
     this.alternatives = const [],
     this.budgetKcal,
+    this.budgetMinKcal,
     this.kcal,
     this.action = MealEmptyAction.none,
   });
@@ -80,6 +92,12 @@ final class MealRecommendation {
 
   /// 该餐预算；无当日目标时为 null（此时进度条不画，也不按预算挑）。
   final double? budgetKcal;
+
+  /// 本餐预算**下限**（需求 1，2026-10-25）：与 [budgetKcal]（上限）一起构成
+  /// 区间。由 `target.min`（或 max）−已摄入 按餐位份额算出——**不许硬编码**。
+  ///
+  /// null = 没有目标（或目标已吃满），调用方应显示「没设目标」而不是编数字。
+  final double? budgetMinKcal;
 
   /// 该餐的热量：已记录的那一餐是实际值，主推的那一餐是主推值。
   final double? kcal;
@@ -144,15 +162,25 @@ final class DailyMealRecommendation {
 /// - [recordedKcalBySlot]：当天已记录餐食的热量，按餐位。
 /// - [dailyTargetKcal]：`DailyTargets.calorieMaxKcal`；null = 没有当日目标。
 /// - [nowMinute]：当天分钟数，用来判「这一餐的时段已经过了」。
+/// - [feedback]：用户在推荐卡上的「不错 / 换一整套」反馈（可选）。样本达到
+///   门槛后只做**同级内的软排序**，不硬过滤、不跨证据等级。
+/// - [constraints]：设置里的饮食标签 / 忌口/过敏原（可选）。本地没有配料表，
+///   只按菜名做保守排除（见 `dietary_constraint_matcher.dart`）。
 DailyMealRecommendation buildDailyMealRecommendation({
   required List<DishRecord> dishes,
   Map<MealSlot, double> recordedKcalBySlot = const {},
   double? dailyTargetKcal,
+  double? dailyTargetMinKcal,
   required int nowMinute,
+  FeedbackStore? feedback,
+  PlanningConstraints? constraints,
 }) {
-  final budgets = _mealBudgets(
+  // 需求 1：`dailyTargetKcal` 现在是**上限**（旧名保留，调用点零变化）；
+  // 给了 `dailyTargetMinKcal` 就按区间分配（没给则区间退化成单值）。
+  final ranges = _mealBudgetRanges(
     recordedKcalBySlot: recordedKcalBySlot,
-    dailyTargetKcal: dailyTargetKcal,
+    dailyTargetMinKcal: dailyTargetMinKcal ?? dailyTargetKcal,
+    dailyTargetMaxKcal: dailyTargetKcal,
     nowMinute: nowMinute,
   );
 
@@ -167,9 +195,12 @@ DailyMealRecommendation buildDailyMealRecommendation({
         slot: slot,
         dishes: dishes,
         recordedKcal: recordedKcalBySlot[slot],
-        budgetKcal: budgets[slot],
+        budgetKcal: ranges.max[slot],
+        budgetMinKcal: ranges.min[slot],
         nowMinute: nowMinute,
         used: used,
+        feedback: feedback,
+        constraints: constraints,
       ),
     );
   }
@@ -194,8 +225,11 @@ MealRecommendation _recommendForSlot({
   required List<DishRecord> dishes,
   required double? recordedKcal,
   required double? budgetKcal,
+  required double? budgetMinKcal,
   required int nowMinute,
   required Set<String> used,
+  FeedbackStore? feedback,
+  PlanningConstraints? constraints,
 }) {
   if (recordedKcal != null) {
     return MealRecommendation(
@@ -203,6 +237,7 @@ MealRecommendation _recommendForSlot({
       state: MealRecommendationState.planned,
       kcal: recordedKcal,
       budgetKcal: budgetKcal,
+      budgetMinKcal: budgetMinKcal,
       reason: '已经记录了${slot.label}',
     );
   }
@@ -213,18 +248,20 @@ MealRecommendation _recommendForSlot({
       slot: slot,
       state: MealRecommendationState.empty,
       budgetKcal: budgetKcal,
+      budgetMinKcal: budgetMinKcal,
       reason: '${slot.label}时段（${mealBandLabels[slot]}）已经过了',
       // 过去的时段：没有可执行的动作（见 MealEmptyAction.none 的注释）。
     );
   }
 
-  final eligible = _eligibleFor(slot, dishes);
+  final eligible = _eligibleFor(slot, dishes, constraints);
   if (eligible.isEmpty) {
     return MealRecommendation(
       slot: slot,
       state: MealRecommendationState.empty,
       budgetKcal: budgetKcal,
-      reason: _emptyReason(slot, dishes),
+      budgetMinKcal: budgetMinKcal,
+      reason: _emptyReason(slot, dishes, constraints),
       action: MealEmptyAction.openCanteen,
     );
   }
@@ -239,12 +276,13 @@ MealRecommendation _recommendForSlot({
       slot: slot,
       state: MealRecommendationState.empty,
       budgetKcal: budgetKcal,
+      budgetMinKcal: budgetMinKcal,
       reason: '这一餐的候选都被前面几餐用掉了（同一道菜不跨餐重复）',
       action: MealEmptyAction.openCanteen,
     );
   }
 
-  available.sort((a, b) => _compare(a, b, budgetKcal));
+  available.sort((a, b) => _compare(a, b, budgetKcal, feedback));
   final primary = available.first;
   final alternatives = available.skip(1).take(mealAlternativeLimit).toList();
   // 规则 3 标的是**主推**：「不拿别餐**已推过**的菜填位」（D8）。备选不进
@@ -258,8 +296,9 @@ MealRecommendation _recommendForSlot({
     primary: primary,
     alternatives: alternatives,
     budgetKcal: budgetKcal,
+    budgetMinKcal: budgetMinKcal,
     kcal: primary.kcal,
-    reason: _pickReason(primary, budgetKcal),
+    reason: _pickReason(primary, budgetKcal, budgetMinKcal),
   );
 }
 
@@ -268,12 +307,19 @@ MealRecommendation _recommendForSlot({
 /// 时段以**窗口为准**：`servingWindow`（窗口营业时段，写入菜品库时由窗口的
 /// 开关时间生成）与该餐时段带有交集才算候选；没有供应时段的菜（非食堂菜）
 /// 退回到它自己的餐次标签。菜品标签是从窗口**结束时间**派生的
-/// （`AddCanteenDishesToLibrary._mealSlotForWindow`），所以窗口是更强的事实。
-List<DishRecord> _eligibleFor(MealSlot slot, List<DishRecord> dishes) {
+/// （`supplyDishCandidates.mealSlotForWindow`），所以窗口是更强的事实。
+List<DishRecord> _eligibleFor(
+  MealSlot slot,
+  List<DishRecord> dishes,
+  PlanningConstraints? constraints,
+) {
   final band = _mealBands[slot]!;
   return [
     for (final dish in dishes)
-      if (_isUsable(dish) && _coversBand(dish, slot, band)) dish,
+      if (_isUsable(dish) &&
+          _coversBand(dish, slot, band) &&
+          !dishConflictsWithConstraints(dish, constraints))
+        dish,
   ];
 }
 
@@ -302,8 +348,20 @@ bool _coversBand(DishRecord dish, MealSlot slot, (int, int) band) {
   return open < band.$2 && band.$1 < close;
 }
 
-/// 空态成因（规则 6「不猜」）：分清「没有菜品」与「窗口不在这个时段营业」。
-String _emptyReason(MealSlot slot, List<DishRecord> dishes) {
+/// 空态成因（规则 6「不猜」）：分清「没有菜品」「窗口不在这个时段营业」
+/// 与「被饮食约束过滤」。
+String _emptyReason(
+  MealSlot slot,
+  List<DishRecord> dishes,
+  PlanningConstraints? constraints,
+) {
+  final unfiltered = _eligibleFor(slot, dishes, null);
+  if (constraints != null &&
+      !constraints.isEmpty &&
+      unfiltered.isNotEmpty &&
+      _eligibleFor(slot, dishes, constraints).isEmpty) {
+    return '按你的饮食约束，这一餐的可选菜都被过滤了';
+  }
   final tagged = dishes.where(
     (dish) =>
         _isUsable(dish) && MealSlot.fromStoredValue(dish.mealSlot) == slot,
@@ -314,13 +372,28 @@ String _emptyReason(MealSlot slot, List<DishRecord> dishes) {
   return '这一餐还没有已分析的菜品';
 }
 
-/// 规则 5：稳定排序。证据等级 → 与预算的差距 → `dish.id`。
+/// 规则 5：稳定排序。证据等级 → 显式反馈档位 → 与预算的差距 → `dish.id`。
 ///
 /// 没有当日目标时**不按预算挑**（预算不存在，任何「最接近」都是编的），
 /// 只按证据等级 + id 排——仍然是确定的。
-int _compare(DishRecord a, DishRecord b, double? budgetKcal) {
+///
+/// 反馈档位夹在证据等级之后、预算距离之前：用户点过两次「不错」的菜，
+/// 在**同一证据等级**内可以先于更贴合预算的菜被选中；但它不能越过
+/// 「已确认」与「AI 估算」的等级差，也不能硬过滤任何菜。
+int _compare(
+  DishRecord a,
+  DishRecord b,
+  double? budgetKcal,
+  FeedbackStore? feedback,
+) {
   final grade = _gradeRank(a).compareTo(_gradeRank(b));
   if (grade != 0) return grade;
+  if (feedback != null) {
+    final preference = feedback
+        .preferenceRank(b.name)
+        .compareTo(feedback.preferenceRank(a.name));
+    if (preference != 0) return preference;
+  }
   if (budgetKcal != null) {
     final distance = (a.kcal - budgetKcal).abs().compareTo(
       (b.kcal - budgetKcal).abs(),
@@ -337,12 +410,17 @@ int _gradeRank(DishRecord dish) =>
       LfEvidenceGrade.incomplete => 2,
     };
 
-String _pickReason(DishRecord dish, double? budgetKcal) {
+String _pickReason(DishRecord dish, double? budgetKcal, double? budgetMinKcal) {
   final grade = evidenceGradeForSource(dish.source) == LfEvidenceGrade.confirmed
       ? '已确认数据'
       : 'AI 估算';
   if (budgetKcal == null) {
     return '$grade里按证据等级挑的（还没有当日目标，不按预算推荐）';
+  }
+  // 需求 1：预算是**区间**时说区间（与仪表盘/「今天还剩多少」同一口径）。
+  final low = budgetMinKcal;
+  if (low != null && low != budgetKcal) {
+    return '$grade里离这一餐预算（约 ${low.round()}–${budgetKcal.round()} kcal）最近';
   }
   return '$grade里离这一餐预算（约 ${budgetKcal.round()} kcal）最近';
 }
@@ -388,6 +466,33 @@ Map<MealSlot, double?> _mealBudgets({
     for (final slot in mealRecommendationSlots)
       if (!openSlots.contains(slot)) slot: null,
   };
+}
+
+/// 规则 2（**区间版**，需求 1 / 2026-10-25）：本餐预算的**上下限**。
+///
+/// 与 [_mealBudgets]（上限）同一套分配法，只是把「剩余热量」换成**剩余区间**：
+/// `target.min − 已摄入` ～ `target.max − 已摄入`，再按各餐份额分给还没吃的
+/// 餐位。二者都按同一份额缩放，所以区间的相对宽度与全天目标一致。
+///
+/// 【数据不足时如实返回 null】没有目标、或目标已吃满 ⇒ 不给区间（调用方写
+/// 「没设目标」），**不编数字**（用户：「算不出来就说数据不足」）。
+({Map<MealSlot, double?> min, Map<MealSlot, double?> max}) _mealBudgetRanges({
+  required Map<MealSlot, double> recordedKcalBySlot,
+  required double? dailyTargetMinKcal,
+  required double? dailyTargetMaxKcal,
+  required int nowMinute,
+}) {
+  final minOnly = _mealBudgets(
+    recordedKcalBySlot: recordedKcalBySlot,
+    dailyTargetKcal: dailyTargetMinKcal,
+    nowMinute: nowMinute,
+  );
+  final maxOnly = _mealBudgets(
+    recordedKcalBySlot: recordedKcalBySlot,
+    dailyTargetKcal: dailyTargetMaxKcal,
+    nowMinute: nowMinute,
+  );
+  return (min: minOnly, max: maxOnly);
 }
 
 /// 把当天的餐食记录折算成「每餐已摄入的 kcal」。

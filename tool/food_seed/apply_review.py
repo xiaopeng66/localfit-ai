@@ -54,7 +54,6 @@ GAZETTEER = ROOT / rl.GAZETTEER_REL
 OUT_SEED = ROOT / "assets" / "seed" / "foods.v5.json"
 OUT_REVIEWED = ROOT / "lib" / "utils" / "food_brands_reviewed.g.dart"
 OUT_REPORT = ROOT / "reports" / "review_report.md"
-OUT_COUNT = ROOT / "lib" / "features" / "nutrition" / "domain" / "food_seed_count.g.dart"
 
 
 # ---- 裁决 → v5 行 -----------------------------------------------------------
@@ -148,27 +147,6 @@ def render_reviewed(tokens, ledger_sha, seed_sha, auto_count):
     lines.append("};")
     lines.append("")
     return "\n".join(lines)
-
-
-def render_count(count, seed_sha):
-    grouped = f"{count:,}"
-    return "\n".join([
-        "// GENERATED FILE — 由 tool/food_seed/apply_review.py 生成，不要手改。",
-        "//",
-        "// v5 种子的**实际条数**，供「随包 49,4xx 条中文食物」这类文案取数——",
-        "// 条数会随人工审核的删除而变，硬编码字面量被咬过一次（docs/29 §P8b-2 末条），",
-        "// 所以这里从生成器派生，测试据此校验文案不漂。",
-        "//",
-        f"// 种子：assets/seed/foods.v5.json（sha256 {seed_sha}）",
-        "library;",
-        "",
-        "/// v5 种子条目数（审核后的定稿条数）。",
-        f"const int kFoodSeedV5RowCount = {count};",
-        "",
-        "/// [kFoodSeedV5RowCount] 的千分位显示串（与设置页文案口径一致）。",
-        f"const String kFoodSeedV5RowCountGrouped = '{grouped}';",
-        "",
-    ])
 
 
 def render_report(*, stats, counts, seed_total, deleted_ids, uncertain_ids,
@@ -282,14 +260,13 @@ def build(require_coverage: float, ledger_path: Path | None = None):
     # 随包体从 ~10 MB 顶到 ~17 MB。逐字节确定，幂等不受影响。
     seed_text = json.dumps(v5, ensure_ascii=False, separators=(",", ":")) + "\n"
     reviewed_text = render_reviewed(reviewed, ledger_sha, seed_sha, len(automatic))
-    count_text = render_count(len(out_rows), seed_sha)
     report_text = render_report(
         stats=stats, counts=counts, seed_total=len(order),
         deleted_ids=deleted_ids, uncertain_ids=uncertain_ids,
         reviewed_count=len(reviewed), auto_count=len(automatic),
         ledger_sha=ledger_sha, seed_sha=seed_sha, rows=rows,
     )
-    return seed_text, reviewed_text, count_text, report_text, stats, reviewed, automatic
+    return seed_text, reviewed_text, report_text, stats, reviewed, automatic
 
 
 def main(argv):
@@ -300,14 +277,13 @@ def main(argv):
                         help="只校验三份产物是否为最新（对不上 exit 1）")
     args = parser.parse_args(argv)
 
-    seed_text, reviewed_text, count_text, report_text, stats, reviewed, automatic = build(
+    seed_text, reviewed_text, report_text, stats, reviewed, automatic = build(
         args.require_coverage
     )
 
     outputs = [
         (OUT_SEED, seed_text),
         (OUT_REVIEWED, reviewed_text),
-        (OUT_COUNT, count_text),
         (OUT_REPORT, report_text),
     ]
 

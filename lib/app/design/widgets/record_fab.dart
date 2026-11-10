@@ -22,10 +22,20 @@ import 'package:localfit_ai/app/design/widgets/pressable_scale.dart';
 /// 其实够不着那个成因**。改用 [LfInsets.bottom]（读视图的真实手势带）后，
 /// 间距才等于设计稿的算术 `96 − 73.5 = 22.5dp`，与 docs/29 的目标值一致。
 class RecordFab extends StatelessWidget {
-  const RecordFab({super.key, required this.onPressed, this.tooltip = '记录一餐'});
+  const RecordFab({
+    super.key,
+    required this.onPressed,
+    this.tooltip = '记录一餐',
+    this.buttonKey = const Key('nutrition-record-fab'),
+  });
 
   final VoidCallback? onPressed;
   final String tooltip;
+
+  /// 内层品牌圆钮的 Key。默认是记录页的 `nutrition-record-fab`；训练页
+  /// 复用同一枚视觉（用户 2026-11-02：训练页加号要和饮食页完全一致）时，
+  /// 传它自己的 `cta-new-plan`，既有入口 Key 不用退役。
+  final Key buttonKey;
 
   /// 设计稿 `bottom-[80px]`；docs/29 §P6 需求 13 抬到 96（理由见类注释）。
   /// 这里是**距真机手势带之上**的净底距：间距 = 本值 − 底栏预留 73.5
@@ -50,13 +60,14 @@ class RecordFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
+    final brightness = Theme.of(context).brightness;
     final button = PressableScale(
       child: SizedBox(
         width: 48,
         height: 48,
         child: Material(
-          key: const Key('nutrition-record-fab'),
-          color: c.primary,
+          key: buttonKey,
+          color: LfColors.brandStrong(brightness),
           shape: const CircleBorder(),
           elevation: 0,
           child: InkWell(
@@ -64,7 +75,11 @@ class RecordFab extends StatelessWidget {
             onTap: onPressed,
             child: Tooltip(
               message: tooltip,
-              child: Icon(Icons.add, size: 24, color: c.primaryForeground),
+              child: Icon(
+                Icons.add,
+                size: 24,
+                color: LfColors.onBrandStrong(brightness),
+              ),
             ),
           ),
         ),

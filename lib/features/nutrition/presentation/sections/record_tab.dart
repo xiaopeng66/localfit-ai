@@ -1,29 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:localfit_ai/app/back_navigation.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
-import 'package:localfit_ai/app/design/widgets/app_error_text.dart';
 import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
-import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_scrollbar.dart';
 import 'package:localfit_ai/app/design/widgets/record_fab.dart';
-import 'package:localfit_ai/app/design/widgets/skeleton_box.dart';
 import 'package:localfit_ai/features/nutrition/application/build_calorie_trend.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_analysis_sliver.dart';
-import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_energy_card.dart';
+import 'package:localfit_ai/features/nutrition/presentation/sections/record_energy_section.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_selection_bar.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_slot_grouping.dart';
+import 'package:localfit_ai/features/nutrition/presentation/sections/record_trend_card_skeleton.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_source_summary.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_week_section.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_trend_card.dart';
 import 'package:localfit_ai/features/progress/application/trend_calculator.dart';
 
-/// 记录页的热量卡、趋势、周条、餐卡与分析共用一个 `CustomScrollView`，
-/// 避免窄屏与大字号下置顶内容把列表挤出视口。胶囊行由 `NutritionPage` 持有。
-/// 长按进入多选；批量删除只确认一次，撤销由页面动作层提供。
+/// 记录页：周条、热量、趋势、餐卡与分析共用一个 `CustomScrollView`，窄屏
+/// 不因置顶内容挤爆视口。长按多选，批量删除只确认一次，撤销由动作层提供。
 class RecordTab extends StatefulWidget {
   const RecordTab({
     super.key,
@@ -31,10 +29,10 @@ class RecordTab extends StatefulWidget {
     required this.selectedDate,
     required this.now,
     required this.onSelectDate,
-    required this.onEditMeal,
-    required this.onDeleteMeal,
+    this.onEditSlotMeals,
+    this.onEditTarget,
     this.onDeleteSelected,
-    this.onReuseHistory,
+    this.onSelectionModeChanged,
     this.onAddToSlot,
     this.loadTrend,
     this.leading,
@@ -44,8 +42,14 @@ class RecordTab extends StatefulWidget {
   final DateTime selectedDate;
   final DateTime now;
   final ValueChanged<DateTime> onSelectDate;
-  final ValueChanged<MealRecord> onEditMeal;
-  final ValueChanged<MealRecord> onDeleteMeal;
+
+  /// 【2026-10-31 用户】整卡点击：合并编辑该槽位全部记录（null = 不接）。
+  final void Function(List<MealRecord> records)? onEditSlotMeals;
+
+  /// 点热量卡的「依据」格 → 手动指定营养目标（null = 不接）。
+  final VoidCallback? onEditTarget;
+  // 【2026-10-31】逐条 onEditMeal/onDeleteMeal 整族退役：编辑=整卡点击
+  // [onEditSlotMeals]（合并视图），删除在编辑弹层里逐条进行（垃圾桶）。
 
   /// 槽位头加号(**仅今天**渲染,A `data-slot`):走既有
   /// `NutritionActions.editMeal(initialSlot:)`(D9/D19 通道)。
@@ -56,8 +60,9 @@ class RecordTab extends StatefulWidget {
   /// 不传则隐藏「长按多选」入口，保持现网行为不回退。
   final Future<void> Function(List<MealRecord> selected)? onDeleteSelected;
 
-  /// 「复用历史餐食」二级流程（页面接 `NutritionActions.reuseMeal`）。
-  final VoidCallback? onReuseHistory;
+  /// 【2026-10-31 用户：删除按钮出现时加号就该隐藏】选择态变化上报给页面
+  /// （FAB 挂在页级 Stack 上，多选时要隐藏）。null = 调用方不关心（切片测试）。
+  final ValueChanged<bool>? onSelectionModeChanged;
 
   /// 趋势与分析固定取选中日结束的 7 天；自然周的后续日期单独补取，
   /// 截止今天，不把它们计入选中日的平均值与目标统计。
@@ -75,6 +80,9 @@ class _RecordTabState extends State<RecordTab> {
   /// 长按多选已勾选的 meal.id 集合（多选模式下可暂空，只有取消/删除才退出）。
   final Set<String> _selected = {};
 
+  /// 单独勾选的食物 item.id（与整条记录选择分开；两者 UI 取并集）。
+  final Set<String> _selectedItems = {};
+
   /// 最近一次拿到的趋势。null = 还没到数据（骨架态）。
   IntakeTrend? _trend;
   List<DailyIntakeRecord> _weekRemainder = const [];
@@ -88,18 +96,27 @@ class _RecordTabState extends State<RecordTab> {
   double? _targetMinKcal;
   double? _targetKcal;
 
-  /// 最近一帧拿到的当日餐食。批量删除要按 id 还原成完整记录，操作条却只
-  /// 持有计数——用列表自身的快照做映射，不再依赖调用方回传（早期版本传了
-  /// 空列表进去，确认框永远弹不出来）。
+  /// 最近一帧当日餐食：批量删除按 id 还原完整记录，不依赖调用方回传。
   List<MealRecord> _meals = const [];
 
-  /// 多选模式可以停在「已选 0 项」（全部取消勾选后仍在模式内），所以模式
-  /// 由独立的 [_selectionMode] 记，不能从 `_selected.isNotEmpty` 推。
+  /// 多选可停在「已选 0 项」，所以模式不能从集合是否为空反推。
   bool _selectionMode = false;
+
+  /// 返回拦截器的注销函数（initState 注册，见下）。
+  VoidCallback? _unregisterBackInterceptor;
 
   @override
   void initState() {
     super.initState();
+    // 【2026-10-31 用户：手势返回要先取消选择，而不是退出应用】系统返回
+    // （手势/返回键）经 shell 出口先问这里：多选激活时返回 = 退出多选。
+    // 必须在 initState 显式注册——`late final` 初始化器等首次访问才跑，
+    // 从不访问就从不注册（dispose 前一刻才注册、等于全程没注册的坑）。
+    _unregisterBackInterceptor = AppBackInterceptors.register(() {
+      if (!_selectionMode) return false;
+      _exitSelection();
+      return true;
+    });
     _watchIntake();
     _loadTrend();
   }
@@ -128,6 +145,7 @@ class _RecordTabState extends State<RecordTab> {
 
   @override
   void dispose() {
+    _unregisterBackInterceptor?.call();
     _intakeChanges?.cancel();
     super.dispose();
   }
@@ -185,31 +203,87 @@ class _RecordTabState extends State<RecordTab> {
     targetMaxKcal: _targetKcal,
   );
 
+  void _onTargetChanged(double? minKcal, double? maxKcal) {
+    final changed = maxKcal != _targetKcal || minKcal != _targetMinKcal;
+    _targetKcal = maxKcal;
+    _targetMinKcal = minKcal;
+    if (!changed) return;
+    // 兄弟卡在目标流返回前已经按旧值构建；目标变化时补一帧，让趋势徽标
+    // 与分析卡同步，而不是等用户翻页后才更新。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   void _enterOrToggle(MealRecord meal) {
     setState(() {
       _selectionMode = true;
-      if (!_selected.remove(meal.id)) _selected.add(meal.id);
+      if (_selected.remove(meal.id)) {
+        _selectedItems.removeWhere(
+          (id) => meal.items.any((item) => item.id == id),
+        );
+      } else {
+        // 未选或只选了部分食物 → 点分组一律整选。
+        _selected.add(meal.id);
+        _selectedItems.removeWhere(
+          (id) => meal.items.any((item) => item.id == id),
+        );
+      }
     });
+    widget.onSelectionModeChanged?.call(true);
+  }
+
+  void _toggleItem(MealRecord meal, MealItemRecord item) {
+    setState(() {
+      if (_selected.remove(meal.id)) {
+        // 从整选中排除当前食物：其余转成逐项选择，而不是整餐全取消。
+        for (final other in meal.items) {
+          if (other.id != item.id) _selectedItems.add(other.id);
+        }
+      } else if (!_selectedItems.remove(item.id)) {
+        _selectedItems.add(item.id);
+      }
+    });
+  }
+
+  /// 操作条按食物计数；整选记录 = 其全部食物，不重复计个别 item。
+  int get _selectedFoodCount {
+    var count = _selectedItems.length;
+    for (final meal in _meals) {
+      if (!_selected.contains(meal.id)) continue;
+      count += meal.items.length;
+      count -= meal.items
+          .where((item) => _selectedItems.contains(item.id))
+          .length;
+    }
+    return count;
   }
 
   void _exitSelection() {
     if (_selectionMode) {
       setState(() {
         _selected.clear();
+        _selectedItems.clear();
         _selectionMode = false;
       });
+      widget.onSelectionModeChanged?.call(false);
     }
   }
 
   Future<void> _confirmBulkDelete() async {
     final selected = _meals
-        .where((meal) => _selected.contains(meal.id))
+        .where(
+          (meal) =>
+              _selected.contains(meal.id) ||
+              meal.items.any((item) => _selectedItems.contains(item.id)),
+        )
         .toList(growable: false);
-    if (selected.isEmpty) return;
+    final selectedCount = _selectedFoodCount;
+    if (selected.isEmpty || selectedCount == 0) return;
     final confirmed = await AppSheet.show<bool>(
       context,
-      title: '删除所选餐食？',
-      content: Text('将删除所选 ${selected.length} 项餐食记录，可撤销。'),
+      title: '删除所选食物？',
+      content: Text('将删除所选 $selectedCount 项食物，可撤销；未选中的食物会保留。'),
       // 弹层行动档（§3.8）：**破坏性确认 = B7**，次级取消 = B6。
       // `我的.html:524-532` 的「清除所有数据」就是 error 字色的一行——设计稿
       // 里没有实心 error 按钮，所以这里不能用 B2 的实心主色。
@@ -231,13 +305,22 @@ class _RecordTabState extends State<RecordTab> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    // 先冻结选择快照，再退出多选；退出会清空集合，不能拿清空后的状态决定
+    // 是删整餐还是删部分食物。
+    final selectedMealIds = Set<String>.of(_selected);
+    final selectedFoodIds = Set<String>.of(_selectedItems);
     _exitSelection();
     // 落库由 RecordTab 持有（本就注入 repository）——删除成功后调用
     // onDeleteSelected 作为撤销/提示通道给页面动作层，两条路径分离。
     final deleted = <MealRecord>[];
     for (final meal in selected) {
       try {
-        final record = await widget.mealRepository.delete(meal.id);
+        final record = selectedMealIds.contains(meal.id)
+            ? await widget.mealRepository.delete(meal.id)
+            : await widget.mealRepository.deleteItems(meal.id, {
+                for (final item in meal.items)
+                  if (selectedFoodIds.contains(item.id)) item.id,
+              });
         if (record != null) deleted.add(record);
       } catch (_) {
         // 单项失败继续下一条——批量删除不追求原子性。
@@ -291,66 +374,23 @@ class _RecordTabState extends State<RecordTab> {
                       selectedDate: widget.selectedDate,
                       now: widget.now,
                       onSelect: widget.onSelectDate,
-                      onReuseHistory: widget.onReuseHistory,
+                      // 【N-4】回到今天 = 复用 onSelectDate（同一写入路径，
+                      // 把选中日推回今天）。
+                      onBackToToday: () => widget.onSelectDate(DateTime.now()),
                     ),
                   ),
                 ),
                 // 热量卡：A `nutritionRecords()` 里排在周条与日期行之下。
-                // 页级左右各 16dp（A `.page{padding:16px}`）：旧装配的页首是
-                // 全宽 hero（渐变铺满整宽、内边距在渐变内部），sliver 上从来
-                // 没有横向内衬——换成共享白卡后卡就贴到屏幕两边（阶段 2B
-                // 步骤 6 审看发现的缺陷 ⑤）。
+                // 组成与目标流在 RecordEnergySection；目标由本页统一持有，
+                // 趋势与分析共享同一快照。
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: LfDimens.pagePadding,
-                    ),
-                    child: StreamBuilder<DailyNutritionSummary>(
-                      stream: widget.mealRepository.watchNutritionForDate(date),
-                      builder: (context, snapshot) {
-                        final summary = snapshot.data;
-                        // 目标在 build 里赋值而非 setState：同一帧内热量卡、趋势卡、
-                        // 分析卡读到的就是同一份目标。
-                        final target = summary?.target;
-                        if (snapshot.hasData) {
-                          final nextMax = target?.calorieMaxKcal;
-                          final nextMin = target?.calorieMinKcal;
-                          // 兄弟卡（趋势/分析）的 widget 是在本 builder 运行**之前**
-                          // 就按旧值构造好的，所以目标从无到有（或变了）时必须补排
-                          // 一帧：否则「达标 N/7」徽标与「摄入 vs 目标 N kcal」会停在
-                          // 「尚未设定目标」，直到用户翻页/切 tab 才自己刷新。
-                          final changed =
-                              nextMax != _targetKcal ||
-                              nextMin != _targetMinKcal;
-                          _targetKcal = nextMax;
-                          _targetMinKcal = nextMin;
-                          if (changed) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) setState(() {});
-                            });
-                          }
-                        }
-                        if (snapshot.hasError) {
-                          return const Padding(
-                            padding: EdgeInsets.all(LfDimens.pagePadding),
-                            child: AppErrorText('当日营养加载失败。'),
-                          );
-                        }
-                        return NutritionRecordEnergyCard(
-                          consumed:
-                              summary?.consumed ??
-                              const NutritionValues(
-                                kcal: 0,
-                                proteinGrams: 0,
-                                carbsGrams: 0,
-                                fatGrams: 0,
-                              ),
-                          target: target,
-                          selectedDate: widget.selectedDate,
-                          now: widget.now,
-                        );
-                      },
-                    ),
+                  child: RecordEnergySection(
+                    repository: widget.mealRepository,
+                    localDate: date,
+                    selectedDate: widget.selectedDate,
+                    now: widget.now,
+                    onTargetChanged: _onTargetChanged,
+                    onEditTarget: widget.onEditTarget,
                   ),
                 ),
                 // 置信摘要（A `.source-summary`）：热量卡之下的**页级一行**
@@ -399,7 +439,7 @@ class _RecordTabState extends State<RecordTab> {
                         LfDimens.pagePadding,
                         LfDimens.pagePadding,
                       ),
-                      child: _TrendCardSkeleton(),
+                      child: RecordTrendCardSkeleton(),
                     ),
                   ),
                 // 时间线（A `.meal-timeline`）：竖直排四张槽位卡、卡间 12dp。
@@ -408,18 +448,19 @@ class _RecordTabState extends State<RecordTab> {
                     repository: widget.mealRepository,
                     localDate: date,
                     now: widget.now,
-                    onEdit: widget.onEditMeal,
-                    onDelete: widget.onDeleteMeal,
+                    onEditSlot: widget.onEditSlotMeals,
                     onAddToSlot: widget.onAddToSlot,
                     // 供批量删除按 id 还原记录:在 build 里赋值而不是 setState,
                     // 同一帧内读到的就是与屏幕一致的那份列表。
                     onMealsChanged: (meals) => _meals = meals,
                     selectionMode: _selectionMode,
                     selectedIds: _selected,
+                    selectedItemIds: _selectedItems,
                     onLongPress: widget.onDeleteSelected == null
                         ? null
                         : _enterOrToggle,
                     onToggleSelected: _enterOrToggle,
+                    onToggleItemSelected: _toggleItem,
                   ),
                 ),
                 // 营养分析卡（有趋势数据才渲染）。
@@ -430,19 +471,11 @@ class _RecordTabState extends State<RecordTab> {
                     targetMinKcal: _targetMinKcal,
                     targetMaxKcal: _targetKcal,
                   ),
-                // 底部预留：extendBody 后内容会延伸到贴底栏下方。
-                //
-                // 用**无子节点**的 [SliverPadding] 而不是 `SliverToBoxAdapter
-                // (child: SizedBox(...))`：后者会成为全页最深的**渲染叶子**，
-                // 滑到底时它本身就落在栏体下方，被 `route_shell_navigation_test`
-                // 的「内容不得画到遮挡线之下」判红。SliverPadding 直接产出
-                // SliverGeometry、不建子节点，预留量一致且不污染叶子判据。
+                // 用无子节点的 SliverPadding 留底：SizedBox 会成为最深叶子，
+                // 滑到底会被「内容不得画到遮挡线之下」判红。
                 SliverPadding(
                   padding: EdgeInsets.only(
-                    // RV2-P2-06：记录页右下有常驻圆钮（`RecordFab`，顶边在
-                    // 手势带 + 146），只留 navReserve 时最后一行会被它压住
-                    // （2.0× 下实测压住「还可摄入 X kcal」）。这里让内容能
-                    // 滚出圆钮的覆盖带。
+                    // 右下常驻 RecordFab：让最后一行能滚出圆钮覆盖带。
                     bottom: RecordFab.contentClearance(context),
                   ),
                 ),
@@ -452,28 +485,13 @@ class _RecordTabState extends State<RecordTab> {
         ),
         if (_selectionMode)
           NutritionRecordSelectionBar(
-            count: _selected.length,
-            onDelete: _selected.isEmpty ? null : () => _confirmBulkDelete(),
+            count: _selectedFoodCount,
+            onDelete: _selectedFoodCount == 0
+                ? null
+                : () => _confirmBulkDelete(),
             onCancel: _exitSelection,
           ),
       ],
     );
   }
-}
-
-/// 趋势卡首次加载的骨架（与真实卡同构，避免加载完跳一下）。
-class _TrendCardSkeleton extends StatelessWidget {
-  const _TrendCardSkeleton();
-
-  @override
-  Widget build(BuildContext context) => const DesignCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SkeletonBox(height: 18, width: 120),
-        SizedBox(height: LfDimens.spaceMedium),
-        SkeletonBox(height: 120),
-      ],
-    ),
-  );
 }

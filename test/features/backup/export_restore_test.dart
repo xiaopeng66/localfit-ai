@@ -513,10 +513,20 @@ void main() {
       (await restored.select(restored.foodAliases).get()).single.normalizedText,
       'jidan',
     );
-    expect(
-      await restored.select(restored.foodNutritionRevisions).get(),
-      hasLength(1),
-    );
+    // docs/67 §3.1：恢复后每条**完整**主食物都必须有生效修订。夹具里手工
+    // 直插的 alias-food（没有 current_revision_id）和随包种子行都会被归一
+    // 补一条基线修订，所以这里断言"原来那条逐字回来"而不是总数。
+    final revisions = await restored
+        .select(restored.foodNutritionRevisions)
+        .get();
+    final seeded = revisions.singleWhere((row) => row.id == 'rev-1');
+    expect(seeded.foodId, 'alias-food');
+    expect(seeded.revisionNumber, 2, reason: '夹具里 rev-1 就是第 2 版');
+    expect(revisions.every((row) => row.foodId.isNotEmpty), isTrue);
+    final restoredAlias = await (restored.select(
+      restored.foods,
+    )..where((t) => t.id.equals('alias-food'))).getSingle();
+    expect(restoredAlias.currentRevisionId, isNotNull, reason: '恢复后生效修订指针必须补上');
     expect(await restored.select(restored.foodPortions).get(), hasLength(1));
     expect(await restored.select(restored.foodEvidence).get(), hasLength(1));
     expect(await restored.select(restored.foodImportJobs).get(), hasLength(1));
@@ -602,6 +612,18 @@ void main() {
     ];
     for (final name in newTables) {
       tables.remove(name);
+    }
+    // A real 1.x row also lacks non-null columns added later to existing
+    // profiles/foods tables; registry defaults must fill these, not only omit
+    // whole new tables.
+    for (final row
+        in (tables['profiles'] as List).cast<Map<String, dynamic>>()) {
+      row.remove('allergenAvoidancesJson');
+      row.remove('pantryCoverageEnabled');
+    }
+    for (final row in (tables['foods'] as List).cast<Map<String, dynamic>>()) {
+      row.remove('state');
+      row.remove('licenseStatus');
     }
     final legacy = Uint8List.fromList(utf8.encode(jsonEncode(document)));
 
@@ -942,7 +964,34 @@ void main() {
 
     await RestoreLocalFitData(database).restore(bytes);
     final restored = await rowCounts(database);
-    expect(restored, before, reason: '恢复必须逐表还原到清除前的行数');
+    // docs/67 §7.4：恢复与数据库升级共用同一份归一规则，会给**完整但缺少
+    // 生效修订**的主食物补基线修订。这两张表的行数因此只允许按该规则增长，
+    // 其余表必须逐表逐字回到清除前。
+    const derivedByConversion = {
+      'food_nutrition_revisions',
+      'legacy_entity_mappings',
+    };
+    final stableBefore = Map.of(before)
+      ..removeWhere((key, _) => derivedByConversion.contains(key));
+    final stableAfter = Map.of(restored)
+      ..removeWhere((key, _) => derivedByConversion.contains(key));
+    expect(stableAfter, stableBefore, reason: '恢复必须逐表还原到清除前的行数');
+    expect(
+      restored['food_nutrition_revisions'],
+      greaterThanOrEqualTo(before['food_nutrition_revisions'] ?? 0),
+      reason: '只允许补基线修订，不允许丢',
+    );
+    final completeWithoutRevision = await database
+        .customSelect(
+          'SELECT COUNT(*) AS c FROM foods '
+          'WHERE current_revision_id IS NULL',
+        )
+        .getSingle();
+    expect(
+      completeWithoutRevision.read<int>('c'),
+      0,
+      reason: '恢复后每条主食物都必须有生效修订指针',
+    );
 
     await ClearAllLocalData(database).clear();
     final clearedAgain = await rowCounts(database);

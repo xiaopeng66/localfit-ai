@@ -71,13 +71,15 @@ void main() {
       );
     });
 
-    test('协议总长 ≤ 7500 字（防止继续膨胀）', () {
+    test('协议总长 ≤ 7600 字（防止继续膨胀）', () {
       expect(
         proto.length,
-        lessThanOrEqualTo(7500),
+        lessThanOrEqualTo(7600),
         reason:
             '协议 ${proto.length} 字已偏长；再加规则请先合并旧规则。'
-            '（基线实测 6596 字，本批为「缺信息兜底」前置化会略增，预算留到 7500）',
+            '（基线实测 6596 字；2026-11-07 docs/66 为 `targets.update` 增加'
+            '可选 `localDate` 参数，正常模式预算从 7500 放宽到 7600；编译'
+            '模式变体是独立分支，不计入本预算）',
       );
     });
 
@@ -271,6 +273,37 @@ void main() {
             '「我要晚餐，给我午餐」这种错，协议里必须有一条硬约束挡住：'
             '用户明确说了餐次就照用户说的，不许自己换一餐。',
       );
+    });
+
+    group('编译模式变体（docs/66 · 2127 后补）', () {
+      test('编译模式：命令清单后必须有「不许发明参数」的硬规则', () {
+        final compile = ChatEditCommandRegistry().renderProtocol(
+          compileMode: true,
+        );
+        expect(
+          compile.contains('清单里没有的参数'),
+          isTrue,
+          reason:
+              '真机实测（2026-11-09）：模型给 water.add 发明了 notes 参数'
+              '（从 weight.log/meal.create 串行），decoder 按「未知参数拒绝」'
+              '整条判失败，用户看到一张全失败的卡。参数白名单规则必须紧跟'
+              '命令清单出现。',
+        );
+        // 头部快照进 reason 便于排查（不含换行，避免再次破坏字符串字面量）。
+        final nl = String.fromCharCode(10);
+        final head = compile
+            .substring(0, compile.length.clamp(0, 300))
+            .replaceAll(nl, ' ');
+        expect(head, isNotEmpty, reason: '编译模式协议开头：$head');
+        expect(compile.contains('water.add'), isTrue, reason: '要给出具体反例');
+      });
+
+      test('编译模式：不许发明参数的规则要给「会被拒绝」的后果', () {
+        final compile = ChatEditCommandRegistry().renderProtocol(
+          compileMode: true,
+        );
+        expect(compile.contains('拒绝'), isTrue, reason: '要让模型知道后果');
+      });
     });
   });
 }

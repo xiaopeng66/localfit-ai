@@ -69,7 +69,7 @@ void main() {
           data: const MediaQueryData(disableAnimations: true),
           child: Scaffold(
             body: TrainingHero(
-              weekIndex: 1,
+              weekRangeText: '9/7 – 9/13',
               finishedCount: 3,
               totalDuration: const Duration(hours: 2),
               totalKcal: null,

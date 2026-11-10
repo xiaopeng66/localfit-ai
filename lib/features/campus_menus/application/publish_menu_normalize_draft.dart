@@ -38,15 +38,48 @@ class PublishMenuNormalizeDraft {
       ], userMessage: '菜单草案缺少食堂名称（venue_name）。');
     }
     final now = _clock.nowUtc();
-    final venue = await _findOrCreateVenue(venueName, now);
-    final sourceId = await _findOrCreateSource(venue.id, now);
-    return _publisher.publishDraft(
-      venueId: venue.id,
-      sourceId: sourceId,
-      businessDate: draft.sourceDate,
-      draft: draft,
-      skipIfHashMatches: true,
-    );
+    final existingVenue =
+        await (_database.select(_database.venues)
+              ..where((row) => row.name.equals(venueName))
+              ..limit(1))
+            .getSingleOrNull();
+    final venue = existingVenue ?? await _findOrCreateVenue(venueName, now);
+    final existingSource =
+        await (_database.select(_database.menuSources)
+              ..where(
+                (row) =>
+                    row.venueId.equals(venue.id) &
+                    row.sourceType.equals(MenuSourceType.pastedText),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    final sourceId =
+        existingSource?.id ?? await _findOrCreateSource(venue.id, now);
+    final createdSource = existingSource == null;
+    try {
+      return await _publisher.publishDraft(
+        venueId: venue.id,
+        sourceId: sourceId,
+        businessDate: draft.sourceDate,
+        draft: draft,
+        skipIfHashMatches: true,
+      );
+    } catch (_) {
+      // Publisher owns the snapshot transaction. If setup rows were created by
+      // this call and publishing fails, remove them too; otherwise a failed AI
+      // proposal leaves an empty venue/source behind.
+      if (createdSource) {
+        await (_database.delete(
+          _database.menuSources,
+        )..where((row) => row.id.equals(sourceId))).go();
+      }
+      if (existingVenue == null) {
+        await (_database.delete(
+          _database.venues,
+        )..where((row) => row.id.equals(venue.id))).go();
+      }
+      rethrow;
+    }
   }
 
   Future<Venue> _findOrCreateVenue(String name, DateTime now) async {

@@ -45,7 +45,13 @@ final class FoodLibraryItemActions {
       context,
       editing: record,
       existingAliases: existingAliases,
-      onSubmit: (food) => controller.updateFood(item.id, food),
+      // 带上"打开表单时那一版"的 updatedAt：别的设备/页面刚改过就报冲突，
+      // 不静默覆盖（docs/67 §3.2 第 7 条）。
+      onSubmit: (food) => controller.updateFood(
+        item.id,
+        food,
+        expectedUpdatedAt: item.updatedAt,
+      ),
     );
     if (!context.mounted || saved == null) return;
     await reload();

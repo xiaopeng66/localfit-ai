@@ -72,8 +72,6 @@ void main() {
               selectedDate: date,
               now: now,
               onSelectDate: (_) {},
-              onEditMeal: (_) {},
-              onDeleteMeal: (_) {},
               loadTrend: (days, endDate) =>
                   endDate.day == 10 ? older.future : newer.future,
             ),

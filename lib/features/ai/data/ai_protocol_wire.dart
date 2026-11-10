@@ -187,11 +187,16 @@ extension AiProtocolWire on AiProviderProtocol {
     String? systemContext,
     required List<ConversationWireMessage> messages,
     required AiReasoningMode reasoning,
+    bool forceJson = false,
   }) => switch (this) {
     AiProviderProtocol.chatCompletions => {
       'model': model.trim(),
       'stream': true,
       'max_tokens': maxTokens,
+      // 【2026-11-03 根治「不按协议输出 JSON」】信封编译这一趟让供应商在
+      // 解码层保证是 JSON（DeepSeek/OpenAI/Qwen 等 chat-completions 都认）。
+      // 普通对话不加——用户聊天不该被强制成 JSON。
+      if (forceJson) 'response_format': const {'type': 'json_object'},
       if (reasoning == AiReasoningMode.disabled)
         'thinking': const {'type': 'disabled'},
       'messages': [
@@ -220,6 +225,11 @@ extension AiProtocolWire on AiProviderProtocol {
       'model': model.trim(),
       'stream': true,
       'max_output_tokens': maxTokens,
+      // Responses 的结构化输出在 text.format（2026-11-03 信封编译用）。
+      if (forceJson)
+        'text': const {
+          'format': {'type': 'json_object'},
+        },
       // 快照与主 system 合并成一段 instructions：Responses 没有「多条
       // system」的概念，拆开会静默丢掉后一条。
       'instructions': [

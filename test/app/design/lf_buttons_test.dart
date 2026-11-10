@@ -1,5 +1,7 @@
 // 2026-10-14 Round7 A：仅更新视觉期望，保留行为、无障碍与性能约束。
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +16,17 @@ import 'package:localfit_ai/app/design/widgets/dashed_border.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 
 void _noop() {}
+
+/// WCAG 对比度（2026-11-09 审查补：字色档位是否真的达标，要看数）。
+double _contrast(Color fg, Color bg) {
+  double channel(double v) =>
+      v <= 0.04045 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  double luminance(Color c) =>
+      0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  final a = luminance(fg) + 0.05;
+  final b = luminance(bg) + 0.05;
+  return a > b ? a / b : b / a;
+}
 
 /// 主题化宿主：§3.8 的实心档位由 `app_theme` 给出（共享件不自己设色），
 /// 因此九型的形态断言必须挂在真主题下。
@@ -75,13 +88,16 @@ void main() {
       final style = tester.widget<FilledButton>(find.byKey(key)).style!;
       // 显式不设 ⇒ styleFrom 得到 null 属性，落主题 filledButtonTheme。
       expect(style.backgroundColor?.resolve(const {}), isNull);
+      // 【2026-10-29 用户裁决】实心档 = brandStrong（设计源稿基础层
+      // `--brand-strong`）；refinement 层的「亮绿底 + #10271D 深字」被实机判为
+      // 看不清，见 `LfColors.brandStrong` 注释。
       expect(
         lfSolidButtonFill(tester.element(find.byKey(key))),
-        LfSemanticColors.light.primary,
+        LfColors.brandStrong(Brightness.light),
       );
-      // 字色 = primaryForeground。
+      // 字色 = onBrandStrong（亮白；= 设计源稿 `var(--card)`）。
       final text = tester.widget<Text>(find.byType(Text).first);
-      expect(text.style!.color, LfSemanticColors.light.primaryForeground);
+      expect(text.style!.color, LfColors.onBrandStrong(Brightness.light));
       expect(text.style!.fontSize, LfText.bodyStrong.fontSize);
     });
 
@@ -164,7 +180,7 @@ void main() {
       expect(style.backgroundColor?.resolve(const {}), isNull);
       expect(
         lfSolidButtonFill(tester.element(find.byKey(key))),
-        LfSemanticColors.light.primary,
+        LfColors.brandStrong(Brightness.light),
       );
       final decos = tester
           .widgetList<DecoratedBox>(
@@ -369,8 +385,9 @@ void main() {
           ),
         ),
       );
-      expect(_bg(tester, kSolid), LfSemanticColors.light.primary);
-      expect(_fg(tester, kSolid), LfSemanticColors.light.primaryForeground);
+      // 【2026-10-29】solid 档随实心档同源：brandStrong 底 + onBrandStrong 字。
+      expect(_bg(tester, kSolid), LfColors.brandStrong(Brightness.light));
+      expect(_fg(tester, kSolid), LfColors.onBrandStrong(Brightness.light));
       expect(_bg(tester, kMuted), LfSemanticColors.light.muted);
       expect(_fg(tester, kMuted), LfSemanticColors.light.mutedForeground);
       expect(_bg(tester, kSoft), LfColors.brandSoft(Brightness.light));
@@ -590,12 +607,43 @@ void main() {
       expect(_fg(tester, key), LfColors.mint(Brightness.dark).tone(400));
     });
 
-    testWidgets('B7 字色 = error（破坏性操作用文字型）', (tester) async {
+    // 2026-11-09 全量审查：原断言钉的是 `error`(#F44336) —— 那是**填充档**，
+    // 当 14px 正文在白卡上只有 3.68:1（压 muted 3.29:1），低于 AA 4.5。
+    // 现在改用文字档 `errorText`，并把对比度本身一起钉住。
+    testWidgets('B7 字色 = errorText（破坏性操作用文字型，且 ≥4.5:1）', (tester) async {
       const key = Key('b7');
       await tester.pumpWidget(
         host(const LfDangerButton(key: key, label: '清除全部数据', onPressed: _noop)),
       );
-      expect(_fg(tester, key), LfSemanticColors.light.error);
+      expect(_fg(tester, key), LfSemanticColors.light.errorText);
+      expect(
+        _contrast(
+          LfSemanticColors.light.errorText,
+          LfSemanticColors.light.card,
+        ),
+        greaterThanOrEqualTo(4.5),
+        reason: '破坏性正文压白卡必须达 AA',
+      );
+      expect(
+        _contrast(
+          LfSemanticColors.light.errorText,
+          LfSemanticColors.light.muted,
+        ),
+        greaterThanOrEqualTo(4.5),
+        reason: '破坏性正文压 muted 底必须达 AA',
+      );
+      // 填充档仍是 error（实心按钮/描边用），两档不许合并。
+      expect(
+        LfSemanticColors.light.error,
+        isNot(LfSemanticColors.light.errorText),
+      );
+    });
+
+    testWidgets('B7 暗色 errotext 也 ≥4.5:1（压 muted）', (tester) async {
+      expect(
+        _contrast(LfSemanticColors.dark.errorText, LfSemanticColors.dark.muted),
+        greaterThanOrEqualTo(4.5),
+      );
     });
   });
 
@@ -617,11 +665,11 @@ void main() {
         style.textStyle!.resolve(const {})!.fontSize,
         LfText.captionStrong.fontSize,
       );
-      // 实心档仍读主题（自己不设背景色）。
+      // 实心档仍读主题（自己不设背景色）；【2026-10-29】底 = brandStrong。
       expect(style.backgroundColor?.resolve(const {}), isNull);
       expect(
         lfSolidButtonFill(tester.element(find.byKey(key))),
-        LfSemanticColors.light.primary,
+        LfColors.brandStrong(Brightness.light),
       );
     });
   });

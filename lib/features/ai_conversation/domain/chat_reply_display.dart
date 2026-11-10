@@ -34,7 +34,21 @@ const String kMalformedEnvelopeNotice =
     '这次没能整理成可应用的修改。可以再点「让 AI 给出可应用的修改」重来一次，'
     '或把要求说得更具体一点。';
 
+/// 半截信封在**手动卡片模式**下的替代文案（docs/66 §5.5）：
+/// 新路径没有「让 AI 给出可应用的修改」入口（引用它会指到一个不存在的按钮），
+/// 改为引导重试或说得更具体。旧路径保留 [kMalformedEnvelopeNotice] 不动。
+const String kMalformedEnvelopeNoticeManualCard =
+    '这次回复格式有误，没能整理成内容。可以重试，或把要求说得更具体一点。';
+
 /// 上屏用的回复文本：信封残留 → 人话；否则剥掉内部引用。
-String replyTextForDisplay(String text) => looksLikeEnvelopeText(text)
-    ? kMalformedEnvelopeNotice
+///
+/// [manualCardMode]（docs/66 §5.5）：手动卡片模式下坏信封引用的是
+/// [kMalformedEnvelopeNoticeManualCard]（新路径没有「让 AI 给出可应用的
+/// 修改」入口）；缺省 false 时沿用 [kMalformedEnvelopeNotice]，旧调用点
+/// 行为逐字节不变。
+String replyTextForDisplay(String text, {bool manualCardMode = false}) =>
+    looksLikeEnvelopeText(text)
+    ? (manualCardMode
+          ? kMalformedEnvelopeNoticeManualCard
+          : kMalformedEnvelopeNotice)
     : stripInternalRefs(text);

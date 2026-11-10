@@ -187,6 +187,36 @@ final class WorkoutSessionRepository {
     });
   }
 
+  /// 删掉一组（A-4，docs/64）：记错了能撤。返回是否真的删掉了。
+  ///
+  /// 只删组、不动会话：会话的 `completedSetCount` / 总容量都是**派生值**
+  /// （从 `workout_sets` 现算），删完调用方重读会话即可，不许手改计数。
+  Future<bool> deleteSet(String setId) async {
+    final deleted = await (database.delete(
+      database.workoutSets,
+    )..where((row) => row.id.equals(setId))).go();
+    return deleted == 1;
+  }
+
+  /// 删掉整次训练（含组次）。返回是否真的删掉了。
+  ///
+  /// schema 侧 `WorkoutSets.sessionId` 已是 `onDelete: cascade`，这里**仍然
+  /// 显式**先删组再删会话：级联依赖 `PRAGMA foreign_keys = ON`，显式删除在
+  /// 「pragma 被谁关掉」时也不会留下孤儿（与 `clearAllLocalData` 同一写法）。
+  Future<bool> deleteSession(String sessionId) async {
+    var deleted = false;
+    await database.transaction(() async {
+      await (database.delete(
+        database.workoutSets,
+      )..where((row) => row.sessionId.equals(sessionId))).go();
+      final removed = await (database.delete(
+        database.workoutSessions,
+      )..where((row) => row.id.equals(sessionId))).go();
+      deleted = removed == 1;
+    });
+    return deleted;
+  }
+
   void _validateDraft(WorkoutSetDraft draft) {
     final weight = draft.weightKg;
     if (!weight.isFinite || weight < 0) {

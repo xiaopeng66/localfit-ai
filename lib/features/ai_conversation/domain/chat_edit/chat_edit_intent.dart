@@ -19,11 +19,21 @@ library;
 /// 「动作性」强的词，避免「吃」「喝」「有」这类描述性动词误判。
 const _modificationVerbs = <String>[
   '添加',
+  '加入',
+  '加进',
+  '加到',
   '加一个',
   '加上',
   '加个',
   '再加',
   '帮我加',
+  '放进',
+  '录入',
+  '新增',
+  '存进',
+  '保存到',
+  '补记',
+  '补录',
   '记录',
   '记一笔',
   '记一下',
@@ -49,6 +59,25 @@ const _modificationVerbs = <String>[
   '新建',
   '创建',
   '编辑',
+  // 【2026-11-02 用户实机：AI 一直重复「要不要生成」】计划类请求此前完全
+  // 不在动词表里：「帮我生成今天的饮食计划」「安排三餐」「制定减脂计划」
+  // 全判 false ⇒ 不催信封 ⇒ 模型一句「要不要我帮你生成？」就能无限循环。
+  '生成',
+  '制定',
+  '制订',
+  '安排',
+  '规划',
+  '计划一下',
+  '配一套',
+  '配一餐',
+  '排一下',
+  '排一套',
+  '做一个',
+  '做个',
+  '拟一个',
+  '拟个',
+  '定个计划',
+  '定一个计划',
   // 「我把这件事做了」的口语陈述＝记录意图（协议规则 5 的同一批说法）。
   '吃了',
   '喝了',
@@ -116,6 +145,77 @@ final _constraintPatterns = <RegExp>[
   RegExp(r'(别|不要|以后别)[^。？！\n]{0,6}(推荐|给我推)'),
 ];
 
+/// 模型散文回复里**声称已经改了数据**的模式（2026-10-27，信封升级梯子的
+/// 回复侧触发器，docs/24 记录过的真实失败模式：「已在你的忌口清单里加入芒果」
+/// ——其实什么都没写）。
+///
+/// 只认第一人称完成态（已/帮你 + 落库动词），不认「建议你记录」「可以记录」
+/// 这类**建议/说明**——误伤的代价是多花一次请求，但漏放的代价是用户以为
+/// 记上了。两条都故意收紧。
+final _replyClaimPatterns = <RegExp>[
+  RegExp(r'已(经)?(记录|记下|添加|加入|删除|删掉|更新|改成|写入|保存)'),
+  RegExp(r'已把[^。？！\n]{0,10}(加入|记入|存入|删除|删掉|更新|改成)'),
+  RegExp(r'帮你(记录|记下|添加|加入|删除|删掉|更新|改)'),
+];
+
+/// 这条模型回复是否在**声称已经改了数据**。真值为「模型承诺过改动却没带
+/// 信封」的失败信号（信封升级梯子的回复侧触发器）。
+bool replyClaimsChanges(String reply) {
+  final flat = reply.trim();
+  if (flat.isEmpty) return false;
+  for (final pattern in _replyClaimPatterns) {
+    if (pattern.hasMatch(flat)) return true;
+  }
+  return false;
+}
+
+/// 模型回复里**引用「应用」卡片**的说法（「点『应用』后才会保存」「应用后
+/// 自动记到今天的摄入」）。
+///
+/// 【2026-11-02 用户实机：AI 说有一条待应用记录，屏幕上却没有卡片】
+/// 模型把「有一条卡等你点应用」当成事实写进回复，但这一轮根本没给信封。
+/// 这比「声称已保存」更隐蔽：用户会去找那张不存在的卡，然后发现对话里
+/// 只有文字。命中它时按失败处理（重催信封 + 兜底卡），而不是当普通闲聊。
+///
+/// 只在**整段对话没有任何编辑卡**时才算失败信号（见 controller）：用户
+/// 对着上一张真实卡片追问「应用后会记到今天的摄入吗」是正常对话，不能误催。
+final _applyCardReferencePatterns = <RegExp>[
+  RegExp('点[击了]?[「"\u2018]?应用'),
+  RegExp('应用[」"\u2019]?(之)?后'),
+  RegExp(r'应用卡片'),
+];
+
+/// 这条回复是否在讲「点应用」这件事（配合「会话里有没有真卡片」一起判断）。
+bool replyMentionsApplyCard(String reply) {
+  final flat = reply.trim();
+  if (flat.isEmpty) return false;
+  for (final pattern in _applyCardReferencePatterns) {
+    if (pattern.hasMatch(flat)) return true;
+  }
+  return false;
+}
+
+/// 模型回复是否在**反问「要不要我生成 / 帮你安排」**。
+///
+/// 【2026-11-02 用户实机】用户说「帮我生成今天的饮食计划」，模型连着几轮只回
+/// 「要不要我帮你生成一份？」，一张卡都不弹。协议规则 0/4 明确要求「拿不准也
+/// 要出信封，不要只回提问」，但模型反复违反。命中它时按失败处理（催信封），
+/// 而不是把「要不要生成」当正常对话。
+final _askingToProceedPatterns = <RegExp>[
+  RegExp(r'(要不要|需不需要|是否要|可以帮你|需要我|要我)[^。？！\n]{0,20}(生成|安排|制定|规划|配|排|做)'),
+  RegExp(r'(生成|安排|制定|规划|配|排)[^。？！\n]{0,12}(吗|呢|？|\?)'),
+];
+
+/// 这条回复是否在反问「要不要生成/安排」（而不是直接给信封）。
+bool replyAsksToProceed(String reply) {
+  final flat = reply.trim();
+  if (flat.isEmpty) return false;
+  for (final pattern in _askingToProceedPatterns) {
+    if (pattern.hasMatch(flat)) return true;
+  }
+  return false;
+}
+
 /// 判断这句话是否**很可能**是修改请求（比对：`looksLikeModificationRequest`）。
 bool looksLikeModificationRequest(String text) {
   final trimmed = text.trim();
@@ -179,3 +279,22 @@ const chatEditEnvelopeNudge =
     'JSON 信封（整段回复只放这一个 JSON 对象，不要写任何解释或代码围栏）。'
     '缺少必要信息时不要只回文字：用 suggestions 给 1–3 个可点选项，'
     '或在 reply 里说清楚还差什么、并用 suggestions 给出候选。';
+
+/// 模型反问「要不要生成 / 要不要帮你安排」时的专门催促。
+///
+/// 【2026-11-02 用户实机】用户已经明确说「帮我生成今天的饮食计划」，模型却
+/// 连续几轮只回「要不要我帮你生成一份？」，一张卡都不弹。协议规则 0/4 早就
+/// 禁止「只回提问」，但这条对部分模型不够硬。这个提示把「不要问、直接做」
+/// 单独说一遍，并给出可执行的最小信封形状。
+String chatEditEnvelopeNudgeNoAsking(String previousReply) {
+  final flat = previousReply
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll('"', '「')
+      .trim();
+  final quoted = flat.length <= 200 ? flat : '${flat.substring(0, 200)}…';
+  return '【App 提示】你上一条回复在**反问用户要不要生成**：「$quoted」。'
+      '用户已经明确提出了这个请求，**不要再问一遍**——直接输出 chat-edit 信封，'
+      '把要做的事写成 edits（例如 `workout.plan.create` / `meal.create`）。'
+      '信息不全时按常见值估算并在 reply 里说明，绝不许用一句「要不要我帮你生成」'
+      '代替信封。整段回复只放这一个 JSON 对象。';
+}

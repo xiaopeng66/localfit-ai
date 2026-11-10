@@ -5,21 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-/// foods 表列结构的两段迁移：Round 5 T11（docs/32 §4 T11 / 需求 75「按新结构重新
-/// 导入」）schema 24 → 25 **加 15 列**；ADR-036（2026-10-21「存储格式定死」）
-/// schema 29 → 30 把这 15 列与 `category_group` / `category_sub` 一起 **DROP**，
-/// 分类只剩唯一指标 `category`（10 枚举，导入期翻译）。
+/// foods 的列迁移链：v25 增加导入契约列，v30 按 ADR-036 退役导入列与
+/// 分类中间列，v31 按 docs/68 增加生效修订指针、变体、做法与归档身份。
 ///
-/// 加减在同一条链上，失败模式不同（加法怕重复加 / 漏建表，减法怕误删），所以这里钉：
-/// 1. **v24 老库**（有行、有值）升级后到 `schemaVersion`：17 个既有列一字不动、
-///    15 个契约列已不在（加过又删掉，净结果为零）、行数据完好；
-/// 2. **v29 库**（15 列里**有值**）升级到 30：列没了，**留下的列值一字不改**
-///    （减法迁移最怕的就是把行一起搬丢 / 搬到错列）；
-/// 3. **幂等**：升过的库再打开不抛（`ADD COLUMN` 第二次 duplicate column、
-///    `DROP COLUMN` 第二次 no such column ⇒ 两条都按**列存在性**判断）；
-/// 4. **裁剪库**（fixture 没建 `foods` 表）升级不抛错——先查表在不在；
-/// 5. **半迁移库**（个别列已在、版本号停在 24）：照常升到当前 schema，不抛错；
-/// 6. 新装即当前 schema：建表定义与迁移链两条路径终点一致。
+/// 这里验证加减都能到达当前 schema：
+/// 1. v24 / v29 有值旧库的既有列与行完整保留，所有退役列逐项消失；
+/// 2. v31 新身份列在未提供来源关系时为 null，不伪造修订、变体或归档；
+/// 3. 重开和半迁移库幂等，缺少 foods 的裁剪库也能升级；
+/// 4. 新装与两种迁移路径的列名、类型、非空、默认值及主键语义一致。
+///
+/// 这些是专测 foods DDL 的裁剪库，不含 food_nutrition_revisions；完整旧库的
+/// baseline 修订与历史快照保全由 app_database_v11_migration_test 覆盖。
 void main() {
   late Directory tempDir;
 
@@ -31,7 +27,7 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  /// 契约里那 15 列（21 列 CSV 减掉表原有的 6 列）。schema 25 加上、schema 30 删掉。
+  /// schema 25 加入、schema 30 退役的导入字段。
   const contractColumns = <String>[
     'library_code',
     'category_sub',
@@ -50,8 +46,8 @@ void main() {
   ];
   const droppedColumns = <String>[...contractColumns, 'category_group'];
 
-  /// ADR-036 后 foods 的存储列（分类只有 `category` 一个指标）。
-  const storedColumns = <String>[
+  /// ADR-036 保留的历史列，迁移前后每一列的原值都必须保全。
+  const legacyColumns = <String>[
     'id',
     'name',
     'brand',
@@ -70,17 +66,58 @@ void main() {
     'source_version',
     'license_status',
   ];
+  const identityColumns = <String>[
+    'current_revision_id',
+    'variant_of_food_id',
+    'cooking_note',
+    'archived_at',
+  ];
+  const storedColumns = <String>[...legacyColumns, ...identityColumns];
 
   Future<List<String>> columnNames(AppDatabase database) async =>
       (await database.customSelect('PRAGMA table_info(foods)').get())
           .map((row) => row.data['name'] as String)
           .toList();
 
-  test('v24 老库升级到当前 schema：17 个既有列一字不动、行数据完好、契约列净为零', () async {
+  Future<Map<String, Map<String, Object?>>> readColumnDefinitionsAndClose(
+    AppDatabase database,
+  ) async {
+    try {
+      return {
+        for (final row
+            in await database.customSelect('PRAGMA table_info(foods)').get())
+          row.data['name'] as String: {
+            for (final key in ['type', 'notnull', 'dflt_value', 'pk'])
+              key: row.data[key],
+          },
+      };
+    } finally {
+      await database.close();
+    }
+  }
+
+  Future<void> expectFoodDataPreserved(
+    AppDatabase database,
+    Map<String, Object?> before,
+  ) async {
+    final row =
+        (await database.customSelect('SELECT * FROM foods').get()).single;
+    expect(
+      {for (final name in legacyColumns) name: row.data[name]},
+      {for (final name in legacyColumns) name: before[name]},
+      reason: '删除导入列和增加身份列均不得改写既有营养、来源或审计值',
+    );
+    for (final name in identityColumns) {
+      expect(row.data[name], isNull, reason: '$name 不得从无来源的裁剪夹具中编造');
+    }
+  }
+
+  test('v24 老库升级到当前 schema：旧列值保全、退役列消失、新身份不编造', () async {
     final file = File(
       '${tempDir.path}${Platform.pathSeparator}localfit.sqlite',
     );
     _createV24Database(file.path);
+    final before = _rawRow(file.path);
 
     final database = AppDatabase(NativeDatabase(file));
     addTearDown(database.close);
@@ -91,12 +128,11 @@ void main() {
     expect(version.data['user_version'], database.schemaVersion);
 
     final names = await columnNames(database);
-    expect(names, containsAll(storedColumns), reason: '存储列一个不少');
-    expect(
-      names,
-      isNot(containsAll(droppedColumns)),
-      reason: 'ADR-036 的 17 列（含 category_group / category_sub）不该还在',
-    );
+    expect(names.toSet(), storedColumns.toSet(), reason: '当前存储列应完整且无多余');
+    for (final name in droppedColumns) {
+      expect(names, isNot(contains(name)), reason: '$name 应按 ADR-036 退役');
+    }
+    await expectFoodDataPreserved(database, before);
 
     final row = (await database.select(database.foods).get()).single;
     expect(row.id, 'f-v24');
@@ -106,7 +142,7 @@ void main() {
     expect(row.isUserCreated, isTrue);
   });
 
-  test('v29 库（15 列里有值）升级到 30：列删掉、留下的列值一字不改', () async {
+  test('v29 库（退役列有值）升级到当前版：旧值保全、退役列消失', () async {
     final file = File('${tempDir.path}${Platform.pathSeparator}v29.sqlite');
     _createV29Database(file.path);
 
@@ -115,12 +151,11 @@ void main() {
     addTearDown(database.close);
 
     final names = await columnNames(database);
-    expect(
-      names,
-      isNot(containsAll(droppedColumns)),
-      reason: '15 个契约列 + category_group / category_sub 都要没',
-    );
-    expect(names, containsAll(storedColumns));
+    for (final name in droppedColumns) {
+      expect(names, isNot(contains(name)), reason: '$name 应按 ADR-036 退役');
+    }
+    expect(names.toSet(), storedColumns.toSet());
+    await expectFoodDataPreserved(database, before);
 
     final row = (await database.select(database.foods).get()).single;
     expect(row.name, before['name']);
@@ -197,15 +232,33 @@ void main() {
     final database = AppDatabase(NativeDatabase(file));
     addTearDown(database.close);
     final names = await columnNames(database);
-    expect(names.where((name) => name == 'library_code'), isEmpty);
-    expect(names, containsAll(storedColumns));
+    expect(names.toSet(), storedColumns.toSet());
+    for (final name in droppedColumns) {
+      expect(names, isNot(contains(name)), reason: '$name 应按 ADR-036 退役');
+    }
   });
 
-  test('新装即当前 schema：食物库存储列集与迁移链终点一致', () async {
-    final database = AppDatabase(NativeDatabase.memory());
-    addTearDown(database.close);
-    final names = await columnNames(database);
-    expect(names.toSet(), storedColumns.toSet());
+  test('新装与 v24/v29 迁移后的 foods 列定义语义一致', () async {
+    final freshDefinitions = await readColumnDefinitionsAndClose(
+      AppDatabase(NativeDatabase.memory()),
+    );
+    expect(freshDefinitions.keys.toSet(), storedColumns.toSet());
+
+    final v24File = File(
+      '${tempDir.path}${Platform.pathSeparator}compare-v24.sqlite',
+    );
+    final v29File = File(
+      '${tempDir.path}${Platform.pathSeparator}compare-v29.sqlite',
+    );
+    _createV24Database(v24File.path);
+    _createV29Database(v29File.path);
+    for (final file in [v24File, v29File]) {
+      expect(
+        await readColumnDefinitionsAndClose(AppDatabase(NativeDatabase(file))),
+        freshDefinitions,
+        reason: '${file.path} 应与新装库保持相同列语义（忽略物理列序号）',
+      );
+    }
   });
 }
 
@@ -248,8 +301,8 @@ void _createV24Database(
   db.dispose();
 }
 
-/// 造一个 v29 形态的库（schema 25 加列后的全 21 列形态）：一行数据里 15 个契约列
-/// **都有值**——升级后要么看这些值消失（列被删），要么看留下的列串了值。
+/// 造一个 v29 形态的库：一行数据里待退役的导入与分类中间列都有值。
+/// 升级后逐项检查列消失，并检查留下的全部历史列没有串值。
 /// 审计列按 drift 的落库单位写（int **秒**；读出来才是 `DateTime`）。
 void _createV29Database(String path) {
   final db = sqlite.sqlite3.open(path);
@@ -306,16 +359,12 @@ CREATE TABLE foods (
   db.dispose();
 }
 
-/// 升级前把留下的列值读出来（升级后逐列对照，防「建新表 + 忘搬行」）。
+/// 升级前读取原始行（含全部审计 / 来源字段），按原存储单位逐列比较。
 Map<String, Object?> _rawRow(String path) {
   final db = sqlite.sqlite3.open(path);
-  final row = db
-      .select(
-        'SELECT name, brand, category, kcal_per100g, protein_per100g, '
-        'carbs_per100g, fat_per100g, default_serving_grams, source, created_at '
-        'FROM foods',
-      )
-      .single;
-  db.dispose();
-  return row;
+  try {
+    return Map<String, Object?>.from(db.select('SELECT * FROM foods').single);
+  } finally {
+    db.dispose();
+  }
 }

@@ -50,6 +50,37 @@ abstract interface class MealImagePicker {
   Future<SelectedMealImage?> recoverLost();
 }
 
+/// 已选中图片的**本机可读路径**（不读字节）。
+///
+/// 【为什么需要它（2026-11-07 用户：选完要等一秒缩略图才出现）】
+/// 原链路是「读字节 → isolate 解码 → 缩放重编码 → 写文档目录副本 → 上屏」，
+/// 一张 12MP 的手机照片跑完要接近一秒。有了路径就能**先把原图挂上预览**
+/// （系统相册选出来的文件 App 本来就可读），重活放后台做，完成后再换成本地
+/// 文档目录的副本（那份才是随聊天记录长期保留的）。
+final class SelectedMealImageRef {
+  const SelectedMealImageRef({
+    required this.path,
+    required this.fileName,
+    required this.source,
+  });
+
+  final String path;
+  final String fileName;
+  final MealImageSource source;
+}
+
+/// 支持**多选**并暴露原路径的选图器（可选能力）。
+///
+/// 独立成一个接口而不是往 [MealImagePicker] 加方法：既有实现与测试桩不必
+/// 跟着改（`is PathMealImagePicker` 判断，不支持就退回单选老链路）。
+abstract interface class PathMealImagePicker {
+  /// 选 1..[limit] 张；返回本机可读路径（**不读字节**）。用户取消返回空。
+  Future<List<SelectedMealImageRef>> pickRefs(
+    MealImageSource source, {
+    int limit = 9,
+  });
+}
+
 abstract interface class MealImageProcessor {
   Future<ProcessedMealImage> process(SelectedMealImage selected);
 }

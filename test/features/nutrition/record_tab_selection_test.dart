@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:localfit_ai/app/back_navigation.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
@@ -78,7 +79,10 @@ void main() {
     );
   }
 
-  Future<void> pumpTab(WidgetTester tester) async {
+  Future<void> pumpTab(
+    WidgetTester tester, {
+    ValueChanged<bool>? onSelectionModeChanged,
+  }) async {
     tester.view.physicalSize = const Size(900, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -91,9 +95,8 @@ void main() {
             selectedDate: DateTime(2026, 9, 9),
             now: DateTime(2026, 9, 9),
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             onDeleteSelected: (_) async {},
+            onSelectionModeChanged: onSelectionModeChanged,
           ),
         ),
       ),
@@ -127,9 +130,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('已选 1 项'), findsOneWidget);
+    final firstItemId = (await meals.getById(seededMealIds[0]))!
+        .items
+        .single
+        .id;
     expect(
-      find.byKey(Key('meal-select-circle-${seededMealIds[0]}')),
+      find.byKey(Key('meal-food-select-circle-$firstItemId')),
       findsOneWidget,
+      reason: '逐食物选择：圈落在胃里的每个食物上，组头不再重复一枚',
     );
 
     // 多选模式下点击切换勾选（不再打开编辑）。
@@ -154,10 +162,8 @@ void main() {
     await tester.tap(find.byKey(const Key('meals-selection-cancel')));
     await tester.pumpAndSettle();
     expect(find.text('已选 1 项'), findsNothing);
-    expect(
-      find.byKey(Key('meal-select-circle-${seededMealIds[0]}')),
-      findsNothing,
-    );
+    final itemId = (await meals.getById(seededMealIds[0]))!.items.single.id;
+    expect(find.byKey(Key('meal-food-select-circle-$itemId')), findsNothing);
     await drainStream(tester);
   });
 
@@ -172,7 +178,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('meals-bulk-delete')));
     await tester.pumpAndSettle();
-    expect(find.text('删除所选餐食？'), findsOneWidget);
+    expect(find.text('删除所选食物？'), findsOneWidget);
 
     // 破坏性确认 = §3.8 B7：error 字色的**文字**按钮。设计稿里没有实心 error
     // 按钮（`我的.html:524-532` 的「清除所有数据」就是 error 字色的一行），
@@ -180,9 +186,11 @@ void main() {
     final confirm = tester.widget<TextButton>(
       find.byKey(const Key('meals-bulk-delete-confirm')),
     );
+    // 2026-11-09：破坏性**文字**按钮改用文字档 errorText（填充档 error
+    // 当 14px 正文只有 3.68:1，低于 AA）。
     expect(
       confirm.style?.foregroundColor?.resolve(<WidgetState>{}),
-      LfSemanticColors.light.error,
+      LfSemanticColors.light.errorText,
     );
 
     await tester.tap(find.byKey(const Key('meals-bulk-delete-confirm')));
@@ -212,6 +220,80 @@ void main() {
           .onPressed,
       isNull,
     );
+    await drainStream(tester);
+  });
+
+  // 【2026-10-31 用户：删除按钮出现时加号就该隐藏】页级 FAB 的隐藏条件读
+  // 这份回调——进多选 true、退多选 false，必须成对发出。
+  testWidgets('选择态变化回调：进多选 true，取消后 false', (tester) async {
+    await seedMeals();
+    final states = <bool>[];
+    await pumpTab(tester, onSelectionModeChanged: states.add);
+
+    await tester.longPress(find.byKey(Key('meal-${seededMealIds[0]}')));
+    await tester.pumpAndSettle();
+    expect(states, [true], reason: '进多选 ⇒ 页面隐藏加号 FAB');
+
+    await tester.tap(find.byKey(const Key('meals-selection-cancel')));
+    await tester.pumpAndSettle();
+    expect(states, [true, false], reason: '取消 ⇒ 页面恢复加号 FAB');
+    await drainStream(tester);
+  });
+
+  // 【2026-10-31 用户：手势返回要先取消选择，而不是退出应用】返回经 shell
+  // 出口先问页内拦截器：多选激活时返回 = 退出多选（不弹退出提示、不退出）。
+  testWidgets('系统返回：多选激活时返回手势退出多选', (tester) async {
+    await seedMeals();
+    await pumpTab(tester);
+
+    await tester.longPress(find.byKey(Key('meal-${seededMealIds[0]}')));
+    await tester.pumpAndSettle();
+    expect(find.text('已选 1 项'), findsOneWidget);
+
+    final context = tester.element(find.byType(RecordTab));
+    await AppExitGate.handleShellBack(context);
+    await tester.pumpAndSettle();
+
+    expect(find.text('已选 1 项'), findsNothing, reason: '返回 = 退出多选');
+    expect(find.text('再按一次返回键退出'), findsNothing, reason: '消费掉的返回不弹退出提示');
+    await drainStream(tester);
+  });
+
+  testWidgets('逐食物删除：整选后取消一样，只删仍勾选的食物，其他保留', (tester) async {
+    await seedMeals();
+    final rice = (await foods.search('米饭')).first;
+    final mealId = seededMealIds[0];
+    await meals.update(
+      mealId,
+      MealDraft(
+        localDate: '2026-09-09',
+        slot: MealSlot.lunch,
+        items: [
+          MealItemDraft.fromFood(rice, 100),
+          MealItemDraft.fromFood(rice, 50),
+        ],
+      ),
+    );
+    final before = (await meals.getById(mealId))!;
+    await pumpTab(tester);
+
+    await tester.longPress(find.byKey(Key('meal-$mealId')));
+    await tester.pumpAndSettle();
+    expect(find.text('已选 2 项'), findsOneWidget);
+
+    // 从整选中取消第一样，第二样仍应单独保持勾选。
+    await tester.tap(find.byKey(Key('meal-food-${before.items.first.id}')));
+    await tester.pumpAndSettle();
+    expect(find.text('已选 1 项'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('meals-bulk-delete')));
+    await tester.pumpAndSettle();
+    expect(find.text('删除所选食物？'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('meals-bulk-delete-confirm')));
+    await tester.pumpAndSettle();
+
+    final after = (await meals.getById(mealId))!;
+    expect(after.items.map((item) => item.id), [before.items.first.id]);
     await drainStream(tester);
   });
 }

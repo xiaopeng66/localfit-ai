@@ -102,22 +102,28 @@ void main() {
     );
   });
 
-  test('主按钮：A 的实心档（h44 / 12 圆角 / brand 底 / 深墨字）', () {
+  test('主按钮：A 的实心档（h44 / 12 圆角 / brand-strong 底 / 白字）', () {
     final button = AppTheme.light().elevatedButtonTheme.style!;
     // A 有效值：`styles.css:147` `.btn{min-height:44px}` + `refinement.css:3`
-    // `.btn{border-radius:12px;font-size:14px}` + `.btn.primary{background:
-    // var(--brand);color:#10271D}`。旧的「48dp 胶囊/16 圆角 + 白字」是
-    // docs/21 §3.8 时代的形态（A 的 48 只出现在弹层/吸底行动，见 B2）。
+    // `.btn{border-radius:12px;font-size:14px}`。底色/字色回到**基础层**
+    // `styles.css:148` `.btn.primary{background:var(--brand-strong);color:
+    // var(--card)}`——【2026-10-29 用户裁决】refinement 层的
+    // `background:var(--brand);color:#10271D`（亮绿 + 深墨字）实机「根本
+    // 看不清」，两轮点名（训练横幅 / 食堂菜操作弹层）。深绿 #187653 配白字
+    // 5.6:1，暗色 mint-400 配 #171E1A 8.9:1。
     expect(button.minimumSize?.resolve({}), const Size(0, 44));
     expect(
       (button.shape?.resolve({})! as RoundedRectangleBorder).borderRadius,
       BorderRadius.circular(LfDimens.buttonRadius),
     );
     expect(LfDimens.buttonRadius, 12);
-    expect(button.backgroundColor?.resolve({}), LfSemanticColors.light.primary);
+    expect(
+      button.backgroundColor?.resolve({}),
+      LfColors.brandStrong(Brightness.light),
+    );
     expect(
       button.foregroundColor?.resolve({}),
-      LfSemanticColors.light.primaryForeground,
+      LfColors.onBrandStrong(Brightness.light),
     );
     expect(
       button.backgroundColor?.resolve(const {WidgetState.disabled}),
@@ -125,10 +131,9 @@ void main() {
     );
   });
 
-  test('高对比档：品牌底**不加深**（深墨字下加深会跌破 4.5），改靠 2dp 描边', () {
-    // 旧档把 primary 提到 mint-700（#1B8A62）是为了配白字；A 的按钮字是
-    // `--lf-primary-foreground`=#10271D，底再加深会让对比从 ~7 掉到 ~3.9，
-    // 所以高对比的表达只剩「2dp 前景描边」，底与常档同色。
+  test('高对比档：品牌底不变，靠 2dp 描边强化轮廓', () {
+    // 【2026-10-29】实心档已回到 brandStrong（深绿 + 白字，5.6:1），
+    // 高对比档的表达仍是「2dp 前景描边」；底色与常档同值（brandStrong）。
     expect(
       AppTheme.light(highContrast: true).colorScheme.primary,
       LfSemanticColors.light.primary,

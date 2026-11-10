@@ -33,93 +33,142 @@ final class ChatEditCommandRegistry {
   List<ChatEditCommandSpec> get specs => _specs;
 
   /// 把全部命令渲染成 system prompt 里的协议段（名字 + 参数 + 说明）。
-  String renderProtocol() {
-    final buffer = StringBuffer()
-      ..writeln('你可以提议对 App 数据做修改。规则：')
-      // 2026-10-24（`ai-live` 实测 + 提示词预算）：**把最关键的三条前置**。
-      //
-      // 实测（`deepseek-v4.1-flash`，27 条自然语言）：第一趟出信封 22/27 =
-      // 81.5%；4 条失败**不是听不懂**，而是退回散文（「没有午餐可删」
-      // 「看不出你指哪一条」「这是原则还是具体一餐」）。它们全部违反原先
-      // 写在 63% 处的「修改请求禁止只回一句文字」——小参模型对长指令**中段**
-      // 的依从性差（lost in the middle），而规则 1（格式）在最前、规则 12
-      // 在最后都被遵守。
-      //
-      // 修法：**规则 1 之前先讲「什么时候必须给信封」**（含缺信息兜底），
-      // 并把它压缩成三句能记住的话；原规则 5 的正文保留在后面（语义不删）。
-      ..writeln(
-        '0. **只要用户这句话是在「让你改点什么」——记录/添加/删除/修改/'
-        '设定目标——就必须给出信封，不能只回一段文字。**'
-        '这是本协议最重要的一条：',
-      )
-      ..writeln('   · 信息够 → 直接给 edits（不要反问确认）。')
-      ..writeln(
-        '   · 信息不全 / 指代不明 → **仍然要给信封**：edits 为空，reply 里说清'
-        '还差哪一项信息；**只有在快照里确实存在多个可选择项时**才用 suggestions '
-        '列出它们（例如「删掉那条记录」而快照里有 3 条 ⇒ 3 个候选按钮）。'
-        '**别把无关操作混进来**。',
-      )
-      ..writeln(
-        '   · **食量/克数/营养值没说 ⇒ 按常见份量估算，不许反问**：这类最常被'
-        '误当成「信息不全」，其实**都该估**。「我中午吃了米饭和鸡胸肉」「早上'
-        '两个包子」「加一个叫麻辣烫的食材」——按常见份量估算（一碗米饭约 150g、'
-        '一个肉包约 100g、麻辣烫每 100g 约 90 kcal）并给**完整 edits**，reply 里'
-        '写「按 … 估算」。**不要反问**「各吃了多少克」「营养值是多少」「要我按'
-        '这组估算值建吗」——那等于把不用用户回答的事推回去。估算值直接上卡片，'
-        '**点「应用 / 不应用」就是确认**，不必再征求同意。'
-        '**「说了一半」也算修改请求**（「午餐 600 大卡左右」「刚吃了点东西」）：'
-        '只有**估不出来**的项（指代哪一条记录、哪一餐）才问，食量类一律自己估，'
-        '**绝不许只回一段问句**。',
-      )
-      ..writeln(
-        '   · **动作执行不了也要给信封，但不许偷换成别的命令**：快照里找不到要'
-        '删/要改的目标（「把今天的午餐删了」而今天没记录）、缺少可写入口、数据'
-        '本来就是空的 —— 这些不是「没听懂」，是「听懂了但做不了」。此时仍要给'
-        '信封：**edits 为空数组**，reply 里一句话说清为什么做不了。'
-        '**suggestions 也要留空**——除非用户那句话里**明确还有另一件可以做'
-        '的事**才给对应命令。**严禁**把用户没要求的事塞成按钮（用户说「删午餐」'
-        '而库里没有，就不许推荐「记午餐」；用户说练了深蹲，就不许推荐换动作）。'
-        '只给正确的：要么精确命中用户要的命令，要么什么都不给、只说明原因。',
-      )
-      ..writeln(
-        '   · **一条回复只做用户这句话要求的事，不许顺手附送**：用户说「我中午'
-        '吃了米饭和鸡胸肉」就只 `meal.create`；**不要**再补一条 '
-        '`meal.item.update` 去改克数、不要补 `targets.update` 去改目标、不要补 '
-        '`memory.remember` 去记一句。多给的那条会被一起画成待应用行，用户得'
-        '逐条拒绝——这就是「推荐了用户没要的东西」。'
-        '**每次只提议用户这句话里明确提到的那件事**。',
-      )
-      ..writeln(
-        '   · **每条 edits 的参数必须完整、能直接执行**：写不全的这条不要发'
-        '（记一餐的 `items` **至少要有一条食物**，不能是空数组）——执行器会'
-        '直接判失败。参数确实不全 ⇒ 走上面那条：edits 留空，reply 说清缺什么。',
-      )
-      ..writeln(
-        '   · **你只是提议，还没有生效**：reply 里**不许写「已记录 / 已添加 / '
-        '已删除 / 已改好」**这类完成态说法（用户还没点「应用」）。用「我准备'
-        '记为…」「要我这样记吗」这类提议口吻。谎报完成比不弹卡片更糟。',
-      )
-      ..writeln('   · 只有用户**完全没提改动**（纯提问 / 闲聊）才用纯文本。')
-      ..writeln(
-        '1. 信封格式：'
-        '{"reply":"给用户看的中文说明","edits":[{"action":"命令名","args":{...}}]}。'
-        '**整段回复只放这一个 JSON 对象**——不要加解释、寒暄或'
-        'markdown 代码围栏（App 逐字解析：多一个字，这次提议就作废）。'
-        '`edits` 可为空数组，但**只在**规则 0 的两种情况：信息不全（reply 说明'
-        '缺什么）或执行不了（reply 说明为什么）——正常能改时必须至少一条。',
-      )
-      ..writeln('2. 每次回复最多 $maxEditsPerReply 条 edits。')
-      ..writeln(
-        '3. 改/删目标优先用【当前可编辑数据快照】里方括号给的 id；'
-        '按名字定位必须是快照/常识里的精确全名，禁止编造 id。'
-        '列表里没有的命令不要声称不存在——先按上面的清单核对。',
-      )
-      ..writeln(
-        '4. 用户已明确要求的修改直接输出信封，不要再追问确认（应用前本来就有'
-        '「应用」确认步）。拿不准时**仍要出信封**（edits 空 + suggestions，'
-        '见规则 0），不要只回一句提问。你提议的修改要等用户点「应用」才生效。'
-        '可用命令：',
-      );
+  ///
+  /// [compileMode]（docs/66 §5.2.1）：手动编译的协议**变体**——去掉
+  /// 「食量没说按常见份量估算」「缺信息用 suggestions」这类对话型规则，
+  /// 保留命令清单、id/日期规则、食物来源优先级、忌口等事实规则，并明确
+  /// 「目标回复没有写出的数字不要补；缺参数就 edits 空 + reply 说原因」。
+  /// 必须在协议源头消掉与编译 prompt 的冲突，不能只靠 user prompt 覆盖
+  /// （协议作为 system context 注入，两者冲突时模型会摇摆）。
+  String renderProtocol({bool compileMode = false}) {
+    final buffer = StringBuffer();
+    if (compileMode) {
+      buffer
+        ..writeln(
+          '你是信封编译器。用户点了「生成应用卡片」= 明确要求**把这段对话里的'
+          '内容记入 App**——不是聊天，是记账。把【目标助手回复】与【用户请求】'
+          '里出现的、能落库的对象与数值，逐条转成命令（**最近对话只用来补指代，'
+          '不作为提取来源**——里面的记录可能已经写库）。规则：',
+        )
+        ..writeln('0. **按点击意图提取，不要判断「是不是提议」**：')
+        ..writeln(
+          '   · 照片识别清单、回复里列出的食物与份量、提到的体重/饮水/目标'
+          '数字——都要转成命令（记餐通常一条 meal.create 带全部食物；餐次'
+          '按回复/用户说法，不确定记加餐）。',
+        )
+        ..writeln(
+          '   · 只使用出现过的实体和数字，**不新增、不改数、不估算**；目标'
+          '回复没有写出的数字不要补。',
+        )
+        ..writeln(
+          '   · 不转的只有：纯科普/闲聊、没有具体对象或数值的泛泛建议'
+          '（「下次少要酱」「多运动」）、与用户无关的内容。',
+        )
+        ..writeln(
+          '   · 确实没有可落库内容 ⇒ edits 为空数组，reply 一句话说原因；'
+          '**不要输出任何推荐按钮**。',
+        )
+        ..writeln(
+          '1. 信封格式：'
+          '{"reply":"给用户看的中文说明","edits":[{"action":"命令名","args":{...}}]}。'
+          '**整段回复只放这一个 JSON 对象**——不要加解释、寒暄或'
+          'markdown 代码围栏（App 逐字解析：多一个字，这次提议就作废）。',
+        )
+        ..writeln('2. 每次回复最多 $maxEditsPerReply 条 edits。')
+        ..writeln(
+          '3. 改/删目标优先用【当前可编辑数据快照】里方括号给的 id；'
+          '按名字定位必须是快照/常识里的精确全名，禁止编造 id。'
+          '日期用 yyyy-MM-dd 写进 localDate 参数；用户说了哪一天就写哪一天。',
+        )
+        ..writeln(
+          '3b. **args 只能用命令清单里列出的参数名，一个都不能多**：'
+          '清单里没有的参数（哪怕别的命令有、或你觉得该有）会被 App 直接'
+          '拒绝整条命令。例如 water.add 只有 amountMl 和 localDate——'
+          '**没有 notes**；不知道某个命令有哪些参数，就回头对照上面的清单。',
+        );
+    } else {
+      buffer
+        ..writeln('你可以提议对 App 数据做修改。规则：')
+        // 2026-10-24（`ai-live` 实测 + 提示词预算）：**把最关键的三条前置**。
+        //
+        // 实测（`deepseek-v4.1-flash`，27 条自然语言）：第一趟出信封 22/27 =
+        // 81.5%；4 条失败**不是听不懂**，而是退回散文（「没有午餐可删」
+        // 「看不出你指哪一条」「这是原则还是具体一餐」）。它们全部违反原先
+        // 写在 63% 处的「修改请求禁止只回一句文字」——小参模型对长指令**中段**
+        // 的依从性差（lost in the middle），而规则 1（格式）在最前、规则 12
+        // 在最后都被遵守。
+        //
+        // 修法：**规则 1 之前先讲「什么时候必须给信封」**（含缺信息兜底），
+        // 并把它压缩成三句能记住的话；原规则 5 的正文保留在后面（语义不删）。
+        ..writeln(
+          '0. **只要用户这句话是在「让你改点什么」——记录/添加/删除/修改/'
+          '设定目标——就必须给出信封，不能只回一段文字。**'
+          '这是本协议最重要的一条：',
+        )
+        ..writeln('   · 信息够 → 直接给 edits（不要反问确认）。')
+        ..writeln(
+          '   · 信息不全 / 指代不明 → **仍然要给信封**：edits 为空，reply 里说清'
+          '还差哪一项信息；**只有在快照里确实存在多个可选择项时**才用 suggestions '
+          '列出它们（例如「删掉那条记录」而快照里有 3 条 ⇒ 3 个候选按钮）。'
+          '**别把无关操作混进来**。',
+        )
+        ..writeln(
+          '   · **食量/克数/营养值没说 ⇒ 按常见份量估算，不许反问**（一碗米饭约'
+          '150g、肉包约100g；营养按常见值）——估完**直接给 edits**，reply 写'
+          '「按…估算」，**点「应用 / 不应用」就是确认**，不必再确认。**不要反问**'
+          '「各吃多少克」「要我按这组建吗」。**「说了一半」也算修改请求**；只有'
+          '**估不出来**的（指哪条记录、哪一餐）才问，食量类一律自己估，'
+          '**绝不许只回一段问句**。',
+        )
+        ..writeln(
+          '   · **动作执行不了也要给信封，但不许偷换成别的命令**：快照里找不到'
+          '目标、没有写入口、数据为空——这些是「听懂了但做不了」，仍要给信封：'
+          '**edits 为空数组**，reply 一句话说清为什么。**suggestions 留空**，'
+          '除非那句话里明确还有另一件可做的事；**严禁**把用户没要求的事塞成按钮'
+          '（说「删午餐」而库里没有，就不许推荐「记午餐」）。要么精确命中，'
+          '要么什么都不给、只说明原因。',
+        )
+        ..writeln(
+          '   · **一条回复只做用户这句话要求的事，不许顺手附送**：说「米饭和'
+          '鸡胸肉」就只 `meal.create`；**不要**再补 `meal.item.update`、'
+          '`targets.update`、`memory.remember` 等用户没提的命令——多给的会一起'
+          '画成待应用行。**每次只提议这句话里明确提到的那件事**。',
+        )
+        ..writeln(
+          '   · **每条 edits 的参数必须完整、能直接执行**：写不全的这条不要发'
+          '（记一餐的 `items` **至少要有一条食物**，不能是空数组）——执行器会'
+          '直接判失败。参数确实不全 ⇒ 走上面那条：edits 留空，reply 说清缺什么。',
+        )
+        ..writeln(
+          '   · **你只是提议，还没有生效**：reply 里**不许写「已记录 / 已添加 / '
+          '已删除 / 已改好」**这类完成态说法（用户还没点「应用」）。用「我准备'
+          '记为…」「要我这样记吗」这类提议口吻。谎报完成比不弹卡片更糟。',
+        )
+        ..writeln('   · 只有用户**完全没提改动**（纯提问 / 闲聊）才用纯文本。')
+        ..writeln(
+          '1. 信封格式：'
+          '{"reply":"给用户看的中文说明","edits":[{"action":"命令名","args":{...}}]}。'
+          '**整段回复只放这一个 JSON 对象**——不要加解释、寒暄或'
+          'markdown 代码围栏（App 逐字解析：多一个字，这次提议就作废）。'
+          '`edits` 可为空数组，但**只在**规则 0 的两种情况：信息不全（reply 说明'
+          '缺什么）或执行不了（reply 说明为什么）——正常能改时必须至少一条。',
+        )
+        ..writeln('2. 每次回复最多 $maxEditsPerReply 条 edits。')
+        ..writeln(
+          '3. 改/删目标优先用【当前可编辑数据快照】里方括号给的 id；'
+          '按名字定位必须是快照/常识里的精确全名，禁止编造 id。'
+          '列表里没有的命令不要声称不存在——先按上面的清单核对。',
+        )
+        ..writeln(
+          '4. 用户已明确要求的修改直接输出信封，不要再追问确认（应用前本来就有'
+          '「应用」确认步）。拿不准时**仍要出信封**（edits 空 + suggestions，'
+          '见规则 0），不要只回一句提问。你提议的修改要等用户点「应用」才生效。'
+          '可用命令：',
+        );
+    }
+    if (compileMode) {
+      buffer.writeln('可用命令（args 见括号内参数说明）：');
+    }
     for (final spec in _specs) {
       final params = [
         for (final arg in spec.args)
@@ -128,13 +177,16 @@ final class ChatEditCommandRegistry {
       ].join('；');
       buffer.writeln('- ${spec.action}（${spec.title}）：$params');
     }
+    if (!compileMode) {
+      buffer
+        ..writeln('')
+        ..writeln(
+          '5. **修改请求禁止只回一句文字**：话里含增/删/改的意思就必须给信封'
+          '（规则 0）。真缺信息时 edits 可以空，在 reply 里说明还差什么。'
+          '**用户这条是修改请求**却没有信封，App 会认为你没答完并再催你一次。',
+        );
+    }
     buffer
-      ..writeln('')
-      ..writeln(
-        '5. **修改请求禁止只回一句文字**：话里含增/删/改的意思就必须给信封'
-        '（规则 0）。真缺信息时 edits 可以空，在 reply 里说明还差什么。'
-        '**用户这条是修改请求**却没有信封，App 会认为你没答完并再催你一次。',
-      )
       ..writeln(
         '6. **口语就是命令**：听到「加/记录/我吃了/喝了/删掉/改成」这类说法，'
         '直接翻成对应命令出信封——不要因为用户没说命令名就只回文字，也不要'
@@ -147,12 +199,15 @@ final class ChatEditCommandRegistry {
         '没有」**：在 reply 里说明并用 food.create 提议建成自建食材（营养按常见'
         '值估算，不要留空）；一次回复可以同时 food.create + meal.create。'
         'App 侧也会在引用不存在的实体时给出「新建」按钮。',
-      )
-      ..writeln(
+      );
+    if (!compileMode) {
+      buffer.writeln(
         '8. 可选字段 `suggestions`：有 1–$maxSuggestionsPerReply 个「下一步大概率'
         '想做的事」时加"suggestions":[{"label":"短文案","action":"命令名",'
         '"args":{…}}]，App 渲染成按钮。只给按钮不写库时 edits 可为空。',
-      )
+      );
+    }
+    buffer
       // 2026-10-16 口语弹药库 C19 实测：用户说「今天走了一万步」（**当天
       // 事实**），模型把它当成「把步数目标改成一万」并写了 `targets.update`
       // ⇒ 用户的**目标**被静默改掉。计步数据来自系统传感器，对话里没有
@@ -172,17 +227,17 @@ final class ChatEditCommandRegistry {
       )
       // 2026-10-17（docs/38 S11）：长期记忆的用法。核心是分工——结构化字段
       // 能表达的一律不进记忆，否则同一事实两处不一致。
+      // 【docs/66】编译模式变体不含 suggestions 的说法（该通道在手动编译里
+      // 已被丢弃，写在协议里只会与编译 prompt 冲突）。
       ..writeln(
         '11. **长期记忆只收「软信息」**：「记住…」用 `memory.remember`，'
-        '「忘掉…」用 `memory.forget`；【长期记忆】段只是参考，与当前说法冲突'
-        '以当前为准。**能落到结构化字段的一律用对应命令**：过敏/忌口/标签用 '
-        '`constraints.set`，目标 `profile.goal.update`，身高/出生年/性别 '
-        '`profile.body.update`，饮水/步数目标 `targets.update`，训练计划 '
-        '`workout.plan.*`——不要写进记忆。记忆只收口味偏好、作息习惯、器械/'
-        '厨房条件、常去窗口、近况；一条 ≤140 字，不存证件/银行类信息。'
-        '**「常去/爱吃 X」是偏好不是新建**：「我常去二食堂川菜窗口」是记住'
-        '这个习惯，**不要**发 `canteen.venue.create`/`canteen.window.create`。'
-        '`memory.forget` 匹配多条时**用 suggestions 给出每条候选项**让用户点选。',
+        '「忘掉…」用 `memory.forget`；该段只是参考，冲突以当前说法为准。'
+        '**结构化事实不进记忆**：过敏/忌口/标签用 `constraints.set`，目标 '
+        '`profile.goal.update`，身体资料 `profile.body.update`，饮水/步数目标 '
+        '`targets.update`，训练计划 `workout.plan.*`。记忆只收口味、作息、'
+        '器械/厨房、常去窗口、近况；≤140 字，不存证件/银行信息。'
+        '「常去/爱吃 X」是偏好，不要建地点/窗口。'
+        '${compileMode ? '' : '`memory.forget` 匹配多条时用 suggestions 给出每条候选项。'}',
       )
       // 2026-10-19（docs/40 §5 / docs/43 B10）：食物来源优先级。只加提示词，
       // 不改命令与 wire 形状；四条按「有供应事实 > 份量模板 > 营养事实 >
@@ -191,28 +246,51 @@ final class ChatEditCommandRegistry {
         '12. **食物来源优先级**：1) 该窗口今天有同名菜（`[canteen-dish:…]`）'
         '→ 食堂菜；2) 菜品库（`[dish:…]`）→ 每份；3) 食物库同名（精确/别名）'
         '→ 每 100g × 克数；4) 都没有 → 提议 `food.create`。'
-        '「食堂今天有什么」→ **只查菜单**。指食堂菜问热量 → 用食堂证据并标'
-        '「AI 估算」。`nutritionFrom`：只有明确说「用食物库的」才用 `food`，'
-        '**不要替用户决定**；`food` 未命中如实失败，不静默改走 AI。',
+        '「食堂今天有什么」→ 只查菜单。指食堂菜问热量 → 用食堂证据并标'
+        '「AI 估算」。`nutritionFrom` 只有用户明确说「用食物库」才填 `food`；'
+        '`food` 未命中如实失败，不静默改走 AI。',
       )
       // 2026-10-23 用户：「AI 不查重（加午餐后再加晚餐会重复午餐计入两份）」
       // 「不主动检索食物库已有食物（先推卡片再说已有/失败）」。
       // App 侧已加合并/复用兜底；提示词先让模型别提出重复的提议。
       ..writeln(
-        '13. **不要重复记同一餐 / 先查食物库**：今天已有的餐次不要再发 '
-        '`meal.create`；「再吃点 X」只补那一餐还没有的（App 也会按餐次合并、'
-        '跳过同名）。新建食材前先看【食物库参考】：已有同名直接引用，'
-        '不要先 `food.create` 再报「已存在」。',
+        '13. **别重复记同一餐 / 先查食物库**：今天已有的餐次别再发 '
+        '`meal.create`；新建食材前先看【食物库参考】，同名直接引用。',
       )
       ..writeln(
         '14. **餐次按用户说的 / items 不许同名重复 / 一样都不许漏**：'
-        '① 用户说了哪一餐（「晚饭」「午餐」「早上」）就**必须**用那个 `slot`，'
-        '**绝不许自己换一餐**；用户没说才由你按上下文判断。'
-        '② 同一条 `meal.create` 的 `items` 里**同名食物只能出现一次**——用户'
-        '自己说重复（「米饭和米饭」）或你算份量列了两次，都**合并成一条**。'
-        '③ 用户一句话点了好几样（「米饭、鸡胸肉、牛奶，还有一个苹果」）时'
-        '**每一样都要进 items**，一样都不许漏。',
+        '① 用户说了哪一餐就用那个 `slot`，**绝不许自己换**。'
+        '② 同一条 `items` 里同名食物只能出现一次，重复就合并。'
+        '③ 一句话点了几样，每样都要进 items。'
+        '④ 改餐次用 `meal.update(mealId, slot)`，不要 `meal.create`。',
+      )
+      ..writeln(
+        '15. **id 逐字抄**：`[food:x]`/`[canteen-dish:x]`/`[dish:x]` 连同方括号'
+        '放进 `items[].food`（写成名字会被同名歧义拒）；库里没有的先在同卡 '
+        '`food.create` 再用名字记；毫升按克（1ml≈1g）并在 reply 写克数。',
       );
+    if (!compileMode) {
+      buffer.writeln(
+        // 2026-11-02 用户实机：模型回「点『应用』后才会保存」，屏幕上却没有卡
+        // ——它把一张不存在的卡当成事实。协议里明确禁止这种「假引用」。
+        '15. **没有卡片就不许提「点应用」**：只有真的输出信封（edits 可为空），'
+        'App 才会显示应用卡；没信封时**绝不许**说「点『应用』后才会保存」'
+        '——用户会找不到卡。要落库就给信封，做不到就说做不到。',
+      );
+    }
+    buffer.writeln(
+      // 2026-11-06 SFT 误差分析反哺（E:/AI/Zcode/projects/localfit-ai/sft/README.md）：本地
+      // 1.5B/3B × 46+24+29 条离线用例反复量出删除族跨库混淆、goal/targets
+      // 顶替、「录菜单」被当成逐条建菜、servingGrams 凭空补值。云端模型没有
+      // 这些训练信号，把对照压成一条规则直接写进协议。
+      '16. **删掉/忘掉按宾语选命令**：餐记录→`meal.delete`；'
+      '菜品库→`dish.delete`；食堂菜→`canteen.dish.delete`；窗口→'
+      '`canteen.window.delete`；地点→`canteen.venue.delete`；计划动作→'
+      '`plan.entry.remove`；忘掉/忘记→`memory.forget`。'
+      '体重目标→`profile.goal.update`；步数/饮水目标→`targets.update`；'
+      '录菜单→`menu.snapshot.publish`。`servingGrams` 仅用户明说'
+      '「一份X克」才填。',
+    );
     return buffer.toString();
   }
 
@@ -419,7 +497,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'name',
           type: ChatEditArgType.string,
           required: true,
-          hint: '食材名（含品牌更好）',
+          hint: '名称（含品牌更好）',
         ),
         const ChatEditArgSpec(
           name: 'kcalPer100g',
@@ -481,13 +559,13 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'name',
           type: ChatEditArgType.string,
           required: true,
-          hint: '菜品名（同名=同一道菜，会更新）',
+          hint: '菜品名（同名=更新）',
         ),
         const ChatEditArgSpec(
           name: 'slot',
           type: ChatEditArgType.mealSlot,
           required: true,
-          hint: '适合的餐次',
+          hint: '餐次',
         ),
         const ChatEditArgSpec(
           name: 'kcal',
@@ -495,7 +573,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           required: true,
           min: 0,
           max: 1000,
-          hint: '每份热量',
+          hint: '每份 kcal',
         ),
         const ChatEditArgSpec(
           name: 'protein',
@@ -518,11 +596,27 @@ List<ChatEditCommandSpec> _buildSpecs() {
           min: 0,
           max: 300,
         ),
+        // 2026-11-04 Phase 3：可选份量。填了 ⇒ `basisAssumed=false`，菜品
+        // 「每份」口径为真；不填保持「按 100g 估算」。加参数不改信封形状。
+        const ChatEditArgSpec(
+          name: 'servingGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0.1,
+          max: 2000,
+          hint: '一份多少克',
+        ),
         const ChatEditArgSpec(
           name: 'comment',
           type: ChatEditArgType.string,
           required: false,
-          hint: '一句话点评',
+          hint: '点评',
+        ),
+        const ChatEditArgSpec(
+          name: 'contract',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: 'v1|v2，缺省 v1',
         ),
       ],
       summarize: (args) =>
@@ -538,7 +632,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'dishId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的菜品 id',
+          hint: '快照菜品 id',
         ),
       ],
       summarize: (args) => '删除菜品 ${args['dishId']}',
@@ -572,7 +666,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'venueId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的地点 id',
+          hint: '快照地点 id',
         ),
         const ChatEditArgSpec(
           name: 'name',
@@ -591,7 +685,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'venueId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的地点 id',
+          hint: '快照地点 id',
         ),
       ],
       summarize: (args) => '删除地点 ${args['venueId']}（含其窗口与菜品）',
@@ -639,7 +733,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'windowId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的窗口 id',
+          hint: '快照窗口 id',
         ),
       ],
       summarize: (args) => '删除窗口 ${args['windowId']}（含其菜品）',
@@ -653,7 +747,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'window',
           type: ChatEditArgType.string,
           required: true,
-          hint: '窗口 id 或精确唯一名',
+          hint: 'id 或唯一名',
         ),
         const ChatEditArgSpec(
           name: 'name',
@@ -665,14 +759,40 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'nutritionFrom',
           type: ChatEditArgType.string,
           required: false,
-          hint:
-              '营养来源：food（引用食物库）| ai（AI 分析）| none（不填）；'
-              '缺省 none，与旧行为一致',
+          hint: 'food|ai|none，缺省 none（旧行为）',
+        ),
+        // ── docs/67 §6.2 新契约（全部可选；缺省 = 旧协议 v1）──────────────
+        const ChatEditArgSpec(
+          name: 'foodId',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: '主食物 id（[food:id]）',
+        ),
+        const ChatEditArgSpec(
+          name: 'servingGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0.1,
+          max: 2000,
+          hint: '一份多少克（不知道别写）',
+        ),
+        const ChatEditArgSpec(
+          name: 'servingGramsSource',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: 'weighed|user_input|label|ai_estimate',
+        ),
+        const ChatEditArgSpec(
+          name: 'contract',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: 'v1|v2，缺省 v1',
         ),
       ],
       summarize: (args) =>
           '菜品「${args['name']}」加到 ${args['window']}'
-          '${args['nutritionFrom'] == 'food' ? '（营养引用食物库）' : ''}',
+          '${args['foodId'] == null ? '' : '（链接 ${args['foodId']}）'}'
+          '${args['servingGrams'] == null ? '' : '，一份 ${args['servingGrams']}g'}',
     ),
     ChatEditCommandSpec(
       action: 'canteen.dish.update',
@@ -683,7 +803,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'dishId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的菜品 id',
+          hint: '快照菜品 id',
         ),
         const ChatEditArgSpec(
           name: 'name',
@@ -704,7 +824,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'dishId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '快照里的菜品 id',
+          hint: '快照菜品 id',
         ),
       ],
       summarize: (args) => '删除菜品 ${args['dishId']}',
@@ -865,7 +985,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'grade',
           type: ChatEditArgType.string,
           required: false,
-          hint: '证据等级 A|B|C|D，缺省按最保守的 D（粗估）',
+          hint: 'A|B|C|D，缺省 D',
         ),
         const ChatEditArgSpec(
           name: 'confidence',
@@ -873,15 +993,19 @@ List<ChatEditCommandSpec> _buildSpecs() {
           required: false,
           min: 0,
           max: 1,
-          hint: '模型自评置信度 0–1（缺省 0.5）',
+          hint: '0–1，缺省 0.5',
+        ),
+        const ChatEditArgSpec(
+          name: 'contract',
+          type: ChatEditArgType.string,
+          required: false,
+          hint: 'v1|v2，缺省 v1',
         ),
         const ChatEditArgSpec(
           name: 'nutritionFrom',
           type: ChatEditArgType.string,
           required: false,
-          hint:
-              '营养来源：ai（本命令的数值，缺省）| food（引用食物库）| '
-              'none（跳过写入）',
+          hint: 'ai（缺省）|food|none',
         ),
       ],
       // 【2026-10-25 缺陷修复】原来把 `dishId` 直接拼进文案，于是编辑卡上
@@ -895,6 +1019,10 @@ List<ChatEditCommandSpec> _buildSpecs() {
           '${args['nutritionFrom'] == 'food' ? '（改引食物库）' : ''}',
     ),
     ChatEditCommandSpec(
+      // C-3（docs/64 §0.5 已定，2026-10-27）：保持 ai-only。这是「AI 起草菜单
+      // 时把当天菜单快照发给模型」的内部上下文发布动作，没有用户可以表达的
+      // 意图，做成按钮没有用户价值；能力矩阵
+      // （test/app/ai_ui_capability_matrix_test.dart）里同口径登记。
       action: 'menu.snapshot.publish',
       title: '发布菜单快照',
       danger: ChatEditDanger.create,
@@ -1099,7 +1227,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
           name: 'foodId',
           type: ChatEditArgType.string,
           required: true,
-          hint: '自建食物的 id（食物库详情里可查；内置食物不可改）',
+          hint: '自建食物 id（内置不可改）',
         ),
         const ChatEditArgSpec(
           name: 'name',
@@ -1145,13 +1273,13 @@ List<ChatEditCommandSpec> _buildSpecs() {
           required: false,
           min: 1,
           max: 5000,
-          hint: '默认一份克数（可选）',
+          hint: '默认一份克数',
         ),
         const ChatEditArgSpec(
           name: 'brand',
           type: ChatEditArgType.string,
           required: false,
-          hint: '品牌（可选）',
+          hint: '品牌',
         ),
       ],
       summarize: (args) =>
@@ -1228,12 +1356,20 @@ List<ChatEditCommandSpec> _buildSpecs() {
           required: false,
           min: 1000,
           max: 50000,
-          hint: '每日步数**目标**（可选；不是「今天走了多少步」——当天步数由系统计步读取，对话不写）',
+          hint: '每日步数**目标**（可选；当天步数由系统计步读取，对话不写）',
         ),
+        // 【docs/66 §4.3 #7】向后兼容地增加可选 localDate：**只在 waterMl
+        // 非空时**由手动挂卡钉住目标日期（执行器 `_targetsUpdate` 的饮水
+        // 分支本来就把 `_localDate(command)` 写进 updateWaterTargetMl）。
+        // `steps` 仍保持全局语义（加日期也不改执行器行为）；旧信封没有该
+        // 参数时维持「执行日」的既有行为。
+        localDateArg,
       ],
       summarize: (args) {
         final parts = <String>[
-          if (args.containsKey('waterMl')) '饮水 ${args['waterMl']}ml',
+          if (args.containsKey('waterMl'))
+            '饮水 ${args['waterMl']}ml'
+                '${args.containsKey('localDate') ? '（${args['localDate']}）' : ''}',
           if (args.containsKey('steps')) '步数 ${args['steps']}',
         ];
         return '改每日目标：${parts.join('、')}';

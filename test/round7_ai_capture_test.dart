@@ -282,8 +282,9 @@ void main() {
       }
       await shot(
         tester,
-        'ai-chat-envelope-retry-light-360-1.0',
-        const Key('ai-chat-request-envelope-1'),
+        // 【2026-10-29（R-7）】词条 → 兜底卡，帧内容随之升级。
+        'ai-chat-envelope-fallback-light-360-1.0',
+        const Key('envelope-fallback-card-1'),
       );
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -404,6 +405,7 @@ final class _EmptyContext implements ChatEditContextBuilder {
   Future<String> build({
     String? userMessage,
     PendingProposal? pendingProposal,
+    String? foodQuery,
   }) async => '（快照为空）';
 }
 

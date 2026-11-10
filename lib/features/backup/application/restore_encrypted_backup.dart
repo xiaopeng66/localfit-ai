@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:localfit_ai/features/backup/application/lfb_backup_codec.dart';
 import 'package:localfit_ai/features/backup/application/restore_localfit_data.dart';
@@ -9,12 +10,19 @@ final class RestoredBackupSummary {
   const RestoredBackupSummary({
     required this.exportedAt,
     this.indexRebuildPending = false,
+    this.missingMediaCount = 0,
   });
 
   final String exportedAt;
 
   /// 数据已恢复，但派生索引重建任务没能入队（RV-P2-12）。
   final bool indexRebuildPending;
+
+  /// 数据库里引用了、但本机**不存在**的图片/语音文件数（docs/67 §7.4）。
+  ///
+  /// `.lfb` 只带路径不带字节；跨设备恢复后这些文件必然缺失。这个数字是
+  /// 界面「如实告知媒体边界」的依据——不能写"照片完整恢复"。
+  final int missingMediaCount;
 }
 
 /// Restores a password-protected `.lfb` backup chosen by the user. The whole
@@ -64,7 +72,30 @@ final class RestoreEncryptedBackup {
     return RestoredBackupSummary(
       exportedAt: exportedAt ?? '未知时间',
       indexRebuildPending: indexRebuildPending,
+      missingMediaCount: await _countMissingMedia(),
     );
+  }
+
+  /// 数一遍「库里有引用、本机没文件」的媒体（路径即事实，不猜字节）。
+  Future<int> _countMissingMedia() async {
+    final paths = <String>{};
+    for (final row in await database.select(database.dishLibrary).get()) {
+      final path = row.imagePath;
+      if (path != null && path.trim().isNotEmpty) paths.add(path.trim());
+    }
+    for (final row in await database.select(database.menuItems).get()) {
+      final path = row.imagePath;
+      if (path != null && path.trim().isNotEmpty) paths.add(path.trim());
+    }
+    for (final row in await database.select(database.profiles).get()) {
+      final path = row.avatarPath;
+      if (path != null && path.trim().isNotEmpty) paths.add(path.trim());
+    }
+    var missing = 0;
+    for (final path in paths) {
+      if (!File(path).existsSync()) missing++;
+    }
+    return missing;
   }
 
   String? _readExportedAt(String payload) {

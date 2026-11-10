@@ -810,6 +810,13 @@ void main() {
       'locale',
       'source_version',
       'license_status',
+      // schema 31（docs/67）：生效修订指针、变体关系、做法说明、归档时间。
+      // 它们是主库内部的身份/版本管理，不进十列内容交换契约（CSV 不是
+      // 稳定 ID / 修订 / 关系的备份）。
+      'current_revision_id',
+      'variant_of_food_id',
+      'cooking_note',
+      'archived_at',
     };
     // ADR-036：library_code / category_group / category_sub 等 17 列已由
     // schema 30 DROP；上面 csvToTable 里值为 null 的键是读取后丢弃 / 展示列。

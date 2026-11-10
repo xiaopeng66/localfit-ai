@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/ai_conversation/data/food_preview_search.dart';
@@ -17,6 +18,7 @@ import 'package:localfit_ai/features/daily_plan/domain/planning_constraints.dart
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/training/data/workout_plan_repository.dart';
 import 'package:localfit_ai/features/training/data/workout_session_repository.dart';
@@ -58,6 +60,7 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
     this.memoryBudget = MemoryBudget.standard,
     this.semantic,
     this.dishSearch = const DishSearchService(),
+    this.supplyCatalog,
     IndexCoordinator? indexCoordinator,
   }) : indexCoordinator =
            indexCoordinator ?? IndexCoordinator(database: database);
@@ -68,6 +71,11 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
   final DishLibraryRepository dishLibraryRepository;
   final WaterRepository waterRepository;
   final CanteenRepository canteenRepository;
+
+  /// 供应投影（docs/67 §6.3）：快照要能说清"主食物 ID / 供应 ID / 窗口 /
+  /// 每 100g / 份量状态 / 每份克数及来源 / 是否已挂窗"。null = 未接线，
+  /// 退回只读食堂目录的旧渲染。
+  final SupplyCatalogRepository? supplyCatalog;
   final WorkoutPlanRepository workoutPlanRepository;
   final WorkoutSessionRepository workoutSessionRepository;
 
@@ -131,9 +139,11 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
   Future<String> build({
     String? userMessage,
     PendingProposal? pendingProposal,
+    String? foodQuery,
   }) async => (await buildParts(
     userMessage: userMessage,
     pendingProposal: pendingProposal,
+    foodQuery: foodQuery,
   )).full;
 
   /// G17（docs/41 §9）：把快照拆成**会话内稳定前缀**与**动态段**。
@@ -146,12 +156,19 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
   Future<({String stablePrefix, String dynamicPart, String full})> buildParts({
     String? userMessage,
     PendingProposal? pendingProposal,
+    String? foodQuery,
   }) async {
     _watchChangesOnce();
     final today = formatLocalDate(clock.nowUtc());
     final yesterday = formatLocalDate(
       clock.nowUtc().toLocal().subtract(const Duration(days: 1)),
     );
+    // docs/66 §5.2：食物库预览段**只**看 foodQuery（手动编译时 = 用户请求 +
+    // 目标回复），菜品推荐门控与记忆检索仍按真实 userMessage——长文不能
+    // 把无关候选菜撑进上下文。
+    final foodPreviewQuery = (foodQuery != null && foodQuery.trim().isNotEmpty)
+        ? foodQuery.trim()
+        : userMessage?.trim();
     final sections = <String>[];
     final errors = <String>[];
 
@@ -186,8 +203,8 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
       // 回的是「你这边现在还没有进行中的训练会话」⇒ 永远不发 `session.finish`
       // （控制矩阵 ⑩ 实测）。这一段只读、只给 id 与已有组次，不写任何东西。
       '进行中的训练': () => _renderActiveSession(),
-      if (userMessage != null && userMessage.trim().isNotEmpty)
-        '食物库参考': () => _renderFoodPreview(userMessage),
+      if (foodPreviewQuery != null && foodPreviewQuery.isNotEmpty)
+        '食物库参考': () => _renderFoodPreview(foodPreviewQuery),
       // docs/43 A2：吃/推荐意图时给模型一份「本地检索到的候选菜品」。
       // **只加文本段**：不改任何 wire 形状、不新增命令；模型只看这 30 条。
       if (userMessage != null && hasDishRecommendationIntent(userMessage))
@@ -209,7 +226,9 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
           entry.key,
           entry.value,
           variant: messageSections.contains(entry.key)
-              ? userMessage
+              // 食物库参考随 foodQuery 变化（docs/66 §5.2），其余消息相关段
+              // 仍随真实 userMessage。
+              ? (entry.key == '食物库参考' ? foodPreviewQuery : userMessage)
               : dateSections.contains(entry.key)
               ? today
               : null,
@@ -318,27 +337,25 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
   /// 只在用户这句话命中吃/推荐意图时装配（门控在 jobs 表），内容 = 本地
   /// `DishSearchService` 的 top 30（关键词 + 标签 + 可选语义），按窗口分组。
   /// **空结果不写段**；语义不可用自动退两路，不报错。
+  ///
+  /// 【2026-11-09 docs/67 更新】**食堂供应也是可记录实体**：`[canteen-dish:]`
+  /// 指"某窗口的一道供应"，它的每 100g 来自所链主食物、每份克数来自供应
+  /// 自己。所以这一段同时给两类 id，并各自标清单位——不再需要先"同步成
+  /// 菜品库"才能记餐，也不把 per100g 冒充「/份」。
   Future<String> _renderDishShortlist(String userMessage) async {
     final dishes = await dishLibraryRepository.watchAll().first;
-    final windowsByVenue = await canteenRepository.listWindowsByVenue();
-    final canteenDishes = <CanteenDish>[];
-    final windowNameById = <String, String>{};
-    for (final windows in windowsByVenue.values) {
-      for (final window in windows) {
-        for (final dish in window.dishes) {
-          canteenDishes.add(dish);
-          windowNameById[dish.id] = window.name;
-        }
-      }
+    if (dishes.isEmpty) {
+      // 菜品库为空但食堂有可记录供应时，仍然要给模型可用 id。
+      final suppliesOnly = await _supplyShortlistLines(userMessage);
+      if (suppliesOnly.isEmpty) return _omitSection;
+      return suppliesOnly.join('\n');
     }
-    if (dishes.isEmpty && canteenDishes.isEmpty) return _omitSection;
 
     // 语义名次：不可用（未接线/模型失败/索引为空）⇒ null，退关键词 + 标签。
     final ranking = await semantic?.rankDishes(userMessage, dishes);
     final result = dishSearch.search(
       query: userMessage,
       dishes: dishes,
-      canteenDishes: canteenDishes,
       semanticRanking: ranking,
       limit: 60,
     );
@@ -367,27 +384,63 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
       }
     }
     final shortlist = buildAiShortlist(pool, limit: 30);
-    if (shortlist.isEmpty) return _omitSection;
+    final supplyLines = await _supplyShortlistLines(userMessage);
+    if (shortlist.isEmpty && supplyLines.isEmpty) return _omitSection;
 
-    String windowOf(FoodHit hit) => hit.kind == 'menuItem'
-        ? (windowNameById[hit.id] ?? '未标注窗口')
-        : (hit.window ?? '未标注窗口');
+    final byId = {for (final dish in dishes) dish.id: dish};
     final groups = <String, List<FoodHit>>{};
     for (final hit in shortlist) {
-      (groups[windowOf(hit)] ??= []).add(hit);
+      (groups[hit.window ?? '未标注窗口'] ??= []).add(hit);
     }
     final lines = <String>[
       '（这些 id 可直接用于 meal.create；营养值来自本地菜品库）',
       for (final entry in groups.entries) ...[
         '【窗口：${entry.key}】',
         for (final hit in entry.value)
-          '[${hit.kind == 'menuItem' ? 'canteen-dish' : 'dish'}:${hit.id}] '
+          '[dish:${hit.id}] '
               '${hit.name} | ${entry.key} | '
-              '${hit.kcal.round()} kcal/份 | '
+              '${byId[hit.id]?.energyLabel ?? '${hit.kcal.round()} kcal/份'} | '
               '${hit.tags.isEmpty ? '—' : hit.tags.join('、')}',
       ],
+      ...supplyLines,
     ];
     return lines.join('\n');
+  }
+
+  /// 食堂供应候选（docs/67 §6.4）：与菜品库同一段出现，但**标明窗口与份量**，
+  /// 让模型/用户能分清"这是某窗口的一份"和"这是一条食物"。
+  ///
+  /// 只列有完整营养的供应；份量未知的也列（可按克记），但明确不给"一份"数。
+  Future<List<String>> _supplyShortlistLines(String userMessage) async {
+    final supplies =
+        await supplyCatalog?.listAll() ?? const <SupplyCatalogItem>[];
+    if (supplies.isEmpty) return const [];
+    final matched = supplies
+        .where((item) {
+          if (!item.isAnalyzable) return false;
+          if (userMessage.trim().isEmpty) return true;
+          return item.displayName.contains(userMessage.trim()) ||
+              (item.foodName?.contains(userMessage.trim()) ?? false);
+        })
+        .toList(growable: false);
+    // 名字没命中时给"本窗口可记录"的兜底候选，避免模型无 id 可用。
+    final pool = matched.isNotEmpty
+        ? matched
+        : supplies.where((item) => item.isAnalyzable).toList(growable: false);
+    if (pool.isEmpty) return const [];
+    return [
+      '【食堂供应（按窗口，可记"份"或"克"）】',
+      for (final supply in pool.take(20))
+        '[canteen-dish:${supply.id}] ${supply.displayName} | '
+            '${supply.windowLabel} | '
+            '${supply.kcalPer100g!.round()} kcal/100g | '
+            '${switch (supply.servingGramsStatus) {
+              ServingGramsStatus.known => '每份 ${_grams(supply.servingGrams!)}g · '
+                  '一份约 ${supply.kcalPerServing!.round()} kcal',
+              ServingGramsStatus.estimated => '每份约 ${_grams(supply.servingGrams!)}g（估计）',
+              ServingGramsStatus.unknown => '份量未知（按克记）',
+            }}',
+    ];
   }
 
   /// 「尚未应用的提议」段（2026-10-24 多轮实测）。
@@ -566,8 +619,8 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
     if (dishes.isEmpty) return '（空）';
     return [
       for (final dish in dishes.take(_maxDishes))
-        '[dish:${dish.id}] ${dish.name} ${dish.kcal.round()} kcal/份'
-            '${dish.mealSlot.isEmpty ? '' : '（${dish.mealSlot}）'}',
+        '[dish:${dish.id}] ${dish.name} ${dish.energyLabel}'
+            '${dish.mealSlot.isEmpty ? '' : '（${_mealSlotLabel(dish.mealSlot)}）'}',
     ].join('\n');
   }
 
@@ -578,7 +631,19 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
     final windowsByVenue = await canteenRepository.listWindowsByVenue(
       venueIds: [for (final venue in venues.take(_maxVenues)) venue.id],
     );
-    final lines = <String>[];
+    final supplies =
+        await supplyCatalog?.listAll() ?? const <SupplyCatalogItem>[];
+    final suppliesByWindow = <String, List<SupplyCatalogItem>>{};
+    for (final supply in supplies) {
+      (suppliesByWindow[supply.windowId] ??= []).add(supply);
+    }
+
+    final lines = <String>[
+      // docs/67 §6.3：食堂供应是**可记录实体**（按份或按克），但营养只有
+      // 一个来源——所链主食物的每 100g。份量未知就不给"一份多少千卡"。
+      '（[canteen-dish:] 是某窗口的一道供应。每 100g 来自所链主食物；'
+          '份量已知可按"份"记餐，份量未知只能按克记餐，未分析不能记餐）',
+    ];
     for (final venue in venues.take(_maxVenues)) {
       lines.add('[venue:${venue.id}] ${venue.campusName} · ${venue.name}');
       final windows = windowsByVenue[venue.id] ?? const <CanteenWindow>[];
@@ -587,12 +652,28 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
           '  [window:${window.id}] ${window.name} '
           '${window.openTime}–${window.closeTime}',
         );
-        final dishes = window.dishes;
-        for (final dish in dishes.take(_maxDishesPerWindow)) {
-          lines.add('    [canteen-dish:${dish.id}] ${dish.name}');
+        final windowSupplies = suppliesByWindow[window.id];
+        if (windowSupplies == null) {
+          // 未接线：保持旧行为，只标出未分析的菜。
+          final unanalyzed = [
+            for (final dish in window.dishes)
+              if (!dish.hasNutrition) dish,
+          ];
+          for (final dish in unanalyzed.take(_maxDishesPerWindow)) {
+            lines.add(
+              '    [canteen-dish:${dish.id}] ${dish.name}'
+              '（未分析营养，不能直接记餐）',
+            );
+          }
+          continue;
         }
-        if (dishes.length > _maxDishesPerWindow) {
-          lines.add('    （其余 ${dishes.length - _maxDishesPerWindow} 个菜品未列出）');
+        for (final supply in windowSupplies.take(_maxDishesPerWindow)) {
+          lines.add('    ${_supplyLine(supply)}');
+        }
+        if (windowSupplies.length > _maxDishesPerWindow) {
+          lines.add(
+            '    （其余 ${windowSupplies.length - _maxDishesPerWindow} 个供应未列出）',
+          );
         }
       }
       if (windows.length > _maxWindowsPerVenue) {
@@ -600,6 +681,37 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
       }
     }
     return lines.join('\n');
+  }
+
+  /// 一条供应的快照行：明确区分"每 100g"和"每份"，未知就说未知。
+  String _supplyLine(SupplyCatalogItem supply) {
+    final buffer = StringBuffer('[canteen-dish:${supply.id}] ')
+      ..write(supply.displayName);
+    if (supply.foodId != null) {
+      buffer.write(' | 主食物:${supply.foodName ?? '?'}（${supply.foodId}）');
+    }
+    if (!supply.hasCompleteNutrition) {
+      buffer.write('（未分析营养，不能直接记餐）');
+      return buffer.toString();
+    }
+    buffer.write(
+      ' | ${supply.kcalPer100g!.round()} kcal/100g'
+      ' · 蛋白 ${_grams(supply.proteinPer100g!)}g'
+      ' · 碳水 ${_grams(supply.carbsPer100g!)}g'
+      ' · 脂肪 ${_grams(supply.fatPer100g!)}g',
+    );
+    switch (supply.servingGramsStatus) {
+      case ServingGramsStatus.known:
+        buffer.write(
+          ' | 每份 ${_grams(supply.servingGrams!)}g（已知，可记"份"）'
+          ' → 一份约 ${supply.kcalPerServing!.round()} kcal',
+        );
+      case ServingGramsStatus.estimated:
+        buffer.write(' | 每份约 ${_grams(supply.servingGrams!)}g（估计，需用户确认）');
+      case ServingGramsStatus.unknown:
+        buffer.write(' | 每份克数未知（只能按克记餐，不能按"份"）');
+    }
+    return buffer.toString();
   }
 
   Future<String> _renderWater(String today) async {
@@ -735,4 +847,13 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
     }
     return value.toStringAsFixed(1);
   }
+
+  /// 餐次上屏用中文；历史/外部写入的英文 storedValue 也翻过来。
+  String _mealSlotLabel(String raw) => switch (raw) {
+    'breakfast' => '早餐',
+    'lunch' => '午餐',
+    'dinner' => '晚餐',
+    'snack' => '加餐',
+    _ => raw,
+  };
 }

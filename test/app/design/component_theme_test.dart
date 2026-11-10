@@ -116,12 +116,24 @@ void main() {
   });
 
   group('filledButtonTheme（B1 的实心档来源）', () {
-    test('实心档随主题：亮/高对比/暗都取 primary', () {
-      expect(solidFill(light), lfLight.primary);
-      expect(solidFill(lightHighContrast), lfLight.primary);
-      expect(solidFill(dark), lfDark.primary);
+    // 【2026-10-29 用户裁决】实心档底从 `primary` 改为 `brandStrong`
+    // （设计源稿基础层 `--brand-strong`）：refinement 层的「亮绿底 + #10271D
+    // 深字」两轮实机被判「根本看不清」，见 `LfColors.brandStrong` 注释。
+    test('实心档随主题：亮/高对比/暗都取 brandStrong', () {
+      expect(solidFill(light), LfColors.brandStrong(Brightness.light));
+      expect(
+        solidFill(lightHighContrast),
+        LfColors.brandStrong(Brightness.light),
+      );
+      expect(solidFill(dark), LfColors.brandStrong(Brightness.dark));
       expect(dark.colorScheme.primary, lfDark.primary);
-      expect(solidFill(darkHighContrast), lfDark.primary);
+      expect(
+        solidFill(darkHighContrast),
+        LfColors.brandStrong(Brightness.dark),
+      );
+      // 前景同步换成 onBrandStrong（亮白 / 暗 #171E1A）。
+      expect(solidForeground(light), LfColors.onBrandStrong(Brightness.light));
+      expect(solidForeground(dark), LfColors.onBrandStrong(Brightness.dark));
     });
 
     test('高对比：品牌底深字 + 2dp 前景描边，文字与轮廓可辨', () {
@@ -134,8 +146,8 @@ void main() {
           final fill = style.backgroundColor!.resolve(const {})!;
           final foreground = style.foregroundColor!.resolve(const {})!;
           final side = style.side!.resolve(const {})!;
-          expect(fill, lf.primary);
-          expect(foreground, const Color(0xFF10271D));
+          expect(fill, LfColors.brandStrong(theme.brightness));
+          expect(foreground, LfColors.onBrandStrong(theme.brightness));
           expect(side.color, lf.foreground);
           expect(side.width, 2);
           expect(side.style, BorderStyle.solid);
@@ -157,7 +169,7 @@ void main() {
 
     test('禁用档落 muted（不是与可用按钮同色）', () {
       expect(solidFill(light, const {WidgetState.disabled}), lfLight.muted);
-      expect(solidForeground(light), lfLight.primaryForeground);
+      expect(solidForeground(light), LfColors.onBrandStrong(Brightness.light));
       expect(
         solidForeground(light, const {WidgetState.disabled}),
         lfLight.mutedForeground,
@@ -334,10 +346,14 @@ void main() {
     });
 
     test('floatingActionButtonTheme：实心档 + 圆形 + 无阴影', () {
-      expect(light.floatingActionButtonTheme.backgroundColor, lfLight.primary);
+      // 【2026-10-29】FAB 与实心按钮同档（brandStrong + onBrandStrong）。
+      expect(
+        light.floatingActionButtonTheme.backgroundColor,
+        LfColors.brandStrong(Brightness.light),
+      );
       expect(
         light.floatingActionButtonTheme.foregroundColor,
-        lfLight.primaryForeground,
+        LfColors.onBrandStrong(Brightness.light),
       );
       expect(light.floatingActionButtonTheme.elevation, 0);
       expect(light.floatingActionButtonTheme.highlightElevation, 0);
@@ -348,17 +364,17 @@ void main() {
       // 波 3 会迁走唯一一处裸 `ElevatedButton`，此处是防御性配置。
       expect(
         light.elevatedButtonTheme.style!.backgroundColor!.resolve(const {}),
-        lfLight.primary,
+        LfColors.brandStrong(Brightness.light),
       );
       expect(
         lightHighContrast.elevatedButtonTheme.style!.backgroundColor!.resolve(
           const {},
         ),
-        lfLight.primary,
+        LfColors.brandStrong(Brightness.light),
       );
       expect(
         dark.elevatedButtonTheme.style!.backgroundColor!.resolve(const {}),
-        lfDark.primary,
+        LfColors.brandStrong(Brightness.dark),
       );
       expect(
         light.elevatedButtonTheme.style!.minimumSize!.resolve(const {})!.height,

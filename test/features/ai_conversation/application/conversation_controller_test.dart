@@ -1,13 +1,16 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/core/errors/app_failure.dart';
 import 'package:localfit_ai/features/ai_conversation/application/conversation_controller.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/ai_conversation_service.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/ai_envelope_compiler.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_coordinator.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_context_builder.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_executor.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_intent.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_repair.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_turn.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_image.dart';
@@ -118,21 +121,53 @@ void main() {
     });
 
     test('sendMessage streams chunks progressively', () async {
-      final service = FakeConversationService(responses: ['Hello world']);
+      final service = _ManualService();
       final controller = ConversationController(service);
+      final errors = <FlutterErrorDetails>[];
+      final previousOnError = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      try {
+        final completer = Completer<void>();
+        controller.addListener(() {
+          if (!completer.isCompleted &&
+              controller.state.messages.length == 2 &&
+              controller.state.messages[1].text == 'Hello world') {
+            completer.complete();
+          }
+        });
 
-      final completer = Completer<void>();
-      controller.addListener(() {
-        if (controller.state.messages.length == 2 &&
-            controller.state.messages[1].text == 'Hello world') {
-          completer.complete();
-        }
-      });
+        await controller.sendMessage('Hi');
+        final call = service.calls.single;
+        call.emit('Hello');
+        expect(controller.state.messages, hasLength(2));
+        expect(controller.state.messages[1].text, 'Hello');
+        expect(
+          controller.state.messages[1].status,
+          ConversationMessageStatus.sending,
+        );
+        expect(completer.isCompleted, isFalse);
 
-      await controller.sendMessage('Hi');
-      await completer.future;
+        call.emit(' world');
+        await completer.future;
+        expect(controller.state.messages[1].text, 'Hello world');
+        expect(
+          controller.state.messages[1].status,
+          ConversationMessageStatus.sending,
+        );
 
-      expect(controller.state.messages[1].text, 'Hello world');
+        await call.finish();
+        expect(controller.state.messages, hasLength(2));
+        expect(controller.state.messages[1].text, 'Hello world');
+        expect(
+          controller.state.messages[1].status,
+          ConversationMessageStatus.sent,
+        );
+        expect(controller.state.status, ConversationStatus.idle);
+        expect(errors, isEmpty, reason: '分片与收尾通知都不能让测试监听器重复完成 Future');
+      } finally {
+        FlutterError.onError = previousOnError;
+        controller.dispose();
+      }
     });
 
     test('失败气泡要带**可行动的原因**，而不是异常类名', () async {
@@ -403,6 +438,67 @@ void main() {
       expect(turn.imagePath, isNotNull);
     });
 
+    // 2026-10-31（用户：多张图片点击发送时要一起发送）：一次 sendImageBatch
+    // 把 N 张图落成 N 条用户消息（schema 30 单图/条不动），但只有**一条** AI
+    // 请求，且该请求带全部 N 张图——点一次发送全部出去，不再一张一张发。
+    test('sendImageBatch：N 张图一次发送——N 条气泡、一条请求带全部图片', () async {
+      final service = _ManualService();
+      final controller = ConversationController(service);
+      final images = [
+        for (var i = 0; i < 3; i++)
+          ChatImage(
+            path: '/docs/chat/photo_$i.jpg',
+            fileName: 'photo_$i.jpg',
+            width: 10,
+            height: 10,
+          ),
+      ];
+
+      final sent = controller.sendImageBatch(
+        images: images,
+        caption: '这三张都是午饭',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // 一条请求，带全部三张图（各自的多模态块）。
+      expect(service.calls, hasLength(1));
+      final imageTurns = service.calls.single.messages
+          .where((m) => m.kind == ConversationMessageKind.image)
+          .toList();
+      expect(imageTurns.map((m) => m.imagePath), [
+        '/docs/chat/photo_0.jpg',
+        '/docs/chat/photo_1.jpg',
+        '/docs/chat/photo_2.jpg',
+      ]);
+
+      service.calls.single.emit('收到');
+      await service.calls.single.finish();
+      await sent;
+      await Future<void>.delayed(Duration.zero);
+
+      // 界面上 N 条用户气泡（每条一图），文字说明只挂第一条。
+      final userBubbles = controller.state.messages
+          .where((m) => m.role == ConversationRole.user)
+          .toList();
+      expect(userBubbles, hasLength(3));
+      expect(userBubbles[0].text, '这三张都是午饭');
+      expect(userBubbles[1].text, isEmpty);
+      expect(userBubbles[2].text, isEmpty);
+      for (var i = 0; i < 3; i++) {
+        expect(userBubbles[i].kind, ConversationMessageKind.image);
+        expect(userBubbles[i].imagePath, '/docs/chat/photo_$i.jpg');
+      }
+    });
+
+    test('sendImageBatch：空列表不发请求、不动状态', () async {
+      final service = _ManualService();
+      final controller = ConversationController(service);
+      await controller.sendImageBatch(images: const [], caption: 'x');
+      expect(service.calls, isEmpty);
+      expect(controller.state.messages, isEmpty);
+      expect(controller.state.status, ConversationStatus.idle);
+    });
+
     test('loadHistory：历史在前、本会话在后，同 id 不重复', () async {
       final service = _ManualService();
       final history = _RecordingHistory(
@@ -573,6 +669,53 @@ void main() {
       expect(row.resultMessage, '饮水已记录。');
       // 落库的是编码后的信封（含 outcomes），重启可还原
       expect(history.saved.last.editTurn, isNotNull);
+    });
+
+    test('选择卡重放：同名双库失败 → 改写引用后只重放该行', () async {
+      final service = _ManualService();
+      final executor = _ChooseCatalogExecutor();
+      final controller = ConversationController(
+        service,
+        chatEdit: ChatEditCoordinator(
+          contextBuilder: _FakeContextBuilder(),
+          executor: executor,
+        ),
+      );
+      const mealEnvelope =
+          '{"reply":"帮你记午餐。","edits":[{"action":"meal.create",'
+          '"args":{"slot":"午餐","items":[{"food":"米饭","grams":200}]}}]}';
+      await controller.sendMessage('午餐吃了米饭');
+      service.calls[0].emit(mealEnvelope);
+      await service.calls[0].finish();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final messageId = controller.state.messages.last.id;
+      await controller.applyEdits(messageId);
+      final failed = controller.state.messages.last.editTurn!.rows.single;
+      expect(failed.status, ChatEditRowStatus.failed);
+      expect(failed.repair?.kind, ChatEditRepairKind.chooseCatalog);
+      expect(executor.received, hasLength(1));
+      expect(executor.received.single.args['items'], [
+        {'food': '米饭', 'grams': 200.0},
+      ]);
+
+      await controller.retryEditRowWithReference(
+        messageId: messageId,
+        rowIndex: failed.index,
+        originalReference: '米饭',
+        newReference: '[dish:d1]',
+      );
+
+      expect(executor.received, hasLength(2), reason: '只重放这一行一次');
+      final replayed = executor.received.last;
+      expect(replayed.action, 'meal.create');
+      expect(replayed.args['items'], [
+        {'food': '[dish:d1]', 'grams': 200.0},
+      ]);
+      final row = controller.state.messages.last.editTurn!.rows.single;
+      expect(row.status, ChatEditRowStatus.applied);
+      expect(row.resultMessage, '已记录这一餐。');
     });
 
     test('applyEdits：执行失败逐条显示原因，不吞异常', () async {
@@ -772,7 +915,7 @@ void main() {
     // 而不是空回文字」——模型把修改请求当闲聊回文字时，App 要**催一次信封**。
     group('修改意图的自动补救（信封重试）', () {
       ConversationController build(
-        _ManualService service, {
+        AiConversationService service, {
         _FakeContextBuilder? builder,
         _RecordingHistory? history,
       }) => ConversationController(
@@ -812,8 +955,16 @@ void main() {
         await settleTwo();
 
         final messages = controller.state.messages;
-        expect(messages, hasLength(2), reason: '用户气泡 + 助手气泡');
-        expect(messages[1].isEditProposal, isTrue, reason: '重跑拿到了信封 ⇒ 出编辑卡');
+        // 2026-11-06 用户：「补信封不要给我显示出来」。补跑拿到信封后把
+        // 编辑卡并回首轮气泡，补跑气泡删除；屏幕上只有一条助手回复 + 卡。
+        expect(messages, hasLength(2), reason: '用户 + 首轮（已并入编辑卡）');
+        expect(messages[1].isEditProposal, isTrue, reason: '编辑卡并在首轮气泡上');
+        expect(messages[1].text, '帮你记一个鸡蛋。');
+        expect(
+          controller.state.messages.where((m) => m.id != messages[1].id),
+          hasLength(1),
+          reason: '补跑气泡不能再出现在列表里',
+        );
       });
 
       test('非修改请求（闲聊/提问）只跑一次，不催信封', () async {
@@ -828,7 +979,12 @@ void main() {
         }
       });
 
-      test('重跑仍只回文字：最多两次请求，文字如实上屏并标记「可手动催」', () async {
+      // 【2026-10-27 升级（用户：AI 对话经常不弹应用卡片，要更强制性的保证）】
+      // 原来这条钉「每轮最多催一次」——第二次失败就把负担交还给用户（手点
+      // 「让 AI 给出可应用的修改」）。升级后：第二次自动催**自动改用加强版
+      // 提示**（引用模型上一条回复原文，设备实测最强的那把），仍失败才给
+      // 残留手动词条。自动催总量有界：每条用户消息最多 2 次。
+      test('重跑仍回散文 ⇒ 第二次自动催自动改用加强版提示；再失败才停（残留手动词条）', () async {
         final service = _ManualService();
         final controller = build(service);
         await controller.sendMessage('帮我记一笔饮水 250 毫升');
@@ -839,34 +995,95 @@ void main() {
         await service.calls[1].finish();
         await settleTwo();
 
-        expect(service.calls, hasLength(2), reason: '有界：每轮最多催一次');
+        // 第 2 次自动催：加强版提示自动发出（不用用户手点），并引用上一条回复。
+        expect(service.calls, hasLength(3), reason: '第一次催失败要自动升级到加强版再催一次');
+        expect(
+          service.calls[2].systemContext,
+          contains('让 AI 给出可应用的修改'),
+          reason: '第 2 次自动催用加强版提示（原来只有手点才用）',
+        );
+        expect(
+          service.calls[2].systemContext,
+          contains('我先看看你的目标。'),
+          reason: '加强版提示要引用模型上一条回复原文',
+        );
+
+        // 第 3 次仍是散文 ⇒ 停止自动催（有界），残留给手动词条。
+        service.calls[2].emit('还是不太确定。');
+        await service.calls[2].finish();
+        await settleTwo();
+        expect(service.calls, hasLength(3), reason: '有界：每条用户消息最多自动催 2 次');
         final assistant = controller.state.messages.last;
+        // 补跑气泡全部丢弃：用户 + 首轮散文 = 2 条；首轮恢复手动词条。
+        expect(controller.state.messages, hasLength(2), reason: '补信封不显示');
+        expect(assistant.text, '好的呀。', reason: '只保留首轮回复，不展示两次补跑的文字');
         expect(assistant.isEditProposal, isFalse);
-        expect(assistant.text, '我先看看你的目标。');
         expect(
           controller.needsEnvelopeRetry(assistant.id),
           isTrue,
-          reason: '残留要能在气泡上给一枚「让 AI 给出可应用的修改」',
+          reason: '最终仍没信封：首轮挂手动词条，让用户自己决定要不要重试',
         );
+      });
+
+      test('回复声称改了数据却没信封（用户话没过保守门）⇒ 也自动升级催', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        // 「芒果」两个字不过「修改请求」保守门（宁漏勿误的既有口径不变）；
+        // 但模型的散文**声称已经改了数据**却没带信封 —— docs/24 记录过的
+        // 真实失败模式（「已在你的忌口清单里加入芒果」，其实什么都没写）。
+        // 这是比用户措辞更精确的失败信号：回复侧也要触发升级催。
+        await controller.sendMessage('芒果');
+        expect(service.calls, hasLength(1));
+        service.calls[0].emit('已把芒果加入你的忌口清单。');
+        await service.calls[0].finish();
+        await settleTwo();
+
+        expect(service.calls, hasLength(2), reason: '声称改了数据却没信封 = 明确失败，自动升级催');
+        expect(
+          service.calls[1].systemContext,
+          contains('让 AI 给出可应用的修改'),
+          reason: '升级催直接用加强版提示（跳过标准提示那一档）',
+        );
+        expect(
+          service.calls[1].systemContext,
+          contains('已把芒果加入你的忌口清单。'),
+          reason: '加强版提示引用模型上一条回复原文',
+        );
+      });
+
+      test('纯问句/闲聊 + 老实的散文回复：不催（升级触发器不许误伤）', () async {
+        for (final entry in const [
+          ('我可以吃芒果吗？', '可以，芒果的热量不高。'),
+          ('你好呀', '你好！今天想聊点什么？'),
+          ('芒果', '芒果是热带水果，富含维生素 C。'),
+        ]) {
+          final service = _ManualService();
+          final controller = build(service);
+          await controller.sendMessage(entry.$1);
+          service.calls[0].emit(entry.$2);
+          await service.calls[0].finish();
+          await settleTwo();
+          expect(
+            service.calls,
+            hasLength(1),
+            reason: '「${entry.$1}」+「${entry.$2}」不是失败，不许多花一次请求',
+          );
+        }
       });
 
       test('手动催（requestEnvelope）：再跑一次，并**引用上一条回复**要求逐条转会信封', () async {
         final service = _ManualService();
         final controller = build(service);
-        await controller.sendMessage('帮我记一笔饮水 250 毫升');
-        service.calls[0].emit('好的呀。');
+        // 用非修改请求隔离手动路径（不触发自动催，调用序列稳定）。
+        await controller.sendMessage('你好');
+        service.calls[0].emit('我先看看你的目标。');
         await service.calls[0].finish();
         await settleTwo();
-        service.calls[1].emit('我先看看你的目标。');
-        await service.calls[1].finish();
-        await settleTwo();
+        expect(service.calls, hasLength(1));
 
         final assistantId = controller.state.messages.last.id;
         await controller.requestEnvelope(assistantId);
-        expect(service.calls, hasLength(3), reason: '手动催要真的再发一次');
-        // 2026-10-16 设备实测：标准提示对这个模型催不动（连着两次只回
-        // 「我已记下…」的散文，还声称写过了）⇒ 手动这条路改发**加强版提示**：
-        // 把模型上一条回复原文引进去，要它把承诺的改动逐条转成命令。
+        expect(service.calls, hasLength(2), reason: '手动催要真的再发一次');
         expect(
           service.lastSystemContext,
           contains('让 AI 给出可应用的修改'),
@@ -878,11 +1095,11 @@ void main() {
           reason: '要把模型上一条回复原文引进去（对着自己的话更难再写散文）',
         );
 
-        service.calls[2].emit(
+        service.calls[1].emit(
           '{"reply":"记好了。","edits":[{"action":"water.add",'
           '"args":{"amountMl":250}}]}',
         );
-        await service.calls[2].finish();
+        await service.calls[1].finish();
         await settleTwo();
         expect(controller.state.messages.last.isEditProposal, isTrue);
         expect(controller.needsEnvelopeRetry(assistantId), isFalse);
@@ -938,6 +1155,316 @@ void main() {
         await service.calls[0].finish();
         await settleTwo();
         expect(service.calls, hasLength(1));
+      });
+
+      // 【2026-11-02 用户实机】AI 回复「点应用后才会保存」，屏幕上却根本没有
+      // 编辑卡——模型把一张不存在的卡当成事实。旧逻辑只看「用户这句话像不像
+      // 修改请求」；这条用户话是「点应用后记得告诉我保存好了」，不过保守门，
+      // 于是残留态永远不出现，用户只看到一段让人去找卡的散文。
+      test('回复引用「点应用」但对话里没有待应用卡 ⇒ 自动升级催 + 兜底卡', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('点应用后记得告诉我保存好了。');
+        service.calls[0].emit('好的，收到。等你点了「应用」后，这条酸奶（每100g 74 kcal）就会正式保存到食物库。');
+        await service.calls[0].finish();
+        await settleTwo();
+
+        expect(service.calls, hasLength(2), reason: '引用了不存在的「应用」卡 ⇒ 必须自动催一次信封');
+        expect(
+          service.calls[1].systemContext,
+          contains('让 AI 给出可应用的修改'),
+          reason: '幻影卡是回复侧信号，直接走加强版提示',
+        );
+        expect(
+          service.calls[1].systemContext,
+          contains('「应用」后'),
+          reason: '加强版提示引用模型原话，让它把自己说的卡补出来',
+        );
+
+        // 重跑仍是散文 ⇒ 残留标在新气泡上，页面据此画兜底卡。
+        service.calls[1].emit('这条已经保存好了。');
+        await service.calls[1].finish();
+        await settleTwo();
+        final last = controller.state.messages.last;
+        expect(last.isEditProposal, isFalse);
+        expect(
+          controller.needsEnvelopeRetry(last.id),
+          isTrue,
+          reason: '没有卡却让用户去点应用 ⇒ 必须给可恢复的兜底卡',
+        );
+      });
+
+      test('对话里已有待应用卡时，回复提到「应用」不误催', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我加一个鸡蛋');
+        service.calls[0].emit(
+          '{"reply":"准备记一个鸡蛋。","edits":[{"action":"food.create",'
+          '"args":{"name":"鸡蛋","kcalPer100g":144,"proteinPer100g":13.3,'
+          '"carbsPer100g":2.8,"fatPer100g":8.8}}]}',
+        );
+        await service.calls[0].finish();
+        await settleTwo();
+        expect(controller.state.messages.last.isEditProposal, isTrue);
+
+        await controller.sendMessage('点应用后记得告诉我保存好了。');
+        service.calls[1].emit('好的，点「应用」后我会告诉你结果。');
+        await service.calls[1].finish();
+        await settleTwo();
+        expect(
+          service.calls,
+          hasLength(2),
+          reason: '屏幕上确实有一张待应用卡时，这句话是正常对话，不许再催',
+        );
+      });
+
+      // 【2026-11-02 用户实机】「AI 不给我生成应用卡片，而是一直在重复要不要
+      // 生成的段落」。根因：计划类动词（生成/安排/制定/规划/配/排）不在修改
+      // 动词表里 ⇒ 用户请求判 false ⇒ 永不催信封；模型一句「要不要我帮你生成」
+      // 就能无限循环。
+      test('计划类请求 + 模型反问「要不要生成」⇒ 识别为修改请求并专门催信封', () async {
+        for (final userText in const [
+          '帮我生成今天的饮食计划',
+          '生成一份训练计划',
+          '帮我安排今天的三餐',
+          '制定一个减脂计划',
+        ]) {
+          expect(
+            looksLikeModificationRequest(userText),
+            isTrue,
+            reason: '「$userText」是明确的计划请求，不能判成闲聊',
+          );
+        }
+
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我生成今天的饮食计划');
+        service.calls[0].emit('要不要我帮你生成一份今天的饮食计划？');
+        await service.calls[0].finish();
+        await settleTwo();
+
+        expect(
+          service.calls,
+          hasLength(2),
+          reason: '反问「要不要生成」必须触发催信封，而不是把问题抛回用户',
+        );
+        expect(
+          service.calls[1].systemContext,
+          contains('不要再问一遍'),
+          reason: '这类失败要用专门的「不许反问」提示，而不是通用加强版',
+        );
+        expect(
+          service.calls[1].systemContext,
+          contains('要不要我帮你生成'),
+          reason: '提示要引用模型原话',
+        );
+
+        service.calls[1].emit(
+          '{"reply":"给你排好了今天的三餐。","edits":[{"action":"meal.create",'
+          '"args":{"slot":"breakfast","items":[{"food":"鸡蛋","grams":50}]}}]}',
+        );
+        await service.calls[1].finish();
+        await settleTwo();
+        expect(
+          controller.state.messages.last.isEditProposal,
+          isTrue,
+          reason: '重跑拿到信封 ⇒ 出应用卡',
+        );
+      });
+
+      test('反问「要不要生成」但没有修改意图的闲聊不误催', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('你好呀');
+        service.calls[0].emit('要不要我帮你生成一份饮食计划？');
+        await service.calls[0].finish();
+        await settleTwo();
+        expect(
+          service.calls,
+          hasLength(2),
+          reason: '「要不要生成」本身是明确的失败信号，即使前面是闲聊也值得催一次',
+        );
+      });
+
+      // 【2026-11-02 用户实机】「过一会又会自动接着回复，一直不停；我自己
+      // 暂停后就会出现 AI 说改好了、但没有给出可执行操作」。
+      // 根因：自动催的每条重跑都是一条新助手气泡（首轮 + 两次催 = 屏幕三
+      // 段重复文字），且用户点停止后 pending 被清空、残留标记留在最后一条
+      // 气泡上 ⇒ 暂停反而弹出兜底卡。
+      test('信封编译器：散文首轮 → 强制 JSON 编译 → 出卡，不再整轮重跑', () async {
+        final service = _CompilingService();
+        final controller = build(service);
+        await controller.sendMessage('帮我记录这顿饭');
+        // 故意不带克数清单：散文抢救不接管，必须走「强制 JSON 编译」。
+        service.sendCalls[0].emit('我准备把这份记为今天的午餐，点应用后生效。');
+        await service.sendCalls[0].finish();
+        await settleTwo();
+
+        expect(
+          controller.state.messages,
+          hasLength(3),
+          reason: '应先出现一条隐藏的重跑气泡',
+        );
+        expect(service.compileCalls, hasLength(1), reason: '应走强制 JSON 编译');
+        expect(service.compileCalls[0].userText, '帮我记录这顿饭');
+        expect(
+          service.compileCalls[0].assistantReply,
+          contains('记为今天的午餐'),
+          reason: '编译器输入必须是助手刚才的散文',
+        );
+        expect(
+          service.compileCalls[0].systemContext,
+          contains('meal.create'),
+          reason: '编译请求仍带协议与快照',
+        );
+
+        service.compileCalls[0].emit(
+          '{"reply":"记好了。","edits":[{"action":"meal.create",'
+          '"args":{"slot":"lunch","items":[{"food":"红米饭","grams":150},'
+          '{"food":"鸡胸肉","grams":120}]}}]}',
+        );
+        await service.compileCalls[0].finish();
+        await settleTwo();
+
+        final last = controller.state.messages.last;
+        expect(last.isEditProposal, isTrue, reason: '编译出的信封要变成编辑卡');
+        expect(service.sendCalls, hasLength(1), reason: '不许再整轮重跑');
+      });
+
+      test('模型只回「记餐提案」散文：本地抢救成编辑卡，不再催第二次', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我记录这顿饭');
+        service.calls[0].emit(
+          '我准备把这份记为今天的午餐：红油豆腐粉（豆腐+金针菇+粉条）400g、'
+          '白米饭（熟）150g，份量按这一碗的常见大小估算。点「应用」后生效，'
+          '克数有出入告诉我再改。',
+        );
+        await service.calls[0].finish();
+        await settleTwo();
+
+        expect(
+          service.calls,
+          hasLength(1),
+          reason: '散文已经能抢救成卡片，就不该再自动催一次（用户看到的是「自动接话」）',
+        );
+        final last = controller.state.messages.last;
+        expect(last.isEditProposal, isTrue, reason: '必须弹出可应用的记餐卡');
+        final command = last.editTurn!.rows.single.command!;
+        expect(command.action, 'meal.create');
+        expect(command.args['slot'], 'lunch');
+        final items = command.args['items']! as List<Object>;
+        expect(items, hasLength(2));
+      });
+
+      test('自动补跑不追加气泡；拿到信封后并回首轮，补跑气泡不显示', () async {
+        final service = _ManualService();
+        final history = _RecordingHistory();
+        final controller = build(service, history: history);
+        await controller.sendMessage('帮我记一笔饮水 250 毫升');
+        service.calls[0].emit('好的呀。');
+        await service.calls[0].finish();
+        await settleTwo();
+        expect(service.calls, hasLength(2));
+
+        // 第 1 次催的中间气泡：已创建但页面应隐藏它。
+        final middle = controller.state.messages.last;
+        expect(
+          controller.isHiddenRetryBubble(middle.id),
+          isTrue,
+          reason: '自动补跑的中间气泡必须隐藏',
+        );
+        expect(
+          history.saved.where((m) => m.id == middle.id),
+          isEmpty,
+          reason: '中间气泡不许落库',
+        );
+
+        service.calls[1].emit(
+          '{"reply":"记好了。","edits":[{"action":"water.add",'
+          '"args":{"amountMl":250}}]}',
+        );
+        await service.calls[1].finish();
+        await settleTwo();
+        // 补跑气泡已删除，编辑卡并在首轮气泡上。
+        expect(controller.state.messages, hasLength(2));
+        final merged = controller.state.messages.last;
+        expect(merged.id, isNot(middle.id));
+        expect(merged.isEditProposal, isTrue);
+        expect(merged.text, '记好了。');
+        final saved = history.saved.where((m) => m.id == merged.id).toList();
+        expect(saved, isNotEmpty, reason: '编辑卡要落库（并在首轮消息上）');
+        expect(saved.last.isEditProposal, isTrue);
+      });
+
+      test('在自动催的中间气泡上按停止：气泡移除，不留半截回复', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我加一个鸡蛋');
+        service.calls[0].emit('好的呀。');
+        await service.calls[0].finish();
+        await settleTwo();
+        expect(service.calls, hasLength(2));
+        expect(controller.state.messages, hasLength(3)); // 用户 + 首轮 + 隐藏气泡
+        service.calls[1].emit('我准备记为…');
+        await settleTwo();
+        await controller.cancel();
+        await settleTwo();
+
+        expect(
+          controller.state.messages,
+          hasLength(2),
+          reason: '取消自动催的中间气泡 = 移除它，不能把半截文字露出来',
+        );
+        expect(controller.state.messages.last.text, '好的呀。');
+        expect(
+          controller.needsEnvelopeRetry(controller.state.messages.last.id),
+          isFalse,
+          reason: '用户主动停止不弹兜底卡',
+        );
+      });
+
+      test('自动催重跑失败：错误气泡要露出来，不能静默消失', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我加一个鸡蛋');
+        service.calls[0].emit('好的呀。');
+        await service.calls[0].finish();
+        await settleTwo();
+        expect(service.calls, hasLength(2));
+        service.calls[1].fail(StateError('boom'));
+        await settleTwo();
+
+        final last = controller.state.messages.last;
+        expect(
+          controller.isHiddenRetryBubble(last.id),
+          isFalse,
+          reason: '重跑失败必须让用户看到错误，不能继续藏着',
+        );
+        expect(last.status, ConversationMessageStatus.error);
+      });
+
+      test('用户点停止后：不再自动催信封，也不弹「没有可执行操作」兜底卡', () async {
+        final service = _ManualService();
+        final controller = build(service);
+        await controller.sendMessage('帮我加一个鸡蛋');
+        service.calls[0].emit('我正在想…');
+        await settleTwo();
+        // 用户按停止（这一轮还在流式输出）。
+        await controller.cancel();
+        await settleTwo();
+
+        expect(
+          service.calls,
+          hasLength(1),
+          reason: '取消后不许再自动催信封（那是「自动接着回复」的来源）',
+        );
+        final last = controller.state.messages.last;
+        expect(
+          controller.needsEnvelopeRetry(last.id),
+          isFalse,
+          reason: '用户主动停止 ≠ AI 失败，不该弹兜底卡',
+        );
       });
     });
 
@@ -1011,6 +1538,7 @@ final class _ManualService implements AiConversationService {
     final call = _ManualCall(
       messages: messages,
       onProgress: onProgress,
+      systemContext: systemContext,
       cancelToken: cancelToken,
     );
     calls.add(call);
@@ -1022,6 +1550,7 @@ final class _ManualCall {
   _ManualCall({
     required this.messages,
     required this.onProgress,
+    this.systemContext,
     Stream<void>? cancelToken,
   }) {
     // 控制器取消时会关掉 cancelToken —— 这就是「请求被取消」的契约。
@@ -1030,6 +1559,9 @@ final class _ManualCall {
 
   final List<ConversationMessage> messages;
   final void Function(String chunk) onProgress;
+
+  /// 这一次请求收到的 systemContext（信封升级梯子要逐次对比提示档位）。
+  final String? systemContext;
   final StreamController<String> _controller = StreamController<String>();
   bool cancelled = false;
 
@@ -1041,6 +1573,87 @@ final class _ManualCall {
   }
 
   void fail(Object error) => _controller.addError(error);
+
+  Future<void> finish() => _controller.close();
+}
+
+/// 同时实现对话与信封编译的服务：用于验证「强制 JSON 编译」路径。
+final class _CompilingService
+    implements AiConversationService, AiEnvelopeCompiler {
+  final List<_ManualCall> sendCalls = [];
+  final List<_CompileCall> compileCalls = [];
+
+  @override
+  Stream<String> sendMessage({
+    required List<ConversationMessage> messages,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String? systemContext,
+  }) {
+    final call = _ManualCall(
+      messages: messages,
+      onProgress: onProgress,
+      systemContext: systemContext,
+      cancelToken: cancelToken,
+    );
+    sendCalls.add(call);
+    return call.stream;
+  }
+
+  @override
+  Stream<String> compileEnvelope({
+    required String userText,
+    required String assistantReply,
+    required String systemContext,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String conversationContext = '',
+    String targetLocalDate = '',
+  }) {
+    final call = _CompileCall(
+      userText: userText,
+      assistantReply: assistantReply,
+      systemContext: systemContext,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+      conversationContext: conversationContext,
+      targetLocalDate: targetLocalDate,
+    );
+    compileCalls.add(call);
+    return call.stream;
+  }
+}
+
+final class _CompileCall {
+  _CompileCall({
+    required this.userText,
+    required this.assistantReply,
+    required this.systemContext,
+    required this.onProgress,
+    Stream<void>? cancelToken,
+    this.conversationContext = '',
+    this.targetLocalDate = '',
+  }) {
+    cancelToken?.listen((_) {}, onDone: () => cancelled = true);
+  }
+
+  final String userText;
+  final String assistantReply;
+  final String systemContext;
+
+  /// docs/66 §5.2：手动编译传进的最近对话与目标日期（旧路径恒为空串）。
+  final String conversationContext;
+  final String targetLocalDate;
+  final void Function(String chunk) onProgress;
+  final StreamController<String> _controller = StreamController<String>();
+  bool cancelled = false;
+
+  Stream<String> get stream => _controller.stream;
+
+  void emit(String chunk) {
+    onProgress(chunk);
+    _controller.add(chunk);
+  }
 
   Future<void> finish() => _controller.close();
 }
@@ -1134,6 +1747,7 @@ class _FakeContextBuilder implements ChatEditContextBuilder {
   Future<String> build({
     String? userMessage,
     PendingProposal? pendingProposal,
+    String? foodQuery,
   }) async {
     if (throws) throw StateError('boom');
     lastPendingProposal = pendingProposal;
@@ -1154,6 +1768,23 @@ class _FakeExecutor implements ChatEditExecutor {
     return ok
         ? ChatEditApplyResult.ok(message)
         : ChatEditApplyResult.failure(message);
+  }
+}
+
+/// 第一次报「同名双库」并带选择修复，第二次（用户选完后）成功。
+class _ChooseCatalogExecutor implements ChatEditExecutor {
+  final List<ChatEditCommand> received = [];
+
+  @override
+  Future<ChatEditApplyResult> apply(ChatEditCommand command) async {
+    received.add(command);
+    if (received.length == 1) {
+      return const ChatEditApplyResult.failure(
+        '「米饭」在食物库和菜品库都有；请说明按食物还是按菜品记。',
+        repair: ChatEditRepair.chooseCatalog(name: '米饭'),
+      );
+    }
+    return const ChatEditApplyResult.ok('已记录这一餐。');
   }
 }
 

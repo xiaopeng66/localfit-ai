@@ -1,10 +1,14 @@
+import 'package:localfit_ai/data/database/app_database.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:localfit_ai/app/back_navigation.dart';
 import 'package:localfit_ai/app/design/widgets/lf_bottom_nav.dart';
 import 'package:localfit_ai/features/ai/domain/ai_connectivity_monitor.dart';
 import 'package:localfit_ai/features/campus_menus/application/food_reference_service.dart';
+import 'package:localfit_ai/features/nutrition/application/swap_daily_set_with_ai.dart';
 import 'package:localfit_ai/features/daily_plan/data/planning_constraints_repository.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/training/presentation/exercise_library_page.dart';
@@ -16,6 +20,8 @@ import 'package:localfit_ai/features/jobs/data/background_job_repository.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/features/settings/presentation/profile_edit_page.dart';
 import 'package:localfit_ai/features/nutrition/application/food_library_controller.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/catalog_bootstrap.dart';
 import 'package:localfit_ai/features/ai_workbench/presentation/ai_workbench_page.dart';
 import 'package:localfit_ai/features/dashboard/presentation/dashboard_page.dart';
@@ -33,7 +39,6 @@ import 'package:localfit_ai/features/nutrition/domain/meal_record.dart'
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/presentation/nutrition_intents.dart';
-import 'package:localfit_ai/features/ai_workbench/application/ai_starter.dart';
 import 'package:localfit_ai/features/nutrition/presentation/nutrition_page.dart';
 import 'package:localfit_ai/features/onboarding/domain/complete_onboarding.dart';
 import 'package:localfit_ai/features/onboarding/domain/nutrition_target_calculator.dart';
@@ -55,6 +60,8 @@ import 'package:localfit_ai/features/settings/data/pick_avatar.dart';
 import 'package:localfit_ai/features/settings/data/ai_api_key_store.dart';
 import 'package:localfit_ai/features/settings/domain/ai_endpoint_probe.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_settings.dart';
+import 'package:localfit_ai/features/daily_plan/presentation/dietary_constraints_sheet.dart';
+import 'package:localfit_ai/features/settings/application/data_self_check.dart';
 import 'package:localfit_ai/features/settings/presentation/settings_page.dart';
 import 'package:localfit_ai/features/training/data/exercise_repository.dart';
 import 'package:localfit_ai/features/training/data/workout_plan_repository.dart';
@@ -129,7 +136,17 @@ GoRouter createAppRouter({
   ResolveMealScanCandidates? resolveMealScanCandidates,
   CanteenRepository? canteenRepository,
   FoodReferenceService? foodReferenceService,
+
+  /// 只读查看旧数据迁移台账用（docs/67 §5.4）。null＝未接线。
+  AppDatabase? database,
+
+  /// 统一主库写服务（docs/67）：食堂挂窗、记餐、共享修订的唯一落点。
+  FoodCatalogService? foodCatalogService,
+
+  /// 供应读取口：记餐搜索与食堂选择共用同一份投影。
+  SupplyCatalogRepository? supplyCatalogRepository,
   PlanningConstraintsRepository? planningConstraintsRepository,
+  DataSelfCheck? dataSelfCheck,
 
   /// 菜品照片取图（docs/29 §P7 需求 16）。null＝菜品表单不渲染照片字段。
   Future<String?> Function(bool fromCamera)? pickDishImage,
@@ -463,6 +480,7 @@ GoRouter createAppRouter({
                       meals: meals,
                       slot: slot,
                       dishes: library,
+                      supplyCatalog: supplyCatalogRepository,
                       addDish: add == null || library == null
                           ? null
                           : (dish, {slotOverride}) => add.run(
@@ -482,9 +500,11 @@ GoRouter createAppRouter({
             (context) => NutritionPage(
               repository: foodRepository,
               mealRepository: mealRepository,
+              loadDietaryConstraints: planningConstraintsRepository?.load,
               canteenRepository: canteenRepository,
               foodReferenceService: foodReferenceService,
               semanticRuntime: semanticRuntime,
+              supplyCatalog: supplyCatalogRepository,
               pickDishImage: pickDishImage,
               onAnalyzeDishes: (dishes) async {
                 // docs/32 §4 T6c（D6）：旧任务管线退役——原先经任务控制器
@@ -498,6 +518,8 @@ GoRouter createAppRouter({
                     '[canteen-dish:${dish.id}] ${dish.name}',
                 ].join('\n');
                 final displayNames = [for (final dish in dishes) dish.name];
+                // 热 AI 页会同步消费通知：先发布照片，让文字等待同一张图解码。
+                aiStarterImage.value = _firstDishPhotoPath(dishes);
                 aiStarterRequest.value = (
                   display:
                       '估算这 ${dishes.length} 道菜每 100g 的营养：'
@@ -510,7 +532,6 @@ GoRouter createAppRouter({
                       '\n'
                       '$sendLines',
                 );
-                aiStarterImage.value = _firstDishPhotoPath(dishes);
                 GoRouter.of(context).go(AppRoutes.aiChat);
               },
               // 「让 AI 重配整套」（2026-10-25 用户：「换一套…你要确认是不是
@@ -518,25 +539,49 @@ GoRouter createAppRouter({
               // （快、不调 AI），AI 重配走这里——复用 AI 对话页
               // `daily-menu-plan` starter 的提示词与既有链路（产出可应用的
               // 编辑卡），**不新造第二条 AI 路径**。
-              onAskAiForSet: () async {
-                // 先查证「AI 到底配好没有」——**这是原实现缺的一步**：
-                // 它不管配没配都弹「AI 未配置」（写死的），用户因此以为
-                // 自己的配置没生效。判据：有 provider 配置（baseUrl+model）
-                // **且**有 API Key。
-                final config = await aiProviderSettingsStore
-                    ?.loadConfiguration();
-                final hasKey = await apiKeyStore?.hasKey() ?? false;
-                if (config == null || !hasKey) return false;
-                // await 之后先确认这个 context 还在树上（否则跳转会打到
-                // 已失效的 router 上）。
-                if (!context.mounted) return false;
-                final starter = aiStarters.firstWhere(
-                  (s) => s.id == 'daily-menu-plan',
-                );
-                final prompt = starter.promptBuilder('');
-                aiStarterRequest.value = (display: prompt, send: prompt);
-                GoRouter.of(context).go(AppRoutes.aiChat);
-                return true;
+              // 2026-11-10（用户）：「让 AI 生成今日菜单」已内联化——空态
+              // 按钮直接调上面的 onSwapSetWithAi 在本界面生成推荐清单，
+              // 不再跳 AI 对话页。此回调退役（MenuDishList 已不读取）。
+              onAskAiForSet: null,
+              // 【R-4（2026-10-29 用户）】「换一整套」= **内联** AI 重配：
+              // 不跳对话页、只换推荐表（不写今日摄入）；候选池**只有食堂目录
+              // 里有营养的菜**，AI 输出经本地硬校验（编造/跨餐重复丢弃并计数）。
+              onSwapSetWithAi: () async {
+                if (conversationService == null || canteenRepository == null) {
+                  return const MenuSetSwapResult.unavailable(
+                    MenuSetSwapUnavailableReason.configurationMissing,
+                  );
+                }
+                try {
+                  final config = await aiProviderSettingsStore
+                      ?.loadConfiguration();
+                  final hasKey = await apiKeyStore?.hasKey() ?? false;
+                  if (config == null || !hasKey) {
+                    return const MenuSetSwapResult.unavailable(
+                      MenuSetSwapUnavailableReason.configurationMissing,
+                    );
+                  }
+                } on Object {
+                  return const MenuSetSwapResult.unavailable(
+                    MenuSetSwapUnavailableReason.configurationMissing,
+                  );
+                }
+                return SwapDailySetWithAi(
+                  service: conversationService,
+                  canteenRepository: canteenRepository,
+                  supplyCatalog: supplyCatalogRepository,
+                  now: () => now ?? DateTime.now(),
+                  // 与本地推荐读同一仓储：AI 只负责在已约束的候选池里
+                  // 组合，已记录餐次与剩余目标由本地事实决定。
+                  loadMeals: mealRepository == null
+                      ? null
+                      : (date) => mealRepository.watchForDate(date).first,
+                  loadNutrition: mealRepository == null
+                      ? null
+                      : (date) =>
+                            mealRepository.watchNutritionForDate(date).first,
+                  loadConstraints: planningConstraintsRepository?.load,
+                ).runDetailed();
               },
               foodLibraryController: foodLibraryController,
               menuTabRequest: menuTabRequest,
@@ -616,6 +661,9 @@ GoRouter createAppRouter({
                 // 「我可以吃吗」由页面预填问题。
                 // 编辑卡的「创建食材「X」」按钮（2026-10-16）：走既有的
                 // 新建食物弹层与 FoodRepository.create，只多带一个预填名。
+                // 【docs/66】正式入口显式启用「按需生成应用卡片」新模式
+                // （默认 false 是回滚开关，测试/嵌入点行为不变）。
+                manualCardGeneration: true,
                 onOpenNewFoodWithName: foodRepository == null
                     ? null
                     : (name) => _addCustomFood(
@@ -688,6 +736,7 @@ GoRouter createAppRouter({
             AppRoutes.settings,
             (context) => SettingsPage(
               settingsStore: aiProviderSettingsStore,
+              database: database,
               endpointProbe: endpointProbe,
               apiKeyStore: apiKeyStore,
               createEncryptedBackup: createEncryptedBackup,
@@ -715,6 +764,21 @@ GoRouter createAppRouter({
               // 电子体重秤（docs/31 S6，需求 47 / D6）：未接线时不渲染
               // `settings-scale-row`。
               scaleSync: scaleSync,
+              // C-2（docs/64）：饮食约束（素食标签 + 过敏原）入口；弹层与
+              // 仓储住在 daily_plan feature，设置页只拿回调（分层只许减）。
+              // 摘要与弹层读写的是与 AI `constraints.set` 同一张表。
+              dietaryConstraintsSummary: planningConstraintsRepository == null
+                  ? null
+                  : () async => (await planningConstraintsRepository.load())
+                        .summaryLabel,
+              onOpenDietaryConstraints: planningConstraintsRepository == null
+                  ? null
+                  : () => showDietaryConstraintsSheet(
+                      context,
+                      repository: planningConstraintsRepository,
+                    ),
+              // D-1/D-2（docs/64）：数据自检（三类可检问题 + 最近一次备份）。
+              dataSelfCheck: dataSelfCheck,
               // docs/21 §5.6 🏫：菜单来源（地点/窗口/菜品）的维护界面住在
               // 饮食页的「菜单」tab；这里只是入口，不再造第二份编辑 UI。
               // 复用既有 menuTabRequest 值通知，切 tab 后再跳过去。
@@ -769,7 +833,18 @@ class AppShell extends StatelessWidget {
       // 新底栏（docs/21 §3.6/§4.1）：贴底 64dp 直角栏 + 中央 AI 凸起圆。
       // extendBody：页面内容延伸到栏下方（毛玻璃才有内容可透）。
       extendBody: true,
-      body: navigationShell,
+      body: PopScope(
+        // 【2026-10-31 用户：手势退出软件需要二次滑动的限制 + 手势要能取消
+        // 页内状态】到这里的返回（go_router 已先让弹层与分支子页消费过）
+        // 一律不直接退应用：先看页内登记的可取消状态（多选等），否则双击
+        // 返回才退出。见 `back_navigation.dart` 的分层说明。
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          unawaited(AppExitGate.handleShellBack(context));
+        },
+        child: navigationShell,
+      ),
       bottomNavigationBar: LfBottomNav(
         currentIndex: navigationShell.currentIndex,
         onTap: (index) => navigationShell.goBranch(

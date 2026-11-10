@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 在线更新（需求 17b，2026-10-25）：下载完新版要交给系统安装器。
+         Android 8.0+ 要求本应用声明「允许安装其它应用」，用户在系统里确认
+         一次即可；不声明的话 startActivity(ACTION_VIEW) 会抛
+         ActivityNotFoundException（点了没反应）。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- P10（需求 36，2026-10-07）：RECORD_AUDIO 随语音输入整族删除
          （原注释：录音经 BYOK 端点转写，音频不出本机留存） -->
     <!-- 步数（docs/29 §P9 需求 34）：读本机计步传感器。API 29+ 需运行时申请；
@@ -34,7 +39,7 @@
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
         <!-- launcher activity 写**全限定名**而不是相对的 `.MainActivity`：相对名按
              namespace（com.localfit.ai）解析，而 MainActivity.kt 的 package 是
              com.localfit.localfit_ai —— 两者错位时构建成功、设备上一点就崩
@@ -58,6 +63,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- 在线更新的安装包交接（需求 17b）：下载到应用私有目录的 APK 必须
+             经 FileProvider 换成 content:// URI 才能给系统安装器——直接给
+             file:// URI 在 Android 7.0+ 会抛 FileUriExposedException。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

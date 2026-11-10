@@ -57,21 +57,20 @@ class ChatMessageUI extends StatelessWidget {
     };
   }
 
-  /// 用户消息：品牌实底、`primaryForeground` 字，右下角收窄。
+  /// 用户消息：实心品牌底（brandStrong）、反色字（onBrandStrong），右下角收窄。
   ///
   /// 气泡的四个非对称圆角必须自绘（`DesignCard`/`MutedBlock` 只有统一圆角），
-  /// 但**取色一律走 token**：设计稿的对话气泡是 `var(--lf-primary)` +
-  /// `var(--lf-primary-foreground)`，写死 `Colors.white` 会在暗色主题下
-  /// 与主题给的 `primaryForeground` 不一致。
+  /// 但**取色一律走 token**。2026-10-29 起气泡底走 brandStrong 档
+  /// （亮 #187653 深绿 / 暗 mint-400），字取 onBrandStrong（亮白 / 暗卡片色）：
+  /// 旧档 primary + primaryForeground 属用户点名的「绿底深字看不清」。
   Widget _user(BuildContext context) {
-    final c = context.lf;
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
         padding: const EdgeInsets.all(LfDimens.spaceMedium),
         decoration: BoxDecoration(
-          color: c.primary,
+          color: LfColors.brandStrong(Theme.of(context).brightness),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(LfDimens.radiusMd),
             topRight: Radius.circular(LfDimens.radiusMd),
@@ -84,7 +83,9 @@ class ChatMessageUI extends StatelessWidget {
           children: [
             Text(
               message,
-              style: LfText.body.copyWith(color: c.primaryForeground),
+              style: LfText.body.copyWith(
+                color: LfColors.onBrandStrong(Theme.of(context).brightness),
+              ),
             ),
             if (imageUrl != null) ...[
               const SizedBox(height: LfDimens.radiusSm),
@@ -95,7 +96,8 @@ class ChatMessageUI extends StatelessWidget {
               Text(
                 formatRelativeTime(timestamp!),
                 style: LfText.bodySmall.copyWith(
-                  color: c.primaryForeground.withValues(alpha: 0.75),
+                  color: LfColors.onBrandStrong(Theme.of(context).brightness)
+                      .withValues(alpha: 0.85),
                 ),
               ),
             ],

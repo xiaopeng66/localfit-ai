@@ -33,15 +33,29 @@ import 'package:localfit_ai/app/design/widgets/pressable_scale.dart';
 
 /// 实心档背景（与 `app_theme.dart` 的 `filledButtonTheme` **同源**）。
 ///
-/// 从主题读而不是自己算 `mint.tone(600)/tone(700)/primary`：§3.8 硬规则要求
-/// 「实心档位随主题走，不得另起一套」，读主题就天然只有一处真相。主题缺席
-/// （裸 `MaterialApp` 的测试）时回落 `colorScheme.primary`。
+/// 从主题读而不是自己算：§3.8 硬规则要求「实心档位随主题走，不得另起一套」，
+/// 读主题就天然只有一处真相。主题缺席（裸 `MaterialApp` 的测试）时回落
+/// [LfColors.brandStrong]。
 Color lfSolidButtonFill(BuildContext context) {
   final theme = Theme.of(context);
   return theme.filledButtonTheme.style?.backgroundColor?.resolve(
         const <WidgetState>{},
       ) ??
-      theme.colorScheme.primary;
+      LfColors.brandStrong(theme.brightness);
+}
+
+/// 实心档前景（字/图标）——与 [lfSolidButtonFill] 同一处真相。
+///
+/// 【2026-10-29 用户裁决】旧实现写 `primaryForeground`（#10271D 深墨绿）压在
+/// 亮绿底上，实机反馈「根本看不清」。现在取主题的
+/// `filledButtonTheme.foregroundColor`（= `LfColors.onBrandStrong`：亮白 /
+/// 暗 #171E1A），主题缺席时同源回落。
+Color lfSolidButtonForeground(BuildContext context) {
+  final theme = Theme.of(context);
+  return theme.filledButtonTheme.style?.foregroundColor?.resolve(
+        const <WidgetState>{},
+      ) ??
+      LfColors.onBrandStrong(theme.brightness);
 }
 
 /// 按钮标签（可选前置图标 + 文本）。图标 16dp、图标与文字间距 6dp。
@@ -162,7 +176,7 @@ class LfPrimaryButton extends StatelessWidget {
       LfText.bodyStrong.copyWith(
         color: busy || onPressed == null
             ? c.mutedForeground
-            : c.primaryForeground,
+            : lfSolidButtonForeground(context),
       ),
       loading: busy,
     );
@@ -209,6 +223,7 @@ class LfConfirmButton extends StatelessWidget {
     this.icon,
     this.busy = false,
     this.expand = true,
+    this.dense = false,
   }) : _innerKey = key,
        super(key: null);
 
@@ -219,6 +234,11 @@ class LfConfirmButton extends StatelessWidget {
   final IconData? icon;
   final bool busy;
   final bool expand;
+
+  /// 【2026-10-31 用户：步数弹层「去系统设置」比旁边两颗高很多】紧凑档：
+  /// h36 + captionStrong，与 [LfSoftButton.dense] 同几何——同一行混排时
+  /// 三颗按钮等高。默认 false = 既有 h48 不变。
+  final bool dense;
 
   /// h48 的圆角半径（与其余按钮同源；按钮外不再画阴影）。
   static const double _radius = LfDimens.buttonRadius;
@@ -237,25 +257,35 @@ class LfConfirmButton extends StatelessWidget {
           onPressed: busy ? null : onPressed,
           style: FilledButton.styleFrom(
             minimumSize: expand
-                ? const Size.fromHeight(LfDimens.primaryActionHeight)
-                : const Size(0, LfDimens.primaryActionHeight),
-            padding: const EdgeInsets.symmetric(
+                ? Size.fromHeight(
+                    dense
+                        ? LfDimens.minTouchTarget - 8
+                        : LfDimens.primaryActionHeight,
+                  )
+                : Size(
+                    0,
+                    dense
+                        ? LfDimens.minTouchTarget - 8
+                        : LfDimens.primaryActionHeight,
+                  ),
+            padding: EdgeInsets.symmetric(
               horizontal: LfDimens.spaceLarge,
+              vertical: dense ? LfDimens.spaceTiny : 0,
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(LfDimens.buttonRadius),
             ),
-            textStyle: LfText.bodyStrong,
+            textStyle: dense ? LfText.captionStrong : LfText.bodyStrong,
             elevation: 0,
           ),
           child: _lfButtonLabel(
             context,
             label,
             icon,
-            LfText.bodyStrong.copyWith(
+            (dense ? LfText.captionStrong : LfText.bodyStrong).copyWith(
               color: busy || onPressed == null
                   ? c.mutedForeground
-                  : c.primaryForeground,
+                  : lfSolidButtonForeground(context),
             ),
             loading: busy,
           ),
@@ -269,7 +299,7 @@ class LfConfirmButton extends StatelessWidget {
 /// 用于内联动作、筛选、快捷值（「加入早餐」「100g」），以及压在照片上的
 /// 带字胶囊（`overlay` 档，「重新拍摄」）。
 enum LfPillTone {
-  /// 品牌实心：主色底 + `primaryForeground` 字。主行动。
+  /// 品牌实心：`brandStrong` 底 + `onBrandStrong` 字。主行动。
   solid,
 
   /// muted 底 + mutedForeground 字。并列的次要选项。
@@ -306,6 +336,7 @@ class LfPillButton extends StatelessWidget {
     this.selected = false,
     this.icon,
     this.height,
+    this.dense = false,
   }) : _innerKey = key,
        super(key: null);
 
@@ -334,6 +365,13 @@ class LfPillButton extends StatelessWidget {
   /// `.btn.small{min-height:44px}` 复核）。
   final double? height;
 
+  /// 紧凑档（需求 12，2026-10-25）：左右内边距 20 → 8。
+  ///
+  /// 用在**同一行要塞很多枚**的坑位（训练计划「1天…7天」七枚并排，412dp
+  /// 下每枚只有 ≈50dp）。默认 false ⇒ 既有调用点零变化，与
+  /// [LfSoftButton.dense] 同一套「只为本坑位收紧、不动全局档位」的取舍。
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
@@ -353,7 +391,10 @@ class LfPillButton extends StatelessWidget {
     // `overlay` 是「浮在照片上」的半透明档，与 LfCircleIconButton 的
     // overlay 变体取同一组色（card@90% + foreground）。
     final (bg, fg) = switch (effectiveTone) {
-      LfPillTone.solid => (lfSolidButtonFill(context), c.primaryForeground),
+      LfPillTone.solid => (
+        lfSolidButtonFill(context),
+        lfSolidButtonForeground(context),
+      ),
       LfPillTone.muted => (c.muted, c.mutedForeground),
       LfPillTone.soft => (
         LfColors.brandSoft(brightness),
@@ -381,6 +422,7 @@ class LfPillButton extends StatelessWidget {
     //
     // `selected: false` 时也不省略：整组胶囊必须都带 `hasSelectedState`，
     // 读屏才会读成「单选组」而不是「一排按钮」。
+    final style = LfText.captionStrong.copyWith(color: fg);
     return Semantics(
       container: false,
       selected: selected,
@@ -392,23 +434,58 @@ class LfPillButton extends StatelessWidget {
             backgroundColor: bg,
             foregroundColor: fg,
             minimumSize: Size(0, height ?? 32),
-            padding: const EdgeInsets.symmetric(
-              horizontal: LfDimens.spaceMediumPlus,
+            padding: EdgeInsets.symmetric(
+              horizontal: dense
+                  ? LfDimens.spaceSmall
+                  : LfDimens.spaceMediumPlus,
             ),
             shape: const StadiumBorder(),
-            textStyle: LfText.captionStrong.copyWith(color: fg),
+            textStyle: style,
             iconColor: fg,
           ),
-          child: _lfButtonLabel(
-            context,
-            label,
-            icon,
-            LfText.captionStrong.copyWith(color: fg),
-          ),
+          // 【需求 12（2026-10-25）：胶囊标签必须**单行**】原来直接用
+          // `_lfButtonLabel`，它的 `Text` 可换行：训练页「1天…7天」在 412dp
+          // 七等分里每枚只有 ≈50dp ⇒ 「3天」被断成「3」/「天」两行，用户看到
+          // 一列歪着的数字加碎字（取帧实证）。
+          //
+          // 胶囊的**形状**依赖单行：折行会把胶囊撑成两行高的圆块，那已经不是
+          // 胶囊了。所以这一档自己管标签：单行 + 居中，放不下按比例缩小
+          // （`FittedBox.scaleDown`，与 `LfStatTile` / `MacroDotLine` 同一套大字
+          // 兜底）。`_lfButtonLabel` 保持原样——其它按钮（主/次/文字）仍按各自
+          // 语义决定是否折行。
+          child: _lfSingleLineLabel(context, label, icon, style),
         ),
       ),
     );
   }
+}
+
+/// 单行标签（胶囊专用）：图标 + 单行居中文字，超窄时等比缩小而不是折行。
+Widget _lfSingleLineLabel(
+  BuildContext context,
+  String label,
+  IconData? icon,
+  TextStyle style,
+) {
+  final text = Text(
+    label,
+    style: Theme.of(context).textTheme.bodyMedium!.merge(style),
+    textAlign: TextAlign.center,
+    softWrap: false,
+  );
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (icon != null) ...[
+        Icon(icon, size: LfDimens.iconSm),
+        const SizedBox(width: LfDimens.spaceTiny),
+      ],
+      // 无界宽度下 `Text` 不折行 ⇒ scaleDown 只会缩到坑位宽（单行保真）。
+      Flexible(
+        child: FittedBox(fit: BoxFit.scaleDown, child: text),
+      ),
+    ],
+  );
 }
 
 /// B10 软底强调按钮（Round7 A `.btn.outline-brand`）：brand-soft 底 +
@@ -785,6 +862,12 @@ class LfTextButton extends StatelessWidget {
 ///
 /// **必须配二次确认浮层**——设计稿没有实心 error 按钮，破坏性操作一律
 /// 「文字型 + 确认」（「清除全部数据」「删除计划」）。
+///
+/// 【字色用 `errorText` 而不是 `error`】2026-11-09 全量审查实测：填充档
+/// `error`(#F44336) 当 14px 正文在白卡上只有 **3.68:1**、压 muted 底
+/// 3.29:1，低于 AA 4.5:1；文字档 `errorText`(#B3261E) 为 6.54:1 / 5.84:1。
+/// 设计稿的 `--lf-state-error` 是**填充/描边**色，不是正文色——与 mint 的
+/// 「primary 只作非文字面、文字用 mintText」是同一条分档规则。
 class LfDangerButton extends StatelessWidget {
   const LfDangerButton({
     Key? key,
@@ -812,7 +895,7 @@ class LfDangerButton extends StatelessWidget {
     return _LfTextualButton(
       key: _innerKey,
       label: label,
-      color: context.lf.error,
+      color: context.lf.errorText,
       onPressed: onPressed,
       icon: icon,
       busy: busy,
@@ -863,7 +946,7 @@ class LfSmallButton extends StatelessWidget {
           LfText.captionStrong.copyWith(
             color: busy || onPressed == null
                 ? c.mutedForeground
-                : c.primaryForeground,
+                : lfSolidButtonForeground(context),
           ),
           loading: busy,
         ),

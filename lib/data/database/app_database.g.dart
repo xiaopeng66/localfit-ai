@@ -3518,6 +3518,51 @@ class $FoodsTable extends Foods with TableInfo<$FoodsTable, Food> {
     requiredDuringInsert: false,
     defaultValue: const Constant('unknown'),
   );
+  static const VerificationMeta _currentRevisionIdMeta = const VerificationMeta(
+    'currentRevisionId',
+  );
+  @override
+  late final GeneratedColumn<String> currentRevisionId =
+      GeneratedColumn<String>(
+        'current_revision_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _variantOfFoodIdMeta = const VerificationMeta(
+    'variantOfFoodId',
+  );
+  @override
+  late final GeneratedColumn<String> variantOfFoodId = GeneratedColumn<String>(
+    'variant_of_food_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cookingNoteMeta = const VerificationMeta(
+    'cookingNote',
+  );
+  @override
+  late final GeneratedColumn<String> cookingNote = GeneratedColumn<String>(
+    'cooking_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3537,6 +3582,10 @@ class $FoodsTable extends Foods with TableInfo<$FoodsTable, Food> {
     category,
     sourceVersion,
     licenseStatus,
+    currentRevisionId,
+    variantOfFoodId,
+    cookingNote,
+    archivedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3688,6 +3737,39 @@ class $FoodsTable extends Foods with TableInfo<$FoodsTable, Food> {
         ),
       );
     }
+    if (data.containsKey('current_revision_id')) {
+      context.handle(
+        _currentRevisionIdMeta,
+        currentRevisionId.isAcceptableOrUnknown(
+          data['current_revision_id']!,
+          _currentRevisionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('variant_of_food_id')) {
+      context.handle(
+        _variantOfFoodIdMeta,
+        variantOfFoodId.isAcceptableOrUnknown(
+          data['variant_of_food_id']!,
+          _variantOfFoodIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cooking_note')) {
+      context.handle(
+        _cookingNoteMeta,
+        cookingNote.isAcceptableOrUnknown(
+          data['cooking_note']!,
+          _cookingNoteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -3765,6 +3847,22 @@ class $FoodsTable extends Foods with TableInfo<$FoodsTable, Food> {
         DriftSqlType.string,
         data['${effectivePrefix}license_status'],
       )!,
+      currentRevisionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}current_revision_id'],
+      ),
+      variantOfFoodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}variant_of_food_id'],
+      ),
+      cookingNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cooking_note'],
+      ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
     );
   }
 
@@ -3792,6 +3890,25 @@ class Food extends DataClass implements Insertable<Food> {
   final String? category;
   final int? sourceVersion;
   final String licenseStatus;
+
+  /// 当前**生效**的营养修订 id（`food_nutrition_revisions.id`）。
+  ///
+  /// 四项营养列是这条修订的查询投影，不是第二个事实：任何营养修改必须在
+  /// 同一事务里「追加修订 → 切换本指针 → 同步四项投影」。空 = 还没有完整
+  /// 生效修订（历史不完整条目），此时该食物不可参与严格营养计算。
+  ///
+  /// **不加外键**：修订与食物互相引用会形成环，删除顺序交给服务层。
+  final String? currentRevisionId;
+
+  /// 变体父条目：同做法不同份量共享一条主食物；做法/配方真的不同才建变体。
+  /// 空 = 独立条目。**只记录关系，不继承营养**。
+  final String? variantOfFoodId;
+
+  /// 做法/生熟说明（"偏油""生重""熟重"）。只用于区分身份与检索，不参与计算。
+  final String? cookingNote;
+
+  /// 归档时间：归档后不再出现在新挂窗/推荐里，但历史餐与既有供应照旧可读。
+  final DateTime? archivedAt;
   const Food({
     required this.id,
     required this.name,
@@ -3810,6 +3927,10 @@ class Food extends DataClass implements Insertable<Food> {
     this.category,
     this.sourceVersion,
     required this.licenseStatus,
+    this.currentRevisionId,
+    this.variantOfFoodId,
+    this.cookingNote,
+    this.archivedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3841,6 +3962,18 @@ class Food extends DataClass implements Insertable<Food> {
       map['source_version'] = Variable<int>(sourceVersion);
     }
     map['license_status'] = Variable<String>(licenseStatus);
+    if (!nullToAbsent || currentRevisionId != null) {
+      map['current_revision_id'] = Variable<String>(currentRevisionId);
+    }
+    if (!nullToAbsent || variantOfFoodId != null) {
+      map['variant_of_food_id'] = Variable<String>(variantOfFoodId);
+    }
+    if (!nullToAbsent || cookingNote != null) {
+      map['cooking_note'] = Variable<String>(cookingNote);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
     return map;
   }
 
@@ -3873,6 +4006,18 @@ class Food extends DataClass implements Insertable<Food> {
           ? const Value.absent()
           : Value(sourceVersion),
       licenseStatus: Value(licenseStatus),
+      currentRevisionId: currentRevisionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currentRevisionId),
+      variantOfFoodId: variantOfFoodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantOfFoodId),
+      cookingNote: cookingNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cookingNote),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
     );
   }
 
@@ -3901,6 +4046,12 @@ class Food extends DataClass implements Insertable<Food> {
       category: serializer.fromJson<String?>(json['category']),
       sourceVersion: serializer.fromJson<int?>(json['sourceVersion']),
       licenseStatus: serializer.fromJson<String>(json['licenseStatus']),
+      currentRevisionId: serializer.fromJson<String?>(
+        json['currentRevisionId'],
+      ),
+      variantOfFoodId: serializer.fromJson<String?>(json['variantOfFoodId']),
+      cookingNote: serializer.fromJson<String?>(json['cookingNote']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
   @override
@@ -3924,6 +4075,10 @@ class Food extends DataClass implements Insertable<Food> {
       'category': serializer.toJson<String?>(category),
       'sourceVersion': serializer.toJson<int?>(sourceVersion),
       'licenseStatus': serializer.toJson<String>(licenseStatus),
+      'currentRevisionId': serializer.toJson<String?>(currentRevisionId),
+      'variantOfFoodId': serializer.toJson<String?>(variantOfFoodId),
+      'cookingNote': serializer.toJson<String?>(cookingNote),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
 
@@ -3945,6 +4100,10 @@ class Food extends DataClass implements Insertable<Food> {
     Value<String?> category = const Value.absent(),
     Value<int?> sourceVersion = const Value.absent(),
     String? licenseStatus,
+    Value<String?> currentRevisionId = const Value.absent(),
+    Value<String?> variantOfFoodId = const Value.absent(),
+    Value<String?> cookingNote = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
   }) => Food(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -3967,6 +4126,14 @@ class Food extends DataClass implements Insertable<Food> {
         ? sourceVersion.value
         : this.sourceVersion,
     licenseStatus: licenseStatus ?? this.licenseStatus,
+    currentRevisionId: currentRevisionId.present
+        ? currentRevisionId.value
+        : this.currentRevisionId,
+    variantOfFoodId: variantOfFoodId.present
+        ? variantOfFoodId.value
+        : this.variantOfFoodId,
+    cookingNote: cookingNote.present ? cookingNote.value : this.cookingNote,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Food copyWithCompanion(FoodsCompanion data) {
     return Food(
@@ -4003,6 +4170,18 @@ class Food extends DataClass implements Insertable<Food> {
       licenseStatus: data.licenseStatus.present
           ? data.licenseStatus.value
           : this.licenseStatus,
+      currentRevisionId: data.currentRevisionId.present
+          ? data.currentRevisionId.value
+          : this.currentRevisionId,
+      variantOfFoodId: data.variantOfFoodId.present
+          ? data.variantOfFoodId.value
+          : this.variantOfFoodId,
+      cookingNote: data.cookingNote.present
+          ? data.cookingNote.value
+          : this.cookingNote,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
     );
   }
 
@@ -4025,13 +4204,17 @@ class Food extends DataClass implements Insertable<Food> {
           ..write('locale: $locale, ')
           ..write('category: $category, ')
           ..write('sourceVersion: $sourceVersion, ')
-          ..write('licenseStatus: $licenseStatus')
+          ..write('licenseStatus: $licenseStatus, ')
+          ..write('currentRevisionId: $currentRevisionId, ')
+          ..write('variantOfFoodId: $variantOfFoodId, ')
+          ..write('cookingNote: $cookingNote, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     brand,
@@ -4049,7 +4232,11 @@ class Food extends DataClass implements Insertable<Food> {
     category,
     sourceVersion,
     licenseStatus,
-  );
+    currentRevisionId,
+    variantOfFoodId,
+    cookingNote,
+    archivedAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4070,7 +4257,11 @@ class Food extends DataClass implements Insertable<Food> {
           other.locale == this.locale &&
           other.category == this.category &&
           other.sourceVersion == this.sourceVersion &&
-          other.licenseStatus == this.licenseStatus);
+          other.licenseStatus == this.licenseStatus &&
+          other.currentRevisionId == this.currentRevisionId &&
+          other.variantOfFoodId == this.variantOfFoodId &&
+          other.cookingNote == this.cookingNote &&
+          other.archivedAt == this.archivedAt);
 }
 
 class FoodsCompanion extends UpdateCompanion<Food> {
@@ -4091,6 +4282,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
   final Value<String?> category;
   final Value<int?> sourceVersion;
   final Value<String> licenseStatus;
+  final Value<String?> currentRevisionId;
+  final Value<String?> variantOfFoodId;
+  final Value<String?> cookingNote;
+  final Value<DateTime?> archivedAt;
   final Value<int> rowid;
   const FoodsCompanion({
     this.id = const Value.absent(),
@@ -4110,6 +4305,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
     this.category = const Value.absent(),
     this.sourceVersion = const Value.absent(),
     this.licenseStatus = const Value.absent(),
+    this.currentRevisionId = const Value.absent(),
+    this.variantOfFoodId = const Value.absent(),
+    this.cookingNote = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FoodsCompanion.insert({
@@ -4130,6 +4329,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
     this.category = const Value.absent(),
     this.sourceVersion = const Value.absent(),
     this.licenseStatus = const Value.absent(),
+    this.currentRevisionId = const Value.absent(),
+    this.variantOfFoodId = const Value.absent(),
+    this.cookingNote = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -4158,6 +4361,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
     Expression<String>? category,
     Expression<int>? sourceVersion,
     Expression<String>? licenseStatus,
+    Expression<String>? currentRevisionId,
+    Expression<String>? variantOfFoodId,
+    Expression<String>? cookingNote,
+    Expression<DateTime>? archivedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4179,6 +4386,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
       if (category != null) 'category': category,
       if (sourceVersion != null) 'source_version': sourceVersion,
       if (licenseStatus != null) 'license_status': licenseStatus,
+      if (currentRevisionId != null) 'current_revision_id': currentRevisionId,
+      if (variantOfFoodId != null) 'variant_of_food_id': variantOfFoodId,
+      if (cookingNote != null) 'cooking_note': cookingNote,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4201,6 +4412,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
     Value<String?>? category,
     Value<int?>? sourceVersion,
     Value<String>? licenseStatus,
+    Value<String?>? currentRevisionId,
+    Value<String?>? variantOfFoodId,
+    Value<String?>? cookingNote,
+    Value<DateTime?>? archivedAt,
     Value<int>? rowid,
   }) {
     return FoodsCompanion(
@@ -4221,6 +4436,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
       category: category ?? this.category,
       sourceVersion: sourceVersion ?? this.sourceVersion,
       licenseStatus: licenseStatus ?? this.licenseStatus,
+      currentRevisionId: currentRevisionId ?? this.currentRevisionId,
+      variantOfFoodId: variantOfFoodId ?? this.variantOfFoodId,
+      cookingNote: cookingNote ?? this.cookingNote,
+      archivedAt: archivedAt ?? this.archivedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4281,6 +4500,18 @@ class FoodsCompanion extends UpdateCompanion<Food> {
     if (licenseStatus.present) {
       map['license_status'] = Variable<String>(licenseStatus.value);
     }
+    if (currentRevisionId.present) {
+      map['current_revision_id'] = Variable<String>(currentRevisionId.value);
+    }
+    if (variantOfFoodId.present) {
+      map['variant_of_food_id'] = Variable<String>(variantOfFoodId.value);
+    }
+    if (cookingNote.present) {
+      map['cooking_note'] = Variable<String>(cookingNote.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4307,6 +4538,10 @@ class FoodsCompanion extends UpdateCompanion<Food> {
           ..write('category: $category, ')
           ..write('sourceVersion: $sourceVersion, ')
           ..write('licenseStatus: $licenseStatus, ')
+          ..write('currentRevisionId: $currentRevisionId, ')
+          ..write('variantOfFoodId: $variantOfFoodId, ')
+          ..write('cookingNote: $cookingNote, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4965,6 +5200,126 @@ class $FoodNutritionRevisionsTable extends FoodNutritionRevisions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nutritionBasisMeta = const VerificationMeta(
+    'nutritionBasis',
+  );
+  @override
+  late final GeneratedColumn<String> nutritionBasis = GeneratedColumn<String>(
+    'nutrition_basis',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('per100g'),
+  );
+  static const VerificationMeta _basisServingGramsMeta = const VerificationMeta(
+    'basisServingGrams',
+  );
+  @override
+  late final GeneratedColumn<double> basisServingGrams =
+      GeneratedColumn<double>(
+        'basis_serving_grams',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _basisAssumedMeta = const VerificationMeta(
+    'basisAssumed',
+  );
+  @override
+  late final GeneratedColumn<bool> basisAssumed = GeneratedColumn<bool>(
+    'basis_assumed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("basis_assumed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
+  static const VerificationMeta _isEstimatedMeta = const VerificationMeta(
+    'isEstimated',
+  );
+  @override
+  late final GeneratedColumn<bool> isEstimated = GeneratedColumn<bool>(
+    'is_estimated',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_estimated" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _fiberPer100gMeta = const VerificationMeta(
+    'fiberPer100g',
+  );
+  @override
+  late final GeneratedColumn<double> fiberPer100g = GeneratedColumn<double>(
+    'fiber_per100g',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sodiumMgPer100gMeta = const VerificationMeta(
+    'sodiumMgPer100g',
+  );
+  @override
+  late final GeneratedColumn<double> sodiumMgPer100g = GeneratedColumn<double>(
+    'sodium_mg_per100g',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _vitaminDMcgPer100gMeta =
+      const VerificationMeta('vitaminDMcgPer100g');
+  @override
+  late final GeneratedColumn<double> vitaminDMcgPer100g =
+      GeneratedColumn<double>(
+        'vitamin_d_mcg_per100g',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _rawValuesJsonMeta = const VerificationMeta(
+    'rawValuesJson',
+  );
+  @override
+  late final GeneratedColumn<String> rawValuesJson = GeneratedColumn<String>(
+    'raw_values_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversionVersionMeta = const VerificationMeta(
+    'conversionVersion',
+  );
+  @override
+  late final GeneratedColumn<String> conversionVersion =
+      GeneratedColumn<String>(
+        'conversion_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4979,6 +5334,16 @@ class $FoodNutritionRevisionsTable extends FoodNutritionRevisions
     validFrom,
     validTo,
     createdAt,
+    nutritionBasis,
+    basisServingGrams,
+    basisAssumed,
+    origin,
+    isEstimated,
+    fiberPer100g,
+    sodiumMgPer100g,
+    vitaminDMcgPer100g,
+    rawValuesJson,
+    conversionVersion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5090,6 +5455,93 @@ class $FoodNutritionRevisionsTable extends FoodNutritionRevisions
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('nutrition_basis')) {
+      context.handle(
+        _nutritionBasisMeta,
+        nutritionBasis.isAcceptableOrUnknown(
+          data['nutrition_basis']!,
+          _nutritionBasisMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_serving_grams')) {
+      context.handle(
+        _basisServingGramsMeta,
+        basisServingGrams.isAcceptableOrUnknown(
+          data['basis_serving_grams']!,
+          _basisServingGramsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_assumed')) {
+      context.handle(
+        _basisAssumedMeta,
+        basisAssumed.isAcceptableOrUnknown(
+          data['basis_assumed']!,
+          _basisAssumedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('is_estimated')) {
+      context.handle(
+        _isEstimatedMeta,
+        isEstimated.isAcceptableOrUnknown(
+          data['is_estimated']!,
+          _isEstimatedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fiber_per100g')) {
+      context.handle(
+        _fiberPer100gMeta,
+        fiberPer100g.isAcceptableOrUnknown(
+          data['fiber_per100g']!,
+          _fiberPer100gMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sodium_mg_per100g')) {
+      context.handle(
+        _sodiumMgPer100gMeta,
+        sodiumMgPer100g.isAcceptableOrUnknown(
+          data['sodium_mg_per100g']!,
+          _sodiumMgPer100gMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vitamin_d_mcg_per100g')) {
+      context.handle(
+        _vitaminDMcgPer100gMeta,
+        vitaminDMcgPer100g.isAcceptableOrUnknown(
+          data['vitamin_d_mcg_per100g']!,
+          _vitaminDMcgPer100gMeta,
+        ),
+      );
+    }
+    if (data.containsKey('raw_values_json')) {
+      context.handle(
+        _rawValuesJsonMeta,
+        rawValuesJson.isAcceptableOrUnknown(
+          data['raw_values_json']!,
+          _rawValuesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('conversion_version')) {
+      context.handle(
+        _conversionVersionMeta,
+        conversionVersion.isAcceptableOrUnknown(
+          data['conversion_version']!,
+          _conversionVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5147,6 +5599,46 @@ class $FoodNutritionRevisionsTable extends FoodNutritionRevisions
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      nutritionBasis: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nutrition_basis'],
+      )!,
+      basisServingGrams: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}basis_serving_grams'],
+      ),
+      basisAssumed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}basis_assumed'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      isEstimated: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_estimated'],
+      )!,
+      fiberPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}fiber_per100g'],
+      ),
+      sodiumMgPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}sodium_mg_per100g'],
+      ),
+      vitaminDMcgPer100g: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}vitamin_d_mcg_per100g'],
+      ),
+      rawValuesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}raw_values_json'],
+      ),
+      conversionVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversion_version'],
+      ),
     );
   }
 
@@ -5170,6 +5662,38 @@ class FoodNutritionRevision extends DataClass
   final DateTime? validFrom;
   final DateTime? validTo;
   final DateTime createdAt;
+
+  /// 这一修订**原始录入口径**：`per100g` | `perServing`。
+  ///
+  /// 四项数值永远是每 100g；本列只记录"这些数是从什么口径换算来的"，
+  /// 让「每份 400 千卡 ÷ 250g」这类历史换算可解释，不能只留换算结果。
+  final String nutritionBasis;
+
+  /// 原始口径是 perServing 时，换算所用的每份克数。
+  final double? basisServingGrams;
+
+  /// 换算用的每份克数本身是假设值（历史回填 100g）时为 true。
+  final bool basisAssumed;
+
+  /// 来源：`user_input` | `food_library` | `ai_estimate` | `label` |
+  /// `legacy_migration` | `import` | `manual`。来源不是准确性保证。
+  final String origin;
+
+  /// 是否为 AI/人工估算（不是称重或标签事实）。
+  final bool isEstimated;
+
+  /// 单位明确的微量营养（每 100g）。旧值只有单位可确认时才换算；未知留空，
+  /// **不填零**。
+  final double? fiberPer100g;
+  final double? sodiumMgPer100g;
+  final double? vitaminDMcgPer100g;
+
+  /// 原始录入值（JSON）：换算前的四项/微量原值、原口径与说明。
+  /// 只做保全与查看，不参与计算。
+  final String? rawValuesJson;
+
+  /// 归一规则版本（如 `legacy-nutrition-v1`）；非归一写入为 null。
+  final String? conversionVersion;
   const FoodNutritionRevision({
     required this.id,
     required this.foodId,
@@ -5183,6 +5707,16 @@ class FoodNutritionRevision extends DataClass
     this.validFrom,
     this.validTo,
     required this.createdAt,
+    required this.nutritionBasis,
+    this.basisServingGrams,
+    required this.basisAssumed,
+    required this.origin,
+    required this.isEstimated,
+    this.fiberPer100g,
+    this.sodiumMgPer100g,
+    this.vitaminDMcgPer100g,
+    this.rawValuesJson,
+    this.conversionVersion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5213,6 +5747,28 @@ class FoodNutritionRevision extends DataClass
       map['valid_to'] = Variable<DateTime>(validTo);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['nutrition_basis'] = Variable<String>(nutritionBasis);
+    if (!nullToAbsent || basisServingGrams != null) {
+      map['basis_serving_grams'] = Variable<double>(basisServingGrams);
+    }
+    map['basis_assumed'] = Variable<bool>(basisAssumed);
+    map['origin'] = Variable<String>(origin);
+    map['is_estimated'] = Variable<bool>(isEstimated);
+    if (!nullToAbsent || fiberPer100g != null) {
+      map['fiber_per100g'] = Variable<double>(fiberPer100g);
+    }
+    if (!nullToAbsent || sodiumMgPer100g != null) {
+      map['sodium_mg_per100g'] = Variable<double>(sodiumMgPer100g);
+    }
+    if (!nullToAbsent || vitaminDMcgPer100g != null) {
+      map['vitamin_d_mcg_per100g'] = Variable<double>(vitaminDMcgPer100g);
+    }
+    if (!nullToAbsent || rawValuesJson != null) {
+      map['raw_values_json'] = Variable<String>(rawValuesJson);
+    }
+    if (!nullToAbsent || conversionVersion != null) {
+      map['conversion_version'] = Variable<String>(conversionVersion);
+    }
     return map;
   }
 
@@ -5244,6 +5800,28 @@ class FoodNutritionRevision extends DataClass
           ? const Value.absent()
           : Value(validTo),
       createdAt: Value(createdAt),
+      nutritionBasis: Value(nutritionBasis),
+      basisServingGrams: basisServingGrams == null && nullToAbsent
+          ? const Value.absent()
+          : Value(basisServingGrams),
+      basisAssumed: Value(basisAssumed),
+      origin: Value(origin),
+      isEstimated: Value(isEstimated),
+      fiberPer100g: fiberPer100g == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fiberPer100g),
+      sodiumMgPer100g: sodiumMgPer100g == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sodiumMgPer100g),
+      vitaminDMcgPer100g: vitaminDMcgPer100g == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vitaminDMcgPer100g),
+      rawValuesJson: rawValuesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rawValuesJson),
+      conversionVersion: conversionVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversionVersion),
     );
   }
 
@@ -5265,6 +5843,22 @@ class FoodNutritionRevision extends DataClass
       validFrom: serializer.fromJson<DateTime?>(json['validFrom']),
       validTo: serializer.fromJson<DateTime?>(json['validTo']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      nutritionBasis: serializer.fromJson<String>(json['nutritionBasis']),
+      basisServingGrams: serializer.fromJson<double?>(
+        json['basisServingGrams'],
+      ),
+      basisAssumed: serializer.fromJson<bool>(json['basisAssumed']),
+      origin: serializer.fromJson<String>(json['origin']),
+      isEstimated: serializer.fromJson<bool>(json['isEstimated']),
+      fiberPer100g: serializer.fromJson<double?>(json['fiberPer100g']),
+      sodiumMgPer100g: serializer.fromJson<double?>(json['sodiumMgPer100g']),
+      vitaminDMcgPer100g: serializer.fromJson<double?>(
+        json['vitaminDMcgPer100g'],
+      ),
+      rawValuesJson: serializer.fromJson<String?>(json['rawValuesJson']),
+      conversionVersion: serializer.fromJson<String?>(
+        json['conversionVersion'],
+      ),
     );
   }
   @override
@@ -5283,6 +5877,16 @@ class FoodNutritionRevision extends DataClass
       'validFrom': serializer.toJson<DateTime?>(validFrom),
       'validTo': serializer.toJson<DateTime?>(validTo),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'nutritionBasis': serializer.toJson<String>(nutritionBasis),
+      'basisServingGrams': serializer.toJson<double?>(basisServingGrams),
+      'basisAssumed': serializer.toJson<bool>(basisAssumed),
+      'origin': serializer.toJson<String>(origin),
+      'isEstimated': serializer.toJson<bool>(isEstimated),
+      'fiberPer100g': serializer.toJson<double?>(fiberPer100g),
+      'sodiumMgPer100g': serializer.toJson<double?>(sodiumMgPer100g),
+      'vitaminDMcgPer100g': serializer.toJson<double?>(vitaminDMcgPer100g),
+      'rawValuesJson': serializer.toJson<String?>(rawValuesJson),
+      'conversionVersion': serializer.toJson<String?>(conversionVersion),
     };
   }
 
@@ -5299,6 +5903,16 @@ class FoodNutritionRevision extends DataClass
     Value<DateTime?> validFrom = const Value.absent(),
     Value<DateTime?> validTo = const Value.absent(),
     DateTime? createdAt,
+    String? nutritionBasis,
+    Value<double?> basisServingGrams = const Value.absent(),
+    bool? basisAssumed,
+    String? origin,
+    bool? isEstimated,
+    Value<double?> fiberPer100g = const Value.absent(),
+    Value<double?> sodiumMgPer100g = const Value.absent(),
+    Value<double?> vitaminDMcgPer100g = const Value.absent(),
+    Value<String?> rawValuesJson = const Value.absent(),
+    Value<String?> conversionVersion = const Value.absent(),
   }) => FoodNutritionRevision(
     id: id ?? this.id,
     foodId: foodId ?? this.foodId,
@@ -5318,6 +5932,26 @@ class FoodNutritionRevision extends DataClass
     validFrom: validFrom.present ? validFrom.value : this.validFrom,
     validTo: validTo.present ? validTo.value : this.validTo,
     createdAt: createdAt ?? this.createdAt,
+    nutritionBasis: nutritionBasis ?? this.nutritionBasis,
+    basisServingGrams: basisServingGrams.present
+        ? basisServingGrams.value
+        : this.basisServingGrams,
+    basisAssumed: basisAssumed ?? this.basisAssumed,
+    origin: origin ?? this.origin,
+    isEstimated: isEstimated ?? this.isEstimated,
+    fiberPer100g: fiberPer100g.present ? fiberPer100g.value : this.fiberPer100g,
+    sodiumMgPer100g: sodiumMgPer100g.present
+        ? sodiumMgPer100g.value
+        : this.sodiumMgPer100g,
+    vitaminDMcgPer100g: vitaminDMcgPer100g.present
+        ? vitaminDMcgPer100g.value
+        : this.vitaminDMcgPer100g,
+    rawValuesJson: rawValuesJson.present
+        ? rawValuesJson.value
+        : this.rawValuesJson,
+    conversionVersion: conversionVersion.present
+        ? conversionVersion.value
+        : this.conversionVersion,
   );
   FoodNutritionRevision copyWithCompanion(
     FoodNutritionRevisionsCompanion data,
@@ -5349,6 +5983,34 @@ class FoodNutritionRevision extends DataClass
       validFrom: data.validFrom.present ? data.validFrom.value : this.validFrom,
       validTo: data.validTo.present ? data.validTo.value : this.validTo,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      nutritionBasis: data.nutritionBasis.present
+          ? data.nutritionBasis.value
+          : this.nutritionBasis,
+      basisServingGrams: data.basisServingGrams.present
+          ? data.basisServingGrams.value
+          : this.basisServingGrams,
+      basisAssumed: data.basisAssumed.present
+          ? data.basisAssumed.value
+          : this.basisAssumed,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      isEstimated: data.isEstimated.present
+          ? data.isEstimated.value
+          : this.isEstimated,
+      fiberPer100g: data.fiberPer100g.present
+          ? data.fiberPer100g.value
+          : this.fiberPer100g,
+      sodiumMgPer100g: data.sodiumMgPer100g.present
+          ? data.sodiumMgPer100g.value
+          : this.sodiumMgPer100g,
+      vitaminDMcgPer100g: data.vitaminDMcgPer100g.present
+          ? data.vitaminDMcgPer100g.value
+          : this.vitaminDMcgPer100g,
+      rawValuesJson: data.rawValuesJson.present
+          ? data.rawValuesJson.value
+          : this.rawValuesJson,
+      conversionVersion: data.conversionVersion.present
+          ? data.conversionVersion.value
+          : this.conversionVersion,
     );
   }
 
@@ -5366,13 +6028,23 @@ class FoodNutritionRevision extends DataClass
           ..write('qualityStatus: $qualityStatus, ')
           ..write('validFrom: $validFrom, ')
           ..write('validTo: $validTo, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('nutritionBasis: $nutritionBasis, ')
+          ..write('basisServingGrams: $basisServingGrams, ')
+          ..write('basisAssumed: $basisAssumed, ')
+          ..write('origin: $origin, ')
+          ..write('isEstimated: $isEstimated, ')
+          ..write('fiberPer100g: $fiberPer100g, ')
+          ..write('sodiumMgPer100g: $sodiumMgPer100g, ')
+          ..write('vitaminDMcgPer100g: $vitaminDMcgPer100g, ')
+          ..write('rawValuesJson: $rawValuesJson, ')
+          ..write('conversionVersion: $conversionVersion')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     foodId,
     revisionNumber,
@@ -5385,7 +6057,17 @@ class FoodNutritionRevision extends DataClass
     validFrom,
     validTo,
     createdAt,
-  );
+    nutritionBasis,
+    basisServingGrams,
+    basisAssumed,
+    origin,
+    isEstimated,
+    fiberPer100g,
+    sodiumMgPer100g,
+    vitaminDMcgPer100g,
+    rawValuesJson,
+    conversionVersion,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5401,7 +6083,17 @@ class FoodNutritionRevision extends DataClass
           other.qualityStatus == this.qualityStatus &&
           other.validFrom == this.validFrom &&
           other.validTo == this.validTo &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.nutritionBasis == this.nutritionBasis &&
+          other.basisServingGrams == this.basisServingGrams &&
+          other.basisAssumed == this.basisAssumed &&
+          other.origin == this.origin &&
+          other.isEstimated == this.isEstimated &&
+          other.fiberPer100g == this.fiberPer100g &&
+          other.sodiumMgPer100g == this.sodiumMgPer100g &&
+          other.vitaminDMcgPer100g == this.vitaminDMcgPer100g &&
+          other.rawValuesJson == this.rawValuesJson &&
+          other.conversionVersion == this.conversionVersion);
 }
 
 class FoodNutritionRevisionsCompanion
@@ -5418,6 +6110,16 @@ class FoodNutritionRevisionsCompanion
   final Value<DateTime?> validFrom;
   final Value<DateTime?> validTo;
   final Value<DateTime> createdAt;
+  final Value<String> nutritionBasis;
+  final Value<double?> basisServingGrams;
+  final Value<bool> basisAssumed;
+  final Value<String> origin;
+  final Value<bool> isEstimated;
+  final Value<double?> fiberPer100g;
+  final Value<double?> sodiumMgPer100g;
+  final Value<double?> vitaminDMcgPer100g;
+  final Value<String?> rawValuesJson;
+  final Value<String?> conversionVersion;
   final Value<int> rowid;
   const FoodNutritionRevisionsCompanion({
     this.id = const Value.absent(),
@@ -5432,6 +6134,16 @@ class FoodNutritionRevisionsCompanion
     this.validFrom = const Value.absent(),
     this.validTo = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.nutritionBasis = const Value.absent(),
+    this.basisServingGrams = const Value.absent(),
+    this.basisAssumed = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.isEstimated = const Value.absent(),
+    this.fiberPer100g = const Value.absent(),
+    this.sodiumMgPer100g = const Value.absent(),
+    this.vitaminDMcgPer100g = const Value.absent(),
+    this.rawValuesJson = const Value.absent(),
+    this.conversionVersion = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FoodNutritionRevisionsCompanion.insert({
@@ -5447,6 +6159,16 @@ class FoodNutritionRevisionsCompanion
     this.validFrom = const Value.absent(),
     this.validTo = const Value.absent(),
     required DateTime createdAt,
+    this.nutritionBasis = const Value.absent(),
+    this.basisServingGrams = const Value.absent(),
+    this.basisAssumed = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.isEstimated = const Value.absent(),
+    this.fiberPer100g = const Value.absent(),
+    this.sodiumMgPer100g = const Value.absent(),
+    this.vitaminDMcgPer100g = const Value.absent(),
+    this.rawValuesJson = const Value.absent(),
+    this.conversionVersion = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        foodId = Value(foodId),
@@ -5465,6 +6187,16 @@ class FoodNutritionRevisionsCompanion
     Expression<DateTime>? validFrom,
     Expression<DateTime>? validTo,
     Expression<DateTime>? createdAt,
+    Expression<String>? nutritionBasis,
+    Expression<double>? basisServingGrams,
+    Expression<bool>? basisAssumed,
+    Expression<String>? origin,
+    Expression<bool>? isEstimated,
+    Expression<double>? fiberPer100g,
+    Expression<double>? sodiumMgPer100g,
+    Expression<double>? vitaminDMcgPer100g,
+    Expression<String>? rawValuesJson,
+    Expression<String>? conversionVersion,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5480,6 +6212,17 @@ class FoodNutritionRevisionsCompanion
       if (validFrom != null) 'valid_from': validFrom,
       if (validTo != null) 'valid_to': validTo,
       if (createdAt != null) 'created_at': createdAt,
+      if (nutritionBasis != null) 'nutrition_basis': nutritionBasis,
+      if (basisServingGrams != null) 'basis_serving_grams': basisServingGrams,
+      if (basisAssumed != null) 'basis_assumed': basisAssumed,
+      if (origin != null) 'origin': origin,
+      if (isEstimated != null) 'is_estimated': isEstimated,
+      if (fiberPer100g != null) 'fiber_per100g': fiberPer100g,
+      if (sodiumMgPer100g != null) 'sodium_mg_per100g': sodiumMgPer100g,
+      if (vitaminDMcgPer100g != null)
+        'vitamin_d_mcg_per100g': vitaminDMcgPer100g,
+      if (rawValuesJson != null) 'raw_values_json': rawValuesJson,
+      if (conversionVersion != null) 'conversion_version': conversionVersion,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5497,6 +6240,16 @@ class FoodNutritionRevisionsCompanion
     Value<DateTime?>? validFrom,
     Value<DateTime?>? validTo,
     Value<DateTime>? createdAt,
+    Value<String>? nutritionBasis,
+    Value<double?>? basisServingGrams,
+    Value<bool>? basisAssumed,
+    Value<String>? origin,
+    Value<bool>? isEstimated,
+    Value<double?>? fiberPer100g,
+    Value<double?>? sodiumMgPer100g,
+    Value<double?>? vitaminDMcgPer100g,
+    Value<String?>? rawValuesJson,
+    Value<String?>? conversionVersion,
     Value<int>? rowid,
   }) {
     return FoodNutritionRevisionsCompanion(
@@ -5512,6 +6265,16 @@ class FoodNutritionRevisionsCompanion
       validFrom: validFrom ?? this.validFrom,
       validTo: validTo ?? this.validTo,
       createdAt: createdAt ?? this.createdAt,
+      nutritionBasis: nutritionBasis ?? this.nutritionBasis,
+      basisServingGrams: basisServingGrams ?? this.basisServingGrams,
+      basisAssumed: basisAssumed ?? this.basisAssumed,
+      origin: origin ?? this.origin,
+      isEstimated: isEstimated ?? this.isEstimated,
+      fiberPer100g: fiberPer100g ?? this.fiberPer100g,
+      sodiumMgPer100g: sodiumMgPer100g ?? this.sodiumMgPer100g,
+      vitaminDMcgPer100g: vitaminDMcgPer100g ?? this.vitaminDMcgPer100g,
+      rawValuesJson: rawValuesJson ?? this.rawValuesJson,
+      conversionVersion: conversionVersion ?? this.conversionVersion,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5555,6 +6318,36 @@ class FoodNutritionRevisionsCompanion
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (nutritionBasis.present) {
+      map['nutrition_basis'] = Variable<String>(nutritionBasis.value);
+    }
+    if (basisServingGrams.present) {
+      map['basis_serving_grams'] = Variable<double>(basisServingGrams.value);
+    }
+    if (basisAssumed.present) {
+      map['basis_assumed'] = Variable<bool>(basisAssumed.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (isEstimated.present) {
+      map['is_estimated'] = Variable<bool>(isEstimated.value);
+    }
+    if (fiberPer100g.present) {
+      map['fiber_per100g'] = Variable<double>(fiberPer100g.value);
+    }
+    if (sodiumMgPer100g.present) {
+      map['sodium_mg_per100g'] = Variable<double>(sodiumMgPer100g.value);
+    }
+    if (vitaminDMcgPer100g.present) {
+      map['vitamin_d_mcg_per100g'] = Variable<double>(vitaminDMcgPer100g.value);
+    }
+    if (rawValuesJson.present) {
+      map['raw_values_json'] = Variable<String>(rawValuesJson.value);
+    }
+    if (conversionVersion.present) {
+      map['conversion_version'] = Variable<String>(conversionVersion.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5576,6 +6369,16 @@ class FoodNutritionRevisionsCompanion
           ..write('validFrom: $validFrom, ')
           ..write('validTo: $validTo, ')
           ..write('createdAt: $createdAt, ')
+          ..write('nutritionBasis: $nutritionBasis, ')
+          ..write('basisServingGrams: $basisServingGrams, ')
+          ..write('basisAssumed: $basisAssumed, ')
+          ..write('origin: $origin, ')
+          ..write('isEstimated: $isEstimated, ')
+          ..write('fiberPer100g: $fiberPer100g, ')
+          ..write('sodiumMgPer100g: $sodiumMgPer100g, ')
+          ..write('vitaminDMcgPer100g: $vitaminDMcgPer100g, ')
+          ..write('rawValuesJson: $rawValuesJson, ')
+          ..write('conversionVersion: $conversionVersion, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10080,6 +10883,42 @@ class $MenuItemsTable extends MenuItems
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   );
+  static const VerificationMeta _foodIdMeta = const VerificationMeta('foodId');
+  @override
+  late final GeneratedColumn<String> foodId = GeneratedColumn<String>(
+    'food_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES foods (id)',
+    ),
+  );
+  static const VerificationMeta _servingGramsStatusMeta =
+      const VerificationMeta('servingGramsStatus');
+  @override
+  late final GeneratedColumn<String> servingGramsStatus =
+      GeneratedColumn<String>(
+        'serving_grams_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('unknown'),
+      );
+  static const VerificationMeta _servingGramsSourceMeta =
+      const VerificationMeta('servingGramsSource');
+  @override
+  late final GeneratedColumn<String> servingGramsSource =
+      GeneratedColumn<String>(
+        'serving_grams_source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('legacy_unknown'),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10095,6 +10934,9 @@ class $MenuItemsTable extends MenuItems
     servingGrams,
     tagsJson,
     ingredientsJson,
+    foodId,
+    servingGramsStatus,
+    servingGramsSource,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10208,6 +11050,30 @@ class $MenuItemsTable extends MenuItems
         ),
       );
     }
+    if (data.containsKey('food_id')) {
+      context.handle(
+        _foodIdMeta,
+        foodId.isAcceptableOrUnknown(data['food_id']!, _foodIdMeta),
+      );
+    }
+    if (data.containsKey('serving_grams_status')) {
+      context.handle(
+        _servingGramsStatusMeta,
+        servingGramsStatus.isAcceptableOrUnknown(
+          data['serving_grams_status']!,
+          _servingGramsStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('serving_grams_source')) {
+      context.handle(
+        _servingGramsSourceMeta,
+        servingGramsSource.isAcceptableOrUnknown(
+          data['serving_grams_source']!,
+          _servingGramsSourceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10269,6 +11135,18 @@ class $MenuItemsTable extends MenuItems
         DriftSqlType.string,
         data['${effectivePrefix}ingredients_json'],
       )!,
+      foodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_id'],
+      ),
+      servingGramsStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}serving_grams_status'],
+      )!,
+      servingGramsSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}serving_grams_source'],
+      )!,
     );
   }
 
@@ -10299,6 +11177,20 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
   /// 配料 JSON：`[{name, source, confidence}]`，source = user|ai|dictionary。
   /// **过敏原不单独存，由食材推导**（docs/40 §2.5）。
   final String ingredientsJson;
+
+  /// 权威主食物引用（`foods.id`）。空 = 待分析供应（可先保存，不要求假营养）。
+  ///
+  /// 链接后当前营养一律从主食物的生效修订派生，本表**不再存一份可编辑的
+  /// 每份热量/宏量副本**。删除限制：主食物仍被引用时不能硬删（归档）。
+  final String? foodId;
+
+  /// 每份克数的可信度：`known` | `estimated` | `unknown`。
+  /// 只存了一个数字不等于可信——历史行回填为 `unknown`（见迁移）。
+  final String servingGramsStatus;
+
+  /// 每份克数来源：`weighed` | `user_input` | `label` | `ai_estimate` |
+  /// `legacy_unverified` | `legacy_unknown`。
+  final String servingGramsSource;
   const MenuItem({
     required this.id,
     required this.serviceId,
@@ -10313,6 +11205,9 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
     this.servingGrams,
     required this.tagsJson,
     required this.ingredientsJson,
+    this.foodId,
+    required this.servingGramsStatus,
+    required this.servingGramsSource,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10338,6 +11233,11 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
     }
     map['tags_json'] = Variable<String>(tagsJson);
     map['ingredients_json'] = Variable<String>(ingredientsJson);
+    if (!nullToAbsent || foodId != null) {
+      map['food_id'] = Variable<String>(foodId);
+    }
+    map['serving_grams_status'] = Variable<String>(servingGramsStatus);
+    map['serving_grams_source'] = Variable<String>(servingGramsSource);
     return map;
   }
 
@@ -10364,6 +11264,11 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
           : Value(servingGrams),
       tagsJson: Value(tagsJson),
       ingredientsJson: Value(ingredientsJson),
+      foodId: foodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(foodId),
+      servingGramsStatus: Value(servingGramsStatus),
+      servingGramsSource: Value(servingGramsSource),
     );
   }
 
@@ -10386,6 +11291,13 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
       servingGrams: serializer.fromJson<double?>(json['servingGrams']),
       tagsJson: serializer.fromJson<String>(json['tagsJson']),
       ingredientsJson: serializer.fromJson<String>(json['ingredientsJson']),
+      foodId: serializer.fromJson<String?>(json['foodId']),
+      servingGramsStatus: serializer.fromJson<String>(
+        json['servingGramsStatus'],
+      ),
+      servingGramsSource: serializer.fromJson<String>(
+        json['servingGramsSource'],
+      ),
     );
   }
   @override
@@ -10405,6 +11317,9 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
       'servingGrams': serializer.toJson<double?>(servingGrams),
       'tagsJson': serializer.toJson<String>(tagsJson),
       'ingredientsJson': serializer.toJson<String>(ingredientsJson),
+      'foodId': serializer.toJson<String?>(foodId),
+      'servingGramsStatus': serializer.toJson<String>(servingGramsStatus),
+      'servingGramsSource': serializer.toJson<String>(servingGramsSource),
     };
   }
 
@@ -10422,6 +11337,9 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
     Value<double?> servingGrams = const Value.absent(),
     String? tagsJson,
     String? ingredientsJson,
+    Value<String?> foodId = const Value.absent(),
+    String? servingGramsStatus,
+    String? servingGramsSource,
   }) => MenuItem(
     id: id ?? this.id,
     serviceId: serviceId ?? this.serviceId,
@@ -10436,6 +11354,9 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
     servingGrams: servingGrams.present ? servingGrams.value : this.servingGrams,
     tagsJson: tagsJson ?? this.tagsJson,
     ingredientsJson: ingredientsJson ?? this.ingredientsJson,
+    foodId: foodId.present ? foodId.value : this.foodId,
+    servingGramsStatus: servingGramsStatus ?? this.servingGramsStatus,
+    servingGramsSource: servingGramsSource ?? this.servingGramsSource,
   );
   MenuItem copyWithCompanion(MenuItemsCompanion data) {
     return MenuItem(
@@ -10464,6 +11385,13 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
       ingredientsJson: data.ingredientsJson.present
           ? data.ingredientsJson.value
           : this.ingredientsJson,
+      foodId: data.foodId.present ? data.foodId.value : this.foodId,
+      servingGramsStatus: data.servingGramsStatus.present
+          ? data.servingGramsStatus.value
+          : this.servingGramsStatus,
+      servingGramsSource: data.servingGramsSource.present
+          ? data.servingGramsSource.value
+          : this.servingGramsSource,
     );
   }
 
@@ -10482,7 +11410,10 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
           ..write('updatedAt: $updatedAt, ')
           ..write('servingGrams: $servingGrams, ')
           ..write('tagsJson: $tagsJson, ')
-          ..write('ingredientsJson: $ingredientsJson')
+          ..write('ingredientsJson: $ingredientsJson, ')
+          ..write('foodId: $foodId, ')
+          ..write('servingGramsStatus: $servingGramsStatus, ')
+          ..write('servingGramsSource: $servingGramsSource')
           ..write(')'))
         .toString();
   }
@@ -10502,6 +11433,9 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
     servingGrams,
     tagsJson,
     ingredientsJson,
+    foodId,
+    servingGramsStatus,
+    servingGramsSource,
   );
   @override
   bool operator ==(Object other) =>
@@ -10519,7 +11453,10 @@ class MenuItem extends DataClass implements Insertable<MenuItem> {
           other.updatedAt == this.updatedAt &&
           other.servingGrams == this.servingGrams &&
           other.tagsJson == this.tagsJson &&
-          other.ingredientsJson == this.ingredientsJson);
+          other.ingredientsJson == this.ingredientsJson &&
+          other.foodId == this.foodId &&
+          other.servingGramsStatus == this.servingGramsStatus &&
+          other.servingGramsSource == this.servingGramsSource);
 }
 
 class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
@@ -10536,6 +11473,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
   final Value<double?> servingGrams;
   final Value<String> tagsJson;
   final Value<String> ingredientsJson;
+  final Value<String?> foodId;
+  final Value<String> servingGramsStatus;
+  final Value<String> servingGramsSource;
   final Value<int> rowid;
   const MenuItemsCompanion({
     this.id = const Value.absent(),
@@ -10551,6 +11491,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
     this.servingGrams = const Value.absent(),
     this.tagsJson = const Value.absent(),
     this.ingredientsJson = const Value.absent(),
+    this.foodId = const Value.absent(),
+    this.servingGramsStatus = const Value.absent(),
+    this.servingGramsSource = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MenuItemsCompanion.insert({
@@ -10567,6 +11510,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
     this.servingGrams = const Value.absent(),
     this.tagsJson = const Value.absent(),
     this.ingredientsJson = const Value.absent(),
+    this.foodId = const Value.absent(),
+    this.servingGramsStatus = const Value.absent(),
+    this.servingGramsSource = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        serviceId = Value(serviceId),
@@ -10587,6 +11533,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
     Expression<double>? servingGrams,
     Expression<String>? tagsJson,
     Expression<String>? ingredientsJson,
+    Expression<String>? foodId,
+    Expression<String>? servingGramsStatus,
+    Expression<String>? servingGramsSource,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10603,6 +11552,11 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
       if (servingGrams != null) 'serving_grams': servingGrams,
       if (tagsJson != null) 'tags_json': tagsJson,
       if (ingredientsJson != null) 'ingredients_json': ingredientsJson,
+      if (foodId != null) 'food_id': foodId,
+      if (servingGramsStatus != null)
+        'serving_grams_status': servingGramsStatus,
+      if (servingGramsSource != null)
+        'serving_grams_source': servingGramsSource,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10621,6 +11575,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
     Value<double?>? servingGrams,
     Value<String>? tagsJson,
     Value<String>? ingredientsJson,
+    Value<String?>? foodId,
+    Value<String>? servingGramsStatus,
+    Value<String>? servingGramsSource,
     Value<int>? rowid,
   }) {
     return MenuItemsCompanion(
@@ -10637,6 +11594,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
       servingGrams: servingGrams ?? this.servingGrams,
       tagsJson: tagsJson ?? this.tagsJson,
       ingredientsJson: ingredientsJson ?? this.ingredientsJson,
+      foodId: foodId ?? this.foodId,
+      servingGramsStatus: servingGramsStatus ?? this.servingGramsStatus,
+      servingGramsSource: servingGramsSource ?? this.servingGramsSource,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10683,6 +11643,15 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
     if (ingredientsJson.present) {
       map['ingredients_json'] = Variable<String>(ingredientsJson.value);
     }
+    if (foodId.present) {
+      map['food_id'] = Variable<String>(foodId.value);
+    }
+    if (servingGramsStatus.present) {
+      map['serving_grams_status'] = Variable<String>(servingGramsStatus.value);
+    }
+    if (servingGramsSource.present) {
+      map['serving_grams_source'] = Variable<String>(servingGramsSource.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10705,6 +11674,9 @@ class MenuItemsCompanion extends UpdateCompanion<MenuItem> {
           ..write('servingGrams: $servingGrams, ')
           ..write('tagsJson: $tagsJson, ')
           ..write('ingredientsJson: $ingredientsJson, ')
+          ..write('foodId: $foodId, ')
+          ..write('servingGramsStatus: $servingGramsStatus, ')
+          ..write('servingGramsSource: $servingGramsSource, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15830,6 +16802,50 @@ class $MealItemsTable extends MealItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _supplyIdMeta = const VerificationMeta(
+    'supplyId',
+  );
+  @override
+  late final GeneratedColumn<String> supplyId = GeneratedColumn<String>(
+    'supply_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nutritionRevisionIdMeta =
+      const VerificationMeta('nutritionRevisionId');
+  @override
+  late final GeneratedColumn<String> nutritionRevisionId =
+      GeneratedColumn<String>(
+        'nutrition_revision_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _servingsMeta = const VerificationMeta(
+    'servings',
+  );
+  @override
+  late final GeneratedColumn<double> servings = GeneratedColumn<double>(
+    'servings',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _servingGramsMeta = const VerificationMeta(
+    'servingGrams',
+  );
+  @override
+  late final GeneratedColumn<double> servingGrams = GeneratedColumn<double>(
+    'serving_grams',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -15848,6 +16864,10 @@ class $MealItemsTable extends MealItems
     updatedAt,
     sourceType,
     sourceId,
+    supplyId,
+    nutritionRevisionId,
+    servings,
+    servingGrams,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -15998,6 +17018,36 @@ class $MealItemsTable extends MealItems
         sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
       );
     }
+    if (data.containsKey('supply_id')) {
+      context.handle(
+        _supplyIdMeta,
+        supplyId.isAcceptableOrUnknown(data['supply_id']!, _supplyIdMeta),
+      );
+    }
+    if (data.containsKey('nutrition_revision_id')) {
+      context.handle(
+        _nutritionRevisionIdMeta,
+        nutritionRevisionId.isAcceptableOrUnknown(
+          data['nutrition_revision_id']!,
+          _nutritionRevisionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('servings')) {
+      context.handle(
+        _servingsMeta,
+        servings.isAcceptableOrUnknown(data['servings']!, _servingsMeta),
+      );
+    }
+    if (data.containsKey('serving_grams')) {
+      context.handle(
+        _servingGramsMeta,
+        servingGrams.isAcceptableOrUnknown(
+          data['serving_grams']!,
+          _servingGramsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -16071,6 +17121,22 @@ class $MealItemsTable extends MealItems
         DriftSqlType.string,
         data['${effectivePrefix}source_id'],
       ),
+      supplyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supply_id'],
+      ),
+      nutritionRevisionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nutrition_revision_id'],
+      ),
+      servings: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}servings'],
+      ),
+      servingGrams: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}serving_grams'],
+      ),
     );
   }
 
@@ -16102,6 +17168,20 @@ class MealItem extends DataClass implements Insertable<MealItem> {
 
   /// foods.id / dish_library.id / menu_items.id；无来源时 null。
   final String? sourceId;
+
+  /// 本次记餐的食堂供应 id（`menu_items.id`）。空 = 不是按供应记的。
+  /// **不加外键**：供删除后历史餐仍要能显示原快照。
+  final String? supplyId;
+
+  /// 当时使用的营养修订 id（`food_nutrition_revisions.id`）。
+  /// 之后主修订变化**不重算**本行；本列只用于解释"当时按什么算的"。
+  final String? nutritionRevisionId;
+
+  /// 本次份数（可空）。`克数 = 份数 × 该供应每份克数`。
+  final double? servings;
+
+  /// 当时的每份克数依据（供应的份量；按份记餐时非空）。
+  final double? servingGrams;
   const MealItem({
     required this.id,
     required this.mealId,
@@ -16119,6 +17199,10 @@ class MealItem extends DataClass implements Insertable<MealItem> {
     required this.updatedAt,
     required this.sourceType,
     this.sourceId,
+    this.supplyId,
+    this.nutritionRevisionId,
+    this.servings,
+    this.servingGrams,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -16148,6 +17232,18 @@ class MealItem extends DataClass implements Insertable<MealItem> {
     map['source_type'] = Variable<String>(sourceType);
     if (!nullToAbsent || sourceId != null) {
       map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || supplyId != null) {
+      map['supply_id'] = Variable<String>(supplyId);
+    }
+    if (!nullToAbsent || nutritionRevisionId != null) {
+      map['nutrition_revision_id'] = Variable<String>(nutritionRevisionId);
+    }
+    if (!nullToAbsent || servings != null) {
+      map['servings'] = Variable<double>(servings);
+    }
+    if (!nullToAbsent || servingGrams != null) {
+      map['serving_grams'] = Variable<double>(servingGrams);
     }
     return map;
   }
@@ -16180,6 +17276,18 @@ class MealItem extends DataClass implements Insertable<MealItem> {
       sourceId: sourceId == null && nullToAbsent
           ? const Value.absent()
           : Value(sourceId),
+      supplyId: supplyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplyId),
+      nutritionRevisionId: nutritionRevisionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nutritionRevisionId),
+      servings: servings == null && nullToAbsent
+          ? const Value.absent()
+          : Value(servings),
+      servingGrams: servingGrams == null && nullToAbsent
+          ? const Value.absent()
+          : Value(servingGrams),
     );
   }
 
@@ -16205,6 +17313,12 @@ class MealItem extends DataClass implements Insertable<MealItem> {
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       sourceType: serializer.fromJson<String>(json['sourceType']),
       sourceId: serializer.fromJson<String?>(json['sourceId']),
+      supplyId: serializer.fromJson<String?>(json['supplyId']),
+      nutritionRevisionId: serializer.fromJson<String?>(
+        json['nutritionRevisionId'],
+      ),
+      servings: serializer.fromJson<double?>(json['servings']),
+      servingGrams: serializer.fromJson<double?>(json['servingGrams']),
     );
   }
   @override
@@ -16227,6 +17341,10 @@ class MealItem extends DataClass implements Insertable<MealItem> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'sourceType': serializer.toJson<String>(sourceType),
       'sourceId': serializer.toJson<String?>(sourceId),
+      'supplyId': serializer.toJson<String?>(supplyId),
+      'nutritionRevisionId': serializer.toJson<String?>(nutritionRevisionId),
+      'servings': serializer.toJson<double?>(servings),
+      'servingGrams': serializer.toJson<double?>(servingGrams),
     };
   }
 
@@ -16247,6 +17365,10 @@ class MealItem extends DataClass implements Insertable<MealItem> {
     DateTime? updatedAt,
     String? sourceType,
     Value<String?> sourceId = const Value.absent(),
+    Value<String?> supplyId = const Value.absent(),
+    Value<String?> nutritionRevisionId = const Value.absent(),
+    Value<double?> servings = const Value.absent(),
+    Value<double?> servingGrams = const Value.absent(),
   }) => MealItem(
     id: id ?? this.id,
     mealId: mealId ?? this.mealId,
@@ -16270,6 +17392,12 @@ class MealItem extends DataClass implements Insertable<MealItem> {
     updatedAt: updatedAt ?? this.updatedAt,
     sourceType: sourceType ?? this.sourceType,
     sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    supplyId: supplyId.present ? supplyId.value : this.supplyId,
+    nutritionRevisionId: nutritionRevisionId.present
+        ? nutritionRevisionId.value
+        : this.nutritionRevisionId,
+    servings: servings.present ? servings.value : this.servings,
+    servingGrams: servingGrams.present ? servingGrams.value : this.servingGrams,
   );
   MealItem copyWithCompanion(MealItemsCompanion data) {
     return MealItem(
@@ -16307,6 +17435,14 @@ class MealItem extends DataClass implements Insertable<MealItem> {
           ? data.sourceType.value
           : this.sourceType,
       sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      supplyId: data.supplyId.present ? data.supplyId.value : this.supplyId,
+      nutritionRevisionId: data.nutritionRevisionId.present
+          ? data.nutritionRevisionId.value
+          : this.nutritionRevisionId,
+      servings: data.servings.present ? data.servings.value : this.servings,
+      servingGrams: data.servingGrams.present
+          ? data.servingGrams.value
+          : this.servingGrams,
     );
   }
 
@@ -16328,7 +17464,11 @@ class MealItem extends DataClass implements Insertable<MealItem> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('sourceType: $sourceType, ')
-          ..write('sourceId: $sourceId')
+          ..write('sourceId: $sourceId, ')
+          ..write('supplyId: $supplyId, ')
+          ..write('nutritionRevisionId: $nutritionRevisionId, ')
+          ..write('servings: $servings, ')
+          ..write('servingGrams: $servingGrams')
           ..write(')'))
         .toString();
   }
@@ -16351,6 +17491,10 @@ class MealItem extends DataClass implements Insertable<MealItem> {
     updatedAt,
     sourceType,
     sourceId,
+    supplyId,
+    nutritionRevisionId,
+    servings,
+    servingGrams,
   );
   @override
   bool operator ==(Object other) =>
@@ -16371,7 +17515,11 @@ class MealItem extends DataClass implements Insertable<MealItem> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.sourceType == this.sourceType &&
-          other.sourceId == this.sourceId);
+          other.sourceId == this.sourceId &&
+          other.supplyId == this.supplyId &&
+          other.nutritionRevisionId == this.nutritionRevisionId &&
+          other.servings == this.servings &&
+          other.servingGrams == this.servingGrams);
 }
 
 class MealItemsCompanion extends UpdateCompanion<MealItem> {
@@ -16391,6 +17539,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
   final Value<DateTime> updatedAt;
   final Value<String> sourceType;
   final Value<String?> sourceId;
+  final Value<String?> supplyId;
+  final Value<String?> nutritionRevisionId;
+  final Value<double?> servings;
+  final Value<double?> servingGrams;
   final Value<int> rowid;
   const MealItemsCompanion({
     this.id = const Value.absent(),
@@ -16409,6 +17561,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
     this.updatedAt = const Value.absent(),
     this.sourceType = const Value.absent(),
     this.sourceId = const Value.absent(),
+    this.supplyId = const Value.absent(),
+    this.nutritionRevisionId = const Value.absent(),
+    this.servings = const Value.absent(),
+    this.servingGrams = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MealItemsCompanion.insert({
@@ -16428,6 +17584,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
     required DateTime updatedAt,
     this.sourceType = const Value.absent(),
     this.sourceId = const Value.absent(),
+    this.supplyId = const Value.absent(),
+    this.nutritionRevisionId = const Value.absent(),
+    this.servings = const Value.absent(),
+    this.servingGrams = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        mealId = Value(mealId),
@@ -16456,6 +17616,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
     Expression<DateTime>? updatedAt,
     Expression<String>? sourceType,
     Expression<String>? sourceId,
+    Expression<String>? supplyId,
+    Expression<String>? nutritionRevisionId,
+    Expression<double>? servings,
+    Expression<double>? servingGrams,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -16475,6 +17639,11 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (sourceType != null) 'source_type': sourceType,
       if (sourceId != null) 'source_id': sourceId,
+      if (supplyId != null) 'supply_id': supplyId,
+      if (nutritionRevisionId != null)
+        'nutrition_revision_id': nutritionRevisionId,
+      if (servings != null) 'servings': servings,
+      if (servingGrams != null) 'serving_grams': servingGrams,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -16496,6 +17665,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
     Value<DateTime>? updatedAt,
     Value<String>? sourceType,
     Value<String?>? sourceId,
+    Value<String?>? supplyId,
+    Value<String?>? nutritionRevisionId,
+    Value<double?>? servings,
+    Value<double?>? servingGrams,
     Value<int>? rowid,
   }) {
     return MealItemsCompanion(
@@ -16515,6 +17688,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
       updatedAt: updatedAt ?? this.updatedAt,
       sourceType: sourceType ?? this.sourceType,
       sourceId: sourceId ?? this.sourceId,
+      supplyId: supplyId ?? this.supplyId,
+      nutritionRevisionId: nutritionRevisionId ?? this.nutritionRevisionId,
+      servings: servings ?? this.servings,
+      servingGrams: servingGrams ?? this.servingGrams,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -16570,6 +17747,20 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
     if (sourceId.present) {
       map['source_id'] = Variable<String>(sourceId.value);
     }
+    if (supplyId.present) {
+      map['supply_id'] = Variable<String>(supplyId.value);
+    }
+    if (nutritionRevisionId.present) {
+      map['nutrition_revision_id'] = Variable<String>(
+        nutritionRevisionId.value,
+      );
+    }
+    if (servings.present) {
+      map['servings'] = Variable<double>(servings.value);
+    }
+    if (servingGrams.present) {
+      map['serving_grams'] = Variable<double>(servingGrams.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -16595,6 +17786,10 @@ class MealItemsCompanion extends UpdateCompanion<MealItem> {
           ..write('updatedAt: $updatedAt, ')
           ..write('sourceType: $sourceType, ')
           ..write('sourceId: $sourceId, ')
+          ..write('supplyId: $supplyId, ')
+          ..write('nutritionRevisionId: $nutritionRevisionId, ')
+          ..write('servings: $servings, ')
+          ..write('servingGrams: $servingGrams, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -26384,6 +27579,1094 @@ class BackgroundJobsCompanion extends UpdateCompanion<BackgroundJob> {
   }
 }
 
+class $LegacyEntityMappingsTable extends LegacyEntityMappings
+    with TableInfo<$LegacyEntityMappingsTable, LegacyEntityMappingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LegacyEntityMappingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyKindMeta = const VerificationMeta(
+    'legacyKind',
+  );
+  @override
+  late final GeneratedColumn<String> legacyKind = GeneratedColumn<String>(
+    'legacy_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _legacyIdMeta = const VerificationMeta(
+    'legacyId',
+  );
+  @override
+  late final GeneratedColumn<String> legacyId = GeneratedColumn<String>(
+    'legacy_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceFingerprintMeta = const VerificationMeta(
+    'sourceFingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> sourceFingerprint =
+      GeneratedColumn<String>(
+        'source_fingerprint',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _conversionVersionMeta = const VerificationMeta(
+    'conversionVersion',
+  );
+  @override
+  late final GeneratedColumn<String> conversionVersion =
+      GeneratedColumn<String>(
+        'conversion_version',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _foodIdMeta = const VerificationMeta('foodId');
+  @override
+  late final GeneratedColumn<String> foodId = GeneratedColumn<String>(
+    'food_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _menuItemIdMeta = const VerificationMeta(
+    'menuItemId',
+  );
+  @override
+  late final GeneratedColumn<String> menuItemId = GeneratedColumn<String>(
+    'menu_item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonCodeMeta = const VerificationMeta(
+    'reasonCode',
+  );
+  @override
+  late final GeneratedColumn<String> reasonCode = GeneratedColumn<String>(
+    'reason_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reasonTextMeta = const VerificationMeta(
+    'reasonText',
+  );
+  @override
+  late final GeneratedColumn<String> reasonText = GeneratedColumn<String>(
+    'reason_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalBasisMeta = const VerificationMeta(
+    'originalBasis',
+  );
+  @override
+  late final GeneratedColumn<String> originalBasis = GeneratedColumn<String>(
+    'original_basis',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originalServingGramsMeta =
+      const VerificationMeta('originalServingGrams');
+  @override
+  late final GeneratedColumn<double> originalServingGrams =
+      GeneratedColumn<double>(
+        'original_serving_grams',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _basisAssumedMeta = const VerificationMeta(
+    'basisAssumed',
+  );
+  @override
+  late final GeneratedColumn<bool> basisAssumed = GeneratedColumn<bool>(
+    'basis_assumed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("basis_assumed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _originalSourceMeta = const VerificationMeta(
+    'originalSource',
+  );
+  @override
+  late final GeneratedColumn<String> originalSource = GeneratedColumn<String>(
+    'original_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _userEditedMeta = const VerificationMeta(
+    'userEdited',
+  );
+  @override
+  late final GeneratedColumn<bool> userEdited = GeneratedColumn<bool>(
+    'user_edited',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("user_edited" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _preservedJsonMeta = const VerificationMeta(
+    'preservedJson',
+  );
+  @override
+  late final GeneratedColumn<String> preservedJson = GeneratedColumn<String>(
+    'preserved_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    legacyKind,
+    legacyId,
+    sourceFingerprint,
+    conversionVersion,
+    foodId,
+    menuItemId,
+    outcome,
+    reasonCode,
+    reasonText,
+    originalBasis,
+    originalServingGrams,
+    basisAssumed,
+    originalSource,
+    userEdited,
+    preservedJson,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'legacy_entity_mappings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LegacyEntityMappingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('legacy_kind')) {
+      context.handle(
+        _legacyKindMeta,
+        legacyKind.isAcceptableOrUnknown(data['legacy_kind']!, _legacyKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_legacyKindMeta);
+    }
+    if (data.containsKey('legacy_id')) {
+      context.handle(
+        _legacyIdMeta,
+        legacyId.isAcceptableOrUnknown(data['legacy_id']!, _legacyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_legacyIdMeta);
+    }
+    if (data.containsKey('source_fingerprint')) {
+      context.handle(
+        _sourceFingerprintMeta,
+        sourceFingerprint.isAcceptableOrUnknown(
+          data['source_fingerprint']!,
+          _sourceFingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceFingerprintMeta);
+    }
+    if (data.containsKey('conversion_version')) {
+      context.handle(
+        _conversionVersionMeta,
+        conversionVersion.isAcceptableOrUnknown(
+          data['conversion_version']!,
+          _conversionVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_conversionVersionMeta);
+    }
+    if (data.containsKey('food_id')) {
+      context.handle(
+        _foodIdMeta,
+        foodId.isAcceptableOrUnknown(data['food_id']!, _foodIdMeta),
+      );
+    }
+    if (data.containsKey('menu_item_id')) {
+      context.handle(
+        _menuItemIdMeta,
+        menuItemId.isAcceptableOrUnknown(
+          data['menu_item_id']!,
+          _menuItemIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_outcomeMeta);
+    }
+    if (data.containsKey('reason_code')) {
+      context.handle(
+        _reasonCodeMeta,
+        reasonCode.isAcceptableOrUnknown(data['reason_code']!, _reasonCodeMeta),
+      );
+    }
+    if (data.containsKey('reason_text')) {
+      context.handle(
+        _reasonTextMeta,
+        reasonText.isAcceptableOrUnknown(data['reason_text']!, _reasonTextMeta),
+      );
+    }
+    if (data.containsKey('original_basis')) {
+      context.handle(
+        _originalBasisMeta,
+        originalBasis.isAcceptableOrUnknown(
+          data['original_basis']!,
+          _originalBasisMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_originalBasisMeta);
+    }
+    if (data.containsKey('original_serving_grams')) {
+      context.handle(
+        _originalServingGramsMeta,
+        originalServingGrams.isAcceptableOrUnknown(
+          data['original_serving_grams']!,
+          _originalServingGramsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('basis_assumed')) {
+      context.handle(
+        _basisAssumedMeta,
+        basisAssumed.isAcceptableOrUnknown(
+          data['basis_assumed']!,
+          _basisAssumedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('original_source')) {
+      context.handle(
+        _originalSourceMeta,
+        originalSource.isAcceptableOrUnknown(
+          data['original_source']!,
+          _originalSourceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('user_edited')) {
+      context.handle(
+        _userEditedMeta,
+        userEdited.isAcceptableOrUnknown(data['user_edited']!, _userEditedMeta),
+      );
+    }
+    if (data.containsKey('preserved_json')) {
+      context.handle(
+        _preservedJsonMeta,
+        preservedJson.isAcceptableOrUnknown(
+          data['preserved_json']!,
+          _preservedJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_preservedJsonMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LegacyEntityMappingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LegacyEntityMappingRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      legacyKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}legacy_kind'],
+      )!,
+      legacyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}legacy_id'],
+      )!,
+      sourceFingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_fingerprint'],
+      )!,
+      conversionVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conversion_version'],
+      )!,
+      foodId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_id'],
+      ),
+      menuItemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}menu_item_id'],
+      ),
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      )!,
+      reasonCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason_code'],
+      ),
+      reasonText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason_text'],
+      ),
+      originalBasis: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_basis'],
+      )!,
+      originalServingGrams: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_serving_grams'],
+      ),
+      basisAssumed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}basis_assumed'],
+      )!,
+      originalSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_source'],
+      ),
+      userEdited: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}user_edited'],
+      )!,
+      preservedJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}preserved_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LegacyEntityMappingsTable createAlias(String alias) {
+    return $LegacyEntityMappingsTable(attachedDatabase, alias);
+  }
+}
+
+class LegacyEntityMappingRow extends DataClass
+    implements Insertable<LegacyEntityMappingRow> {
+  final String id;
+  final String legacyKind;
+  final String legacyId;
+
+  /// 旧行内容指纹（归一化前的稳定 JSON 的 FNV-1a 十六进制）。
+  /// 指纹变了 = 旧数据被改过，必须重新裁决，不能沿用旧结论。
+  final String sourceFingerprint;
+
+  /// 归一规则版本（`LegacyNutritionRules.version`）。
+  final String conversionVersion;
+
+  /// 换算出的主食物 id（可空：待补全/冲突时没有）。
+  final String? foodId;
+
+  /// 关联的食堂供应 id（`menu_items.id`，可空）。
+  final String? menuItemId;
+
+  /// `converted` | `reused` | `needs_completion` | `conflict`。
+  final String outcome;
+
+  /// 机器可读原因码（`assumed_serving` / `missing_fields` / `range_only` /
+  /// `dangling_source` / `duplicate_confirmed_match` / `explicit_conflict`…）。
+  final String? reasonCode;
+
+  /// 给用户看的待补全原因。
+  final String? reasonText;
+
+  /// 旧值原始口径：`perServing` | `per100g` | `unknown`。
+  final String originalBasis;
+
+  /// 旧值原始份量克数（可为 null＝未知）。
+  final double? originalServingGrams;
+
+  /// 旧值份量是不是假设值（schema 28 回填的 100g）。
+  final bool basisAssumed;
+
+  /// 旧来源标记（manual / ai_estimate / food_library / user_input…）。
+  final String? originalSource;
+
+  /// 旧行是否被用户改过。
+  final bool userEdited;
+
+  /// 原始资料保全 JSON：原四项/微量值、点评、图片路径、来源文本等。
+  /// 必须能在界面上被读到，只落库不展示不算保全完成。
+  final String preservedJson;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const LegacyEntityMappingRow({
+    required this.id,
+    required this.legacyKind,
+    required this.legacyId,
+    required this.sourceFingerprint,
+    required this.conversionVersion,
+    this.foodId,
+    this.menuItemId,
+    required this.outcome,
+    this.reasonCode,
+    this.reasonText,
+    required this.originalBasis,
+    this.originalServingGrams,
+    required this.basisAssumed,
+    this.originalSource,
+    required this.userEdited,
+    required this.preservedJson,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['legacy_kind'] = Variable<String>(legacyKind);
+    map['legacy_id'] = Variable<String>(legacyId);
+    map['source_fingerprint'] = Variable<String>(sourceFingerprint);
+    map['conversion_version'] = Variable<String>(conversionVersion);
+    if (!nullToAbsent || foodId != null) {
+      map['food_id'] = Variable<String>(foodId);
+    }
+    if (!nullToAbsent || menuItemId != null) {
+      map['menu_item_id'] = Variable<String>(menuItemId);
+    }
+    map['outcome'] = Variable<String>(outcome);
+    if (!nullToAbsent || reasonCode != null) {
+      map['reason_code'] = Variable<String>(reasonCode);
+    }
+    if (!nullToAbsent || reasonText != null) {
+      map['reason_text'] = Variable<String>(reasonText);
+    }
+    map['original_basis'] = Variable<String>(originalBasis);
+    if (!nullToAbsent || originalServingGrams != null) {
+      map['original_serving_grams'] = Variable<double>(originalServingGrams);
+    }
+    map['basis_assumed'] = Variable<bool>(basisAssumed);
+    if (!nullToAbsent || originalSource != null) {
+      map['original_source'] = Variable<String>(originalSource);
+    }
+    map['user_edited'] = Variable<bool>(userEdited);
+    map['preserved_json'] = Variable<String>(preservedJson);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LegacyEntityMappingsCompanion toCompanion(bool nullToAbsent) {
+    return LegacyEntityMappingsCompanion(
+      id: Value(id),
+      legacyKind: Value(legacyKind),
+      legacyId: Value(legacyId),
+      sourceFingerprint: Value(sourceFingerprint),
+      conversionVersion: Value(conversionVersion),
+      foodId: foodId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(foodId),
+      menuItemId: menuItemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(menuItemId),
+      outcome: Value(outcome),
+      reasonCode: reasonCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasonCode),
+      reasonText: reasonText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reasonText),
+      originalBasis: Value(originalBasis),
+      originalServingGrams: originalServingGrams == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalServingGrams),
+      basisAssumed: Value(basisAssumed),
+      originalSource: originalSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalSource),
+      userEdited: Value(userEdited),
+      preservedJson: Value(preservedJson),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LegacyEntityMappingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LegacyEntityMappingRow(
+      id: serializer.fromJson<String>(json['id']),
+      legacyKind: serializer.fromJson<String>(json['legacyKind']),
+      legacyId: serializer.fromJson<String>(json['legacyId']),
+      sourceFingerprint: serializer.fromJson<String>(json['sourceFingerprint']),
+      conversionVersion: serializer.fromJson<String>(json['conversionVersion']),
+      foodId: serializer.fromJson<String?>(json['foodId']),
+      menuItemId: serializer.fromJson<String?>(json['menuItemId']),
+      outcome: serializer.fromJson<String>(json['outcome']),
+      reasonCode: serializer.fromJson<String?>(json['reasonCode']),
+      reasonText: serializer.fromJson<String?>(json['reasonText']),
+      originalBasis: serializer.fromJson<String>(json['originalBasis']),
+      originalServingGrams: serializer.fromJson<double?>(
+        json['originalServingGrams'],
+      ),
+      basisAssumed: serializer.fromJson<bool>(json['basisAssumed']),
+      originalSource: serializer.fromJson<String?>(json['originalSource']),
+      userEdited: serializer.fromJson<bool>(json['userEdited']),
+      preservedJson: serializer.fromJson<String>(json['preservedJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'legacyKind': serializer.toJson<String>(legacyKind),
+      'legacyId': serializer.toJson<String>(legacyId),
+      'sourceFingerprint': serializer.toJson<String>(sourceFingerprint),
+      'conversionVersion': serializer.toJson<String>(conversionVersion),
+      'foodId': serializer.toJson<String?>(foodId),
+      'menuItemId': serializer.toJson<String?>(menuItemId),
+      'outcome': serializer.toJson<String>(outcome),
+      'reasonCode': serializer.toJson<String?>(reasonCode),
+      'reasonText': serializer.toJson<String?>(reasonText),
+      'originalBasis': serializer.toJson<String>(originalBasis),
+      'originalServingGrams': serializer.toJson<double?>(originalServingGrams),
+      'basisAssumed': serializer.toJson<bool>(basisAssumed),
+      'originalSource': serializer.toJson<String?>(originalSource),
+      'userEdited': serializer.toJson<bool>(userEdited),
+      'preservedJson': serializer.toJson<String>(preservedJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LegacyEntityMappingRow copyWith({
+    String? id,
+    String? legacyKind,
+    String? legacyId,
+    String? sourceFingerprint,
+    String? conversionVersion,
+    Value<String?> foodId = const Value.absent(),
+    Value<String?> menuItemId = const Value.absent(),
+    String? outcome,
+    Value<String?> reasonCode = const Value.absent(),
+    Value<String?> reasonText = const Value.absent(),
+    String? originalBasis,
+    Value<double?> originalServingGrams = const Value.absent(),
+    bool? basisAssumed,
+    Value<String?> originalSource = const Value.absent(),
+    bool? userEdited,
+    String? preservedJson,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => LegacyEntityMappingRow(
+    id: id ?? this.id,
+    legacyKind: legacyKind ?? this.legacyKind,
+    legacyId: legacyId ?? this.legacyId,
+    sourceFingerprint: sourceFingerprint ?? this.sourceFingerprint,
+    conversionVersion: conversionVersion ?? this.conversionVersion,
+    foodId: foodId.present ? foodId.value : this.foodId,
+    menuItemId: menuItemId.present ? menuItemId.value : this.menuItemId,
+    outcome: outcome ?? this.outcome,
+    reasonCode: reasonCode.present ? reasonCode.value : this.reasonCode,
+    reasonText: reasonText.present ? reasonText.value : this.reasonText,
+    originalBasis: originalBasis ?? this.originalBasis,
+    originalServingGrams: originalServingGrams.present
+        ? originalServingGrams.value
+        : this.originalServingGrams,
+    basisAssumed: basisAssumed ?? this.basisAssumed,
+    originalSource: originalSource.present
+        ? originalSource.value
+        : this.originalSource,
+    userEdited: userEdited ?? this.userEdited,
+    preservedJson: preservedJson ?? this.preservedJson,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LegacyEntityMappingRow copyWithCompanion(LegacyEntityMappingsCompanion data) {
+    return LegacyEntityMappingRow(
+      id: data.id.present ? data.id.value : this.id,
+      legacyKind: data.legacyKind.present
+          ? data.legacyKind.value
+          : this.legacyKind,
+      legacyId: data.legacyId.present ? data.legacyId.value : this.legacyId,
+      sourceFingerprint: data.sourceFingerprint.present
+          ? data.sourceFingerprint.value
+          : this.sourceFingerprint,
+      conversionVersion: data.conversionVersion.present
+          ? data.conversionVersion.value
+          : this.conversionVersion,
+      foodId: data.foodId.present ? data.foodId.value : this.foodId,
+      menuItemId: data.menuItemId.present
+          ? data.menuItemId.value
+          : this.menuItemId,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+      reasonCode: data.reasonCode.present
+          ? data.reasonCode.value
+          : this.reasonCode,
+      reasonText: data.reasonText.present
+          ? data.reasonText.value
+          : this.reasonText,
+      originalBasis: data.originalBasis.present
+          ? data.originalBasis.value
+          : this.originalBasis,
+      originalServingGrams: data.originalServingGrams.present
+          ? data.originalServingGrams.value
+          : this.originalServingGrams,
+      basisAssumed: data.basisAssumed.present
+          ? data.basisAssumed.value
+          : this.basisAssumed,
+      originalSource: data.originalSource.present
+          ? data.originalSource.value
+          : this.originalSource,
+      userEdited: data.userEdited.present
+          ? data.userEdited.value
+          : this.userEdited,
+      preservedJson: data.preservedJson.present
+          ? data.preservedJson.value
+          : this.preservedJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LegacyEntityMappingRow(')
+          ..write('id: $id, ')
+          ..write('legacyKind: $legacyKind, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('sourceFingerprint: $sourceFingerprint, ')
+          ..write('conversionVersion: $conversionVersion, ')
+          ..write('foodId: $foodId, ')
+          ..write('menuItemId: $menuItemId, ')
+          ..write('outcome: $outcome, ')
+          ..write('reasonCode: $reasonCode, ')
+          ..write('reasonText: $reasonText, ')
+          ..write('originalBasis: $originalBasis, ')
+          ..write('originalServingGrams: $originalServingGrams, ')
+          ..write('basisAssumed: $basisAssumed, ')
+          ..write('originalSource: $originalSource, ')
+          ..write('userEdited: $userEdited, ')
+          ..write('preservedJson: $preservedJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    legacyKind,
+    legacyId,
+    sourceFingerprint,
+    conversionVersion,
+    foodId,
+    menuItemId,
+    outcome,
+    reasonCode,
+    reasonText,
+    originalBasis,
+    originalServingGrams,
+    basisAssumed,
+    originalSource,
+    userEdited,
+    preservedJson,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LegacyEntityMappingRow &&
+          other.id == this.id &&
+          other.legacyKind == this.legacyKind &&
+          other.legacyId == this.legacyId &&
+          other.sourceFingerprint == this.sourceFingerprint &&
+          other.conversionVersion == this.conversionVersion &&
+          other.foodId == this.foodId &&
+          other.menuItemId == this.menuItemId &&
+          other.outcome == this.outcome &&
+          other.reasonCode == this.reasonCode &&
+          other.reasonText == this.reasonText &&
+          other.originalBasis == this.originalBasis &&
+          other.originalServingGrams == this.originalServingGrams &&
+          other.basisAssumed == this.basisAssumed &&
+          other.originalSource == this.originalSource &&
+          other.userEdited == this.userEdited &&
+          other.preservedJson == this.preservedJson &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LegacyEntityMappingsCompanion
+    extends UpdateCompanion<LegacyEntityMappingRow> {
+  final Value<String> id;
+  final Value<String> legacyKind;
+  final Value<String> legacyId;
+  final Value<String> sourceFingerprint;
+  final Value<String> conversionVersion;
+  final Value<String?> foodId;
+  final Value<String?> menuItemId;
+  final Value<String> outcome;
+  final Value<String?> reasonCode;
+  final Value<String?> reasonText;
+  final Value<String> originalBasis;
+  final Value<double?> originalServingGrams;
+  final Value<bool> basisAssumed;
+  final Value<String?> originalSource;
+  final Value<bool> userEdited;
+  final Value<String> preservedJson;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LegacyEntityMappingsCompanion({
+    this.id = const Value.absent(),
+    this.legacyKind = const Value.absent(),
+    this.legacyId = const Value.absent(),
+    this.sourceFingerprint = const Value.absent(),
+    this.conversionVersion = const Value.absent(),
+    this.foodId = const Value.absent(),
+    this.menuItemId = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.reasonCode = const Value.absent(),
+    this.reasonText = const Value.absent(),
+    this.originalBasis = const Value.absent(),
+    this.originalServingGrams = const Value.absent(),
+    this.basisAssumed = const Value.absent(),
+    this.originalSource = const Value.absent(),
+    this.userEdited = const Value.absent(),
+    this.preservedJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LegacyEntityMappingsCompanion.insert({
+    required String id,
+    required String legacyKind,
+    required String legacyId,
+    required String sourceFingerprint,
+    required String conversionVersion,
+    this.foodId = const Value.absent(),
+    this.menuItemId = const Value.absent(),
+    required String outcome,
+    this.reasonCode = const Value.absent(),
+    this.reasonText = const Value.absent(),
+    required String originalBasis,
+    this.originalServingGrams = const Value.absent(),
+    this.basisAssumed = const Value.absent(),
+    this.originalSource = const Value.absent(),
+    this.userEdited = const Value.absent(),
+    required String preservedJson,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       legacyKind = Value(legacyKind),
+       legacyId = Value(legacyId),
+       sourceFingerprint = Value(sourceFingerprint),
+       conversionVersion = Value(conversionVersion),
+       outcome = Value(outcome),
+       originalBasis = Value(originalBasis),
+       preservedJson = Value(preservedJson),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LegacyEntityMappingRow> custom({
+    Expression<String>? id,
+    Expression<String>? legacyKind,
+    Expression<String>? legacyId,
+    Expression<String>? sourceFingerprint,
+    Expression<String>? conversionVersion,
+    Expression<String>? foodId,
+    Expression<String>? menuItemId,
+    Expression<String>? outcome,
+    Expression<String>? reasonCode,
+    Expression<String>? reasonText,
+    Expression<String>? originalBasis,
+    Expression<double>? originalServingGrams,
+    Expression<bool>? basisAssumed,
+    Expression<String>? originalSource,
+    Expression<bool>? userEdited,
+    Expression<String>? preservedJson,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (legacyKind != null) 'legacy_kind': legacyKind,
+      if (legacyId != null) 'legacy_id': legacyId,
+      if (sourceFingerprint != null) 'source_fingerprint': sourceFingerprint,
+      if (conversionVersion != null) 'conversion_version': conversionVersion,
+      if (foodId != null) 'food_id': foodId,
+      if (menuItemId != null) 'menu_item_id': menuItemId,
+      if (outcome != null) 'outcome': outcome,
+      if (reasonCode != null) 'reason_code': reasonCode,
+      if (reasonText != null) 'reason_text': reasonText,
+      if (originalBasis != null) 'original_basis': originalBasis,
+      if (originalServingGrams != null)
+        'original_serving_grams': originalServingGrams,
+      if (basisAssumed != null) 'basis_assumed': basisAssumed,
+      if (originalSource != null) 'original_source': originalSource,
+      if (userEdited != null) 'user_edited': userEdited,
+      if (preservedJson != null) 'preserved_json': preservedJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LegacyEntityMappingsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? legacyKind,
+    Value<String>? legacyId,
+    Value<String>? sourceFingerprint,
+    Value<String>? conversionVersion,
+    Value<String?>? foodId,
+    Value<String?>? menuItemId,
+    Value<String>? outcome,
+    Value<String?>? reasonCode,
+    Value<String?>? reasonText,
+    Value<String>? originalBasis,
+    Value<double?>? originalServingGrams,
+    Value<bool>? basisAssumed,
+    Value<String?>? originalSource,
+    Value<bool>? userEdited,
+    Value<String>? preservedJson,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return LegacyEntityMappingsCompanion(
+      id: id ?? this.id,
+      legacyKind: legacyKind ?? this.legacyKind,
+      legacyId: legacyId ?? this.legacyId,
+      sourceFingerprint: sourceFingerprint ?? this.sourceFingerprint,
+      conversionVersion: conversionVersion ?? this.conversionVersion,
+      foodId: foodId ?? this.foodId,
+      menuItemId: menuItemId ?? this.menuItemId,
+      outcome: outcome ?? this.outcome,
+      reasonCode: reasonCode ?? this.reasonCode,
+      reasonText: reasonText ?? this.reasonText,
+      originalBasis: originalBasis ?? this.originalBasis,
+      originalServingGrams: originalServingGrams ?? this.originalServingGrams,
+      basisAssumed: basisAssumed ?? this.basisAssumed,
+      originalSource: originalSource ?? this.originalSource,
+      userEdited: userEdited ?? this.userEdited,
+      preservedJson: preservedJson ?? this.preservedJson,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (legacyKind.present) {
+      map['legacy_kind'] = Variable<String>(legacyKind.value);
+    }
+    if (legacyId.present) {
+      map['legacy_id'] = Variable<String>(legacyId.value);
+    }
+    if (sourceFingerprint.present) {
+      map['source_fingerprint'] = Variable<String>(sourceFingerprint.value);
+    }
+    if (conversionVersion.present) {
+      map['conversion_version'] = Variable<String>(conversionVersion.value);
+    }
+    if (foodId.present) {
+      map['food_id'] = Variable<String>(foodId.value);
+    }
+    if (menuItemId.present) {
+      map['menu_item_id'] = Variable<String>(menuItemId.value);
+    }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (reasonCode.present) {
+      map['reason_code'] = Variable<String>(reasonCode.value);
+    }
+    if (reasonText.present) {
+      map['reason_text'] = Variable<String>(reasonText.value);
+    }
+    if (originalBasis.present) {
+      map['original_basis'] = Variable<String>(originalBasis.value);
+    }
+    if (originalServingGrams.present) {
+      map['original_serving_grams'] = Variable<double>(
+        originalServingGrams.value,
+      );
+    }
+    if (basisAssumed.present) {
+      map['basis_assumed'] = Variable<bool>(basisAssumed.value);
+    }
+    if (originalSource.present) {
+      map['original_source'] = Variable<String>(originalSource.value);
+    }
+    if (userEdited.present) {
+      map['user_edited'] = Variable<bool>(userEdited.value);
+    }
+    if (preservedJson.present) {
+      map['preserved_json'] = Variable<String>(preservedJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LegacyEntityMappingsCompanion(')
+          ..write('id: $id, ')
+          ..write('legacyKind: $legacyKind, ')
+          ..write('legacyId: $legacyId, ')
+          ..write('sourceFingerprint: $sourceFingerprint, ')
+          ..write('conversionVersion: $conversionVersion, ')
+          ..write('foodId: $foodId, ')
+          ..write('menuItemId: $menuItemId, ')
+          ..write('outcome: $outcome, ')
+          ..write('reasonCode: $reasonCode, ')
+          ..write('reasonText: $reasonText, ')
+          ..write('originalBasis: $originalBasis, ')
+          ..write('originalServingGrams: $originalServingGrams, ')
+          ..write('basisAssumed: $basisAssumed, ')
+          ..write('originalSource: $originalSource, ')
+          ..write('userEdited: $userEdited, ')
+          ..write('preservedJson: $preservedJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -26443,6 +28726,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AiMemoriesTable aiMemories = $AiMemoriesTable(this);
   late final $EmbeddingIndexTable embeddingIndex = $EmbeddingIndexTable(this);
   late final $BackgroundJobsTable backgroundJobs = $BackgroundJobsTable(this);
+  late final $LegacyEntityMappingsTable legacyEntityMappings =
+      $LegacyEntityMappingsTable(this);
   late final Index idxMeasurementsLocalDate = Index(
     'idx_measurements_local_date',
     'CREATE INDEX idx_measurements_local_date ON measurements (local_date)',
@@ -26547,6 +28832,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_background_jobs_state_type',
     'CREATE INDEX idx_background_jobs_state_type ON background_jobs (state, type)',
   );
+  late final Index idxLegacyEntityMappingsKey = Index(
+    'idx_legacy_entity_mappings_key',
+    'CREATE UNIQUE INDEX idx_legacy_entity_mappings_key ON legacy_entity_mappings (legacy_kind, legacy_id)',
+  );
+  late final Index idxLegacyEntityMappingsFoodId = Index(
+    'idx_legacy_entity_mappings_food_id',
+    'CREATE INDEX idx_legacy_entity_mappings_food_id ON legacy_entity_mappings (food_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -26595,6 +28888,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     aiMemories,
     embeddingIndex,
     backgroundJobs,
+    legacyEntityMappings,
     idxMeasurementsLocalDate,
     idxFoodAliasesFoodId,
     idxFoodNutritionRevisionsFoodId,
@@ -26621,6 +28915,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxAiMemoriesStatus,
     idxEmbeddingModel,
     idxBackgroundJobsStateType,
+    idxLegacyEntityMappingsKey,
+    idxLegacyEntityMappingsFoodId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -28987,6 +31283,10 @@ typedef $$FoodsTableCreateCompanionBuilder = FoodsCompanion Function({
   Value<String?> category,
   Value<int?> sourceVersion,
   Value<String> licenseStatus,
+  Value<String?> currentRevisionId,
+  Value<String?> variantOfFoodId,
+  Value<String?> cookingNote,
+  Value<DateTime?> archivedAt,
   Value<int> rowid,
 });
 typedef $$FoodsTableUpdateCompanionBuilder = FoodsCompanion Function({
@@ -29007,6 +31307,10 @@ typedef $$FoodsTableUpdateCompanionBuilder = FoodsCompanion Function({
   Value<String?> category,
   Value<int?> sourceVersion,
   Value<String> licenseStatus,
+  Value<String?> currentRevisionId,
+  Value<String?> variantOfFoodId,
+  Value<String?> cookingNote,
+  Value<DateTime?> archivedAt,
   Value<int> rowid,
 });
 
@@ -29073,6 +31377,24 @@ final class $$FoodsTableReferences
     ).filter((f) => f.foodId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_foodPortionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MenuItemsTable, List<MenuItem>>
+  _menuItemsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.menuItems,
+    aliasName: $_aliasNameGenerator(db.foods.id, db.menuItems.foodId),
+  );
+
+  $$MenuItemsTableProcessedTableManager get menuItemsRefs {
+    final manager = $$MenuItemsTableTableManager(
+      $_db,
+      $_db.menuItems,
+    ).filter((f) => f.foodId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_menuItemsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -29217,6 +31539,26 @@ class $$FoodsTableFilterComposer extends Composer<_$AppDatabase, $FoodsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get currentRevisionId => $composableBuilder(
+    column: $table.currentRevisionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get variantOfFoodId => $composableBuilder(
+    column: $table.variantOfFoodId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cookingNote => $composableBuilder(
+    column: $table.cookingNote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> foodAliasesRefs(
     Expression<bool> Function($$FoodAliasesTableFilterComposer f) f,
   ) {
@@ -29284,6 +31626,31 @@ class $$FoodsTableFilterComposer extends Composer<_$AppDatabase, $FoodsTable> {
           }) => $$FoodPortionsTableFilterComposer(
             $db: $db,
             $table: $db.foodPortions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> menuItemsRefs(
+    Expression<bool> Function($$MenuItemsTableFilterComposer f) f,
+  ) {
+    final $$MenuItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.menuItems,
+      getReferencedColumn: (t) => t.foodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MenuItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.menuItems,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -29437,6 +31804,26 @@ class $$FoodsTableOrderingComposer
     column: $table.licenseStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get currentRevisionId => $composableBuilder(
+    column: $table.currentRevisionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get variantOfFoodId => $composableBuilder(
+    column: $table.variantOfFoodId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cookingNote => $composableBuilder(
+    column: $table.cookingNote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FoodsTableAnnotationComposer
@@ -29512,6 +31899,26 @@ class $$FoodsTableAnnotationComposer
 
   GeneratedColumn<String> get licenseStatus => $composableBuilder(
     column: $table.licenseStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currentRevisionId => $composableBuilder(
+    column: $table.currentRevisionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get variantOfFoodId => $composableBuilder(
+    column: $table.variantOfFoodId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get cookingNote => $composableBuilder(
+    column: $table.cookingNote,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => column,
   );
 
@@ -29591,6 +31998,31 @@ class $$FoodsTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> menuItemsRefs<T extends Object>(
+    Expression<T> Function($$MenuItemsTableAnnotationComposer a) f,
+  ) {
+    final $$MenuItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.menuItems,
+      getReferencedColumn: (t) => t.foodId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MenuItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.menuItems,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> menuItemFoodMatchesRefs<T extends Object>(
     Expression<T> Function($$MenuItemFoodMatchesTableAnnotationComposer a) f,
   ) {
@@ -29660,6 +32092,7 @@ class $$FoodsTableTableManager
             bool foodAliasesRefs,
             bool foodNutritionRevisionsRefs,
             bool foodPortionsRefs,
+            bool menuItemsRefs,
             bool menuItemFoodMatchesRefs,
             bool mealItemsRefs,
           })
@@ -29694,6 +32127,10 @@ class $$FoodsTableTableManager
                 Value<String?> category = const Value.absent(),
                 Value<int?> sourceVersion = const Value.absent(),
                 Value<String> licenseStatus = const Value.absent(),
+                Value<String?> currentRevisionId = const Value.absent(),
+                Value<String?> variantOfFoodId = const Value.absent(),
+                Value<String?> cookingNote = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FoodsCompanion(
                 id: id,
@@ -29713,6 +32150,10 @@ class $$FoodsTableTableManager
                 category: category,
                 sourceVersion: sourceVersion,
                 licenseStatus: licenseStatus,
+                currentRevisionId: currentRevisionId,
+                variantOfFoodId: variantOfFoodId,
+                cookingNote: cookingNote,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -29734,6 +32175,10 @@ class $$FoodsTableTableManager
                 Value<String?> category = const Value.absent(),
                 Value<int?> sourceVersion = const Value.absent(),
                 Value<String> licenseStatus = const Value.absent(),
+                Value<String?> currentRevisionId = const Value.absent(),
+                Value<String?> variantOfFoodId = const Value.absent(),
+                Value<String?> cookingNote = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FoodsCompanion.insert(
                 id: id,
@@ -29753,6 +32198,10 @@ class $$FoodsTableTableManager
                 category: category,
                 sourceVersion: sourceVersion,
                 licenseStatus: licenseStatus,
+                currentRevisionId: currentRevisionId,
+                variantOfFoodId: variantOfFoodId,
+                cookingNote: cookingNote,
+                archivedAt: archivedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -29766,6 +32215,7 @@ class $$FoodsTableTableManager
                 foodAliasesRefs = false,
                 foodNutritionRevisionsRefs = false,
                 foodPortionsRefs = false,
+                menuItemsRefs = false,
                 menuItemFoodMatchesRefs = false,
                 mealItemsRefs = false,
               }) {
@@ -29775,6 +32225,7 @@ class $$FoodsTableTableManager
                     if (foodAliasesRefs) db.foodAliases,
                     if (foodNutritionRevisionsRefs) db.foodNutritionRevisions,
                     if (foodPortionsRefs) db.foodPortions,
+                    if (menuItemsRefs) db.menuItems,
                     if (menuItemFoodMatchesRefs) db.menuItemFoodMatches,
                     if (mealItemsRefs) db.mealItems,
                   ],
@@ -29844,6 +32295,23 @@ class $$FoodsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (menuItemsRefs)
+                        await $_getPrefetchedData<Food, $FoodsTable, MenuItem>(
+                          currentTable: table,
+                          referencedTable: $$FoodsTableReferences
+                              ._menuItemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$FoodsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).menuItemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.foodId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (menuItemFoodMatchesRefs)
                         await $_getPrefetchedData<
                           Food,
@@ -29906,6 +32374,7 @@ typedef $$FoodsTableProcessedTableManager =
         bool foodAliasesRefs,
         bool foodNutritionRevisionsRefs,
         bool foodPortionsRefs,
+        bool menuItemsRefs,
         bool menuItemFoodMatchesRefs,
         bool mealItemsRefs,
       })
@@ -30301,6 +32770,16 @@ typedef $$FoodNutritionRevisionsTableCreateCompanionBuilder =
       Value<DateTime?> validFrom,
       Value<DateTime?> validTo,
       required DateTime createdAt,
+      Value<String> nutritionBasis,
+      Value<double?> basisServingGrams,
+      Value<bool> basisAssumed,
+      Value<String> origin,
+      Value<bool> isEstimated,
+      Value<double?> fiberPer100g,
+      Value<double?> sodiumMgPer100g,
+      Value<double?> vitaminDMcgPer100g,
+      Value<String?> rawValuesJson,
+      Value<String?> conversionVersion,
       Value<int> rowid,
     });
 typedef $$FoodNutritionRevisionsTableUpdateCompanionBuilder =
@@ -30317,6 +32796,16 @@ typedef $$FoodNutritionRevisionsTableUpdateCompanionBuilder =
       Value<DateTime?> validFrom,
       Value<DateTime?> validTo,
       Value<DateTime> createdAt,
+      Value<String> nutritionBasis,
+      Value<double?> basisServingGrams,
+      Value<bool> basisAssumed,
+      Value<String> origin,
+      Value<bool> isEstimated,
+      Value<double?> fiberPer100g,
+      Value<double?> sodiumMgPer100g,
+      Value<double?> vitaminDMcgPer100g,
+      Value<String?> rawValuesJson,
+      Value<String?> conversionVersion,
       Value<int> rowid,
     });
 
@@ -30416,6 +32905,56 @@ class $$FoodNutritionRevisionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get nutritionBasis => $composableBuilder(
+    column: $table.nutritionBasis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get basisServingGrams => $composableBuilder(
+    column: $table.basisServingGrams,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isEstimated => $composableBuilder(
+    column: $table.isEstimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get fiberPer100g => $composableBuilder(
+    column: $table.fiberPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get sodiumMgPer100g => $composableBuilder(
+    column: $table.sodiumMgPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get vitaminDMcgPer100g => $composableBuilder(
+    column: $table.vitaminDMcgPer100g,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rawValuesJson => $composableBuilder(
+    column: $table.rawValuesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$FoodsTableFilterComposer get foodId {
     final $$FoodsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -30504,6 +33043,56 @@ class $$FoodNutritionRevisionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get nutritionBasis => $composableBuilder(
+    column: $table.nutritionBasis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get basisServingGrams => $composableBuilder(
+    column: $table.basisServingGrams,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isEstimated => $composableBuilder(
+    column: $table.isEstimated,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get fiberPer100g => $composableBuilder(
+    column: $table.fiberPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get sodiumMgPer100g => $composableBuilder(
+    column: $table.sodiumMgPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get vitaminDMcgPer100g => $composableBuilder(
+    column: $table.vitaminDMcgPer100g,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rawValuesJson => $composableBuilder(
+    column: $table.rawValuesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$FoodsTableOrderingComposer get foodId {
     final $$FoodsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -30584,6 +33173,54 @@ class $$FoodNutritionRevisionsTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  GeneratedColumn<String> get nutritionBasis => $composableBuilder(
+    column: $table.nutritionBasis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get basisServingGrams => $composableBuilder(
+    column: $table.basisServingGrams,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<bool> get isEstimated => $composableBuilder(
+    column: $table.isEstimated,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get fiberPer100g => $composableBuilder(
+    column: $table.fiberPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get sodiumMgPer100g => $composableBuilder(
+    column: $table.sodiumMgPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get vitaminDMcgPer100g => $composableBuilder(
+    column: $table.vitaminDMcgPer100g,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rawValuesJson => $composableBuilder(
+    column: $table.rawValuesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => column,
+  );
+
   $$FoodsTableAnnotationComposer get foodId {
     final $$FoodsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -30659,6 +33296,16 @@ class $$FoodNutritionRevisionsTableTableManager
                 Value<DateTime?> validFrom = const Value.absent(),
                 Value<DateTime?> validTo = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String> nutritionBasis = const Value.absent(),
+                Value<double?> basisServingGrams = const Value.absent(),
+                Value<bool> basisAssumed = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<bool> isEstimated = const Value.absent(),
+                Value<double?> fiberPer100g = const Value.absent(),
+                Value<double?> sodiumMgPer100g = const Value.absent(),
+                Value<double?> vitaminDMcgPer100g = const Value.absent(),
+                Value<String?> rawValuesJson = const Value.absent(),
+                Value<String?> conversionVersion = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FoodNutritionRevisionsCompanion(
                 id: id,
@@ -30673,6 +33320,16 @@ class $$FoodNutritionRevisionsTableTableManager
                 validFrom: validFrom,
                 validTo: validTo,
                 createdAt: createdAt,
+                nutritionBasis: nutritionBasis,
+                basisServingGrams: basisServingGrams,
+                basisAssumed: basisAssumed,
+                origin: origin,
+                isEstimated: isEstimated,
+                fiberPer100g: fiberPer100g,
+                sodiumMgPer100g: sodiumMgPer100g,
+                vitaminDMcgPer100g: vitaminDMcgPer100g,
+                rawValuesJson: rawValuesJson,
+                conversionVersion: conversionVersion,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -30689,6 +33346,16 @@ class $$FoodNutritionRevisionsTableTableManager
                 Value<DateTime?> validFrom = const Value.absent(),
                 Value<DateTime?> validTo = const Value.absent(),
                 required DateTime createdAt,
+                Value<String> nutritionBasis = const Value.absent(),
+                Value<double?> basisServingGrams = const Value.absent(),
+                Value<bool> basisAssumed = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<bool> isEstimated = const Value.absent(),
+                Value<double?> fiberPer100g = const Value.absent(),
+                Value<double?> sodiumMgPer100g = const Value.absent(),
+                Value<double?> vitaminDMcgPer100g = const Value.absent(),
+                Value<String?> rawValuesJson = const Value.absent(),
+                Value<String?> conversionVersion = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FoodNutritionRevisionsCompanion.insert(
                 id: id,
@@ -30703,6 +33370,16 @@ class $$FoodNutritionRevisionsTableTableManager
                 validFrom: validFrom,
                 validTo: validTo,
                 createdAt: createdAt,
+                nutritionBasis: nutritionBasis,
+                basisServingGrams: basisServingGrams,
+                basisAssumed: basisAssumed,
+                origin: origin,
+                isEstimated: isEstimated,
+                fiberPer100g: fiberPer100g,
+                sodiumMgPer100g: sodiumMgPer100g,
+                vitaminDMcgPer100g: vitaminDMcgPer100g,
+                rawValuesJson: rawValuesJson,
+                conversionVersion: conversionVersion,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -34321,6 +36998,9 @@ typedef $$MenuItemsTableCreateCompanionBuilder = MenuItemsCompanion Function({
   Value<double?> servingGrams,
   Value<String> tagsJson,
   Value<String> ingredientsJson,
+  Value<String?> foodId,
+  Value<String> servingGramsStatus,
+  Value<String> servingGramsSource,
   Value<int> rowid,
 });
 typedef $$MenuItemsTableUpdateCompanionBuilder = MenuItemsCompanion Function({
@@ -34337,6 +37017,9 @@ typedef $$MenuItemsTableUpdateCompanionBuilder = MenuItemsCompanion Function({
   Value<double?> servingGrams,
   Value<String> tagsJson,
   Value<String> ingredientsJson,
+  Value<String?> foodId,
+  Value<String> servingGramsStatus,
+  Value<String> servingGramsSource,
   Value<int> rowid,
 });
 
@@ -34357,6 +37040,24 @@ final class $$MenuItemsTableReferences
       $_db.menuServices,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_serviceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $FoodsTable _foodIdTable(_$AppDatabase db) => db.foods.createAlias(
+    $_aliasNameGenerator(db.menuItems.foodId, db.foods.id),
+  );
+
+  $$FoodsTableProcessedTableManager? get foodId {
+    final $_column = $_itemColumn<String>('food_id');
+    if ($_column == null) return null;
+    final manager = $$FoodsTableTableManager(
+      $_db,
+      $_db.foods,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_foodIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -34488,6 +37189,16 @@ class $$MenuItemsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get servingGramsStatus => $composableBuilder(
+    column: $table.servingGramsStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get servingGramsSource => $composableBuilder(
+    column: $table.servingGramsSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$MenuServicesTableFilterComposer get serviceId {
     final $$MenuServicesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -34502,6 +37213,29 @@ class $$MenuItemsTableFilterComposer
           }) => $$MenuServicesTableFilterComposer(
             $db: $db,
             $table: $db.menuServices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FoodsTableFilterComposer get foodId {
+    final $$FoodsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.foodId,
+      referencedTable: $db.foods,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FoodsTableFilterComposer(
+            $db: $db,
+            $table: $db.foods,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -34633,6 +37367,16 @@ class $$MenuItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get servingGramsStatus => $composableBuilder(
+    column: $table.servingGramsStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get servingGramsSource => $composableBuilder(
+    column: $table.servingGramsSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$MenuServicesTableOrderingComposer get serviceId {
     final $$MenuServicesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -34647,6 +37391,29 @@ class $$MenuItemsTableOrderingComposer
           }) => $$MenuServicesTableOrderingComposer(
             $db: $db,
             $table: $db.menuServices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FoodsTableOrderingComposer get foodId {
+    final $$FoodsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.foodId,
+      referencedTable: $db.foods,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FoodsTableOrderingComposer(
+            $db: $db,
+            $table: $db.foods,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -34714,6 +37481,16 @@ class $$MenuItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get servingGramsStatus => $composableBuilder(
+    column: $table.servingGramsStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get servingGramsSource => $composableBuilder(
+    column: $table.servingGramsSource,
+    builder: (column) => column,
+  );
+
   $$MenuServicesTableAnnotationComposer get serviceId {
     final $$MenuServicesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -34728,6 +37505,29 @@ class $$MenuItemsTableAnnotationComposer
           }) => $$MenuServicesTableAnnotationComposer(
             $db: $db,
             $table: $db.menuServices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$FoodsTableAnnotationComposer get foodId {
+    final $$FoodsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.foodId,
+      referencedTable: $db.foods,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$FoodsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.foods,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -34806,6 +37606,7 @@ class $$MenuItemsTableTableManager
           MenuItem,
           PrefetchHooks Function({
             bool serviceId,
+            bool foodId,
             bool menuItemFoodMatchesRefs,
             bool menuItemNutritionEvidenceRefs,
           })
@@ -34836,6 +37637,9 @@ class $$MenuItemsTableTableManager
                 Value<double?> servingGrams = const Value.absent(),
                 Value<String> tagsJson = const Value.absent(),
                 Value<String> ingredientsJson = const Value.absent(),
+                Value<String?> foodId = const Value.absent(),
+                Value<String> servingGramsStatus = const Value.absent(),
+                Value<String> servingGramsSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MenuItemsCompanion(
                 id: id,
@@ -34851,6 +37655,9 @@ class $$MenuItemsTableTableManager
                 servingGrams: servingGrams,
                 tagsJson: tagsJson,
                 ingredientsJson: ingredientsJson,
+                foodId: foodId,
+                servingGramsStatus: servingGramsStatus,
+                servingGramsSource: servingGramsSource,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -34868,6 +37675,9 @@ class $$MenuItemsTableTableManager
                 Value<double?> servingGrams = const Value.absent(),
                 Value<String> tagsJson = const Value.absent(),
                 Value<String> ingredientsJson = const Value.absent(),
+                Value<String?> foodId = const Value.absent(),
+                Value<String> servingGramsStatus = const Value.absent(),
+                Value<String> servingGramsSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MenuItemsCompanion.insert(
                 id: id,
@@ -34883,6 +37693,9 @@ class $$MenuItemsTableTableManager
                 servingGrams: servingGrams,
                 tagsJson: tagsJson,
                 ingredientsJson: ingredientsJson,
+                foodId: foodId,
+                servingGramsStatus: servingGramsStatus,
+                servingGramsSource: servingGramsSource,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -34896,6 +37709,7 @@ class $$MenuItemsTableTableManager
           prefetchHooksCallback:
               ({
                 serviceId = false,
+                foodId = false,
                 menuItemFoodMatchesRefs = false,
                 menuItemNutritionEvidenceRefs = false,
               }) {
@@ -34930,6 +37744,17 @@ class $$MenuItemsTableTableManager
                                 ._serviceIdTable(db),
                             referencedColumn: $$MenuItemsTableReferences
                                 ._serviceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (foodId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.foodId,
+                            referencedTable: $$MenuItemsTableReferences
+                                ._foodIdTable(db),
+                            referencedColumn: $$MenuItemsTableReferences
+                                ._foodIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -35002,6 +37827,7 @@ typedef $$MenuItemsTableProcessedTableManager =
       MenuItem,
       PrefetchHooks Function({
         bool serviceId,
+        bool foodId,
         bool menuItemFoodMatchesRefs,
         bool menuItemNutritionEvidenceRefs,
       })
@@ -38584,6 +41410,10 @@ typedef $$MealItemsTableCreateCompanionBuilder = MealItemsCompanion Function({
   required DateTime updatedAt,
   Value<String> sourceType,
   Value<String?> sourceId,
+  Value<String?> supplyId,
+  Value<String?> nutritionRevisionId,
+  Value<double?> servings,
+  Value<double?> servingGrams,
   Value<int> rowid,
 });
 typedef $$MealItemsTableUpdateCompanionBuilder = MealItemsCompanion Function({
@@ -38603,6 +41433,10 @@ typedef $$MealItemsTableUpdateCompanionBuilder = MealItemsCompanion Function({
   Value<DateTime> updatedAt,
   Value<String> sourceType,
   Value<String?> sourceId,
+  Value<String?> supplyId,
+  Value<String?> nutritionRevisionId,
+  Value<double?> servings,
+  Value<double?> servingGrams,
   Value<int> rowid,
 });
 
@@ -38723,6 +41557,26 @@ class $$MealItemsTableFilterComposer
 
   ColumnFilters<String> get sourceId => $composableBuilder(
     column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplyId => $composableBuilder(
+    column: $table.supplyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nutritionRevisionId => $composableBuilder(
+    column: $table.nutritionRevisionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get servings => $composableBuilder(
+    column: $table.servings,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get servingGrams => $composableBuilder(
+    column: $table.servingGrams,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -38852,6 +41706,26 @@ class $$MealItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get supplyId => $composableBuilder(
+    column: $table.supplyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nutritionRevisionId => $composableBuilder(
+    column: $table.nutritionRevisionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get servings => $composableBuilder(
+    column: $table.servings,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get servingGrams => $composableBuilder(
+    column: $table.servingGrams,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$MealsTableOrderingComposer get mealId {
     final $$MealsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -38968,6 +41842,22 @@ class $$MealItemsTableAnnotationComposer
   GeneratedColumn<String> get sourceId =>
       $composableBuilder(column: $table.sourceId, builder: (column) => column);
 
+  GeneratedColumn<String> get supplyId =>
+      $composableBuilder(column: $table.supplyId, builder: (column) => column);
+
+  GeneratedColumn<String> get nutritionRevisionId => $composableBuilder(
+    column: $table.nutritionRevisionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get servings =>
+      $composableBuilder(column: $table.servings, builder: (column) => column);
+
+  GeneratedColumn<double> get servingGrams => $composableBuilder(
+    column: $table.servingGrams,
+    builder: (column) => column,
+  );
+
   $$MealsTableAnnotationComposer get mealId {
     final $$MealsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -39059,6 +41949,10 @@ class $$MealItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String> sourceType = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
+                Value<String?> supplyId = const Value.absent(),
+                Value<String?> nutritionRevisionId = const Value.absent(),
+                Value<double?> servings = const Value.absent(),
+                Value<double?> servingGrams = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MealItemsCompanion(
                 id: id,
@@ -39077,6 +41971,10 @@ class $$MealItemsTableTableManager
                 updatedAt: updatedAt,
                 sourceType: sourceType,
                 sourceId: sourceId,
+                supplyId: supplyId,
+                nutritionRevisionId: nutritionRevisionId,
+                servings: servings,
+                servingGrams: servingGrams,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -39097,6 +41995,10 @@ class $$MealItemsTableTableManager
                 required DateTime updatedAt,
                 Value<String> sourceType = const Value.absent(),
                 Value<String?> sourceId = const Value.absent(),
+                Value<String?> supplyId = const Value.absent(),
+                Value<String?> nutritionRevisionId = const Value.absent(),
+                Value<double?> servings = const Value.absent(),
+                Value<double?> servingGrams = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MealItemsCompanion.insert(
                 id: id,
@@ -39115,6 +42017,10 @@ class $$MealItemsTableTableManager
                 updatedAt: updatedAt,
                 sourceType: sourceType,
                 sourceId: sourceId,
+                supplyId: supplyId,
+                nutritionRevisionId: nutritionRevisionId,
+                servings: servings,
+                servingGrams: servingGrams,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -45840,6 +48746,493 @@ typedef $$BackgroundJobsTableProcessedTableManager =
       BackgroundJob,
       PrefetchHooks Function()
     >;
+typedef $$LegacyEntityMappingsTableCreateCompanionBuilder =
+    LegacyEntityMappingsCompanion Function({
+      required String id,
+      required String legacyKind,
+      required String legacyId,
+      required String sourceFingerprint,
+      required String conversionVersion,
+      Value<String?> foodId,
+      Value<String?> menuItemId,
+      required String outcome,
+      Value<String?> reasonCode,
+      Value<String?> reasonText,
+      required String originalBasis,
+      Value<double?> originalServingGrams,
+      Value<bool> basisAssumed,
+      Value<String?> originalSource,
+      Value<bool> userEdited,
+      required String preservedJson,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$LegacyEntityMappingsTableUpdateCompanionBuilder =
+    LegacyEntityMappingsCompanion Function({
+      Value<String> id,
+      Value<String> legacyKind,
+      Value<String> legacyId,
+      Value<String> sourceFingerprint,
+      Value<String> conversionVersion,
+      Value<String?> foodId,
+      Value<String?> menuItemId,
+      Value<String> outcome,
+      Value<String?> reasonCode,
+      Value<String?> reasonText,
+      Value<String> originalBasis,
+      Value<double?> originalServingGrams,
+      Value<bool> basisAssumed,
+      Value<String?> originalSource,
+      Value<bool> userEdited,
+      Value<String> preservedJson,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$LegacyEntityMappingsTableFilterComposer
+    extends Composer<_$AppDatabase, $LegacyEntityMappingsTable> {
+  $$LegacyEntityMappingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get legacyKind => $composableBuilder(
+    column: $table.legacyKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceFingerprint => $composableBuilder(
+    column: $table.sourceFingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get foodId => $composableBuilder(
+    column: $table.foodId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get menuItemId => $composableBuilder(
+    column: $table.menuItemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reasonCode => $composableBuilder(
+    column: $table.reasonCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reasonText => $composableBuilder(
+    column: $table.reasonText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalBasis => $composableBuilder(
+    column: $table.originalBasis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalServingGrams => $composableBuilder(
+    column: $table.originalServingGrams,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originalSource => $composableBuilder(
+    column: $table.originalSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get userEdited => $composableBuilder(
+    column: $table.userEdited,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get preservedJson => $composableBuilder(
+    column: $table.preservedJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LegacyEntityMappingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LegacyEntityMappingsTable> {
+  $$LegacyEntityMappingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get legacyKind => $composableBuilder(
+    column: $table.legacyKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get legacyId => $composableBuilder(
+    column: $table.legacyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceFingerprint => $composableBuilder(
+    column: $table.sourceFingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get foodId => $composableBuilder(
+    column: $table.foodId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get menuItemId => $composableBuilder(
+    column: $table.menuItemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reasonCode => $composableBuilder(
+    column: $table.reasonCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reasonText => $composableBuilder(
+    column: $table.reasonText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalBasis => $composableBuilder(
+    column: $table.originalBasis,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalServingGrams => $composableBuilder(
+    column: $table.originalServingGrams,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originalSource => $composableBuilder(
+    column: $table.originalSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get userEdited => $composableBuilder(
+    column: $table.userEdited,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get preservedJson => $composableBuilder(
+    column: $table.preservedJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LegacyEntityMappingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LegacyEntityMappingsTable> {
+  $$LegacyEntityMappingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get legacyKind => $composableBuilder(
+    column: $table.legacyKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get legacyId =>
+      $composableBuilder(column: $table.legacyId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceFingerprint => $composableBuilder(
+    column: $table.sourceFingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conversionVersion => $composableBuilder(
+    column: $table.conversionVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get foodId =>
+      $composableBuilder(column: $table.foodId, builder: (column) => column);
+
+  GeneratedColumn<String> get menuItemId => $composableBuilder(
+    column: $table.menuItemId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  GeneratedColumn<String> get reasonCode => $composableBuilder(
+    column: $table.reasonCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reasonText => $composableBuilder(
+    column: $table.reasonText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originalBasis => $composableBuilder(
+    column: $table.originalBasis,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get originalServingGrams => $composableBuilder(
+    column: $table.originalServingGrams,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get basisAssumed => $composableBuilder(
+    column: $table.basisAssumed,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originalSource => $composableBuilder(
+    column: $table.originalSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get userEdited => $composableBuilder(
+    column: $table.userEdited,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get preservedJson => $composableBuilder(
+    column: $table.preservedJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LegacyEntityMappingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LegacyEntityMappingsTable,
+          LegacyEntityMappingRow,
+          $$LegacyEntityMappingsTableFilterComposer,
+          $$LegacyEntityMappingsTableOrderingComposer,
+          $$LegacyEntityMappingsTableAnnotationComposer,
+          $$LegacyEntityMappingsTableCreateCompanionBuilder,
+          $$LegacyEntityMappingsTableUpdateCompanionBuilder,
+          (
+            LegacyEntityMappingRow,
+            BaseReferences<
+              _$AppDatabase,
+              $LegacyEntityMappingsTable,
+              LegacyEntityMappingRow
+            >,
+          ),
+          LegacyEntityMappingRow,
+          PrefetchHooks Function()
+        > {
+  $$LegacyEntityMappingsTableTableManager(
+    _$AppDatabase db,
+    $LegacyEntityMappingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LegacyEntityMappingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LegacyEntityMappingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LegacyEntityMappingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> legacyKind = const Value.absent(),
+                Value<String> legacyId = const Value.absent(),
+                Value<String> sourceFingerprint = const Value.absent(),
+                Value<String> conversionVersion = const Value.absent(),
+                Value<String?> foodId = const Value.absent(),
+                Value<String?> menuItemId = const Value.absent(),
+                Value<String> outcome = const Value.absent(),
+                Value<String?> reasonCode = const Value.absent(),
+                Value<String?> reasonText = const Value.absent(),
+                Value<String> originalBasis = const Value.absent(),
+                Value<double?> originalServingGrams = const Value.absent(),
+                Value<bool> basisAssumed = const Value.absent(),
+                Value<String?> originalSource = const Value.absent(),
+                Value<bool> userEdited = const Value.absent(),
+                Value<String> preservedJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LegacyEntityMappingsCompanion(
+                id: id,
+                legacyKind: legacyKind,
+                legacyId: legacyId,
+                sourceFingerprint: sourceFingerprint,
+                conversionVersion: conversionVersion,
+                foodId: foodId,
+                menuItemId: menuItemId,
+                outcome: outcome,
+                reasonCode: reasonCode,
+                reasonText: reasonText,
+                originalBasis: originalBasis,
+                originalServingGrams: originalServingGrams,
+                basisAssumed: basisAssumed,
+                originalSource: originalSource,
+                userEdited: userEdited,
+                preservedJson: preservedJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String legacyKind,
+                required String legacyId,
+                required String sourceFingerprint,
+                required String conversionVersion,
+                Value<String?> foodId = const Value.absent(),
+                Value<String?> menuItemId = const Value.absent(),
+                required String outcome,
+                Value<String?> reasonCode = const Value.absent(),
+                Value<String?> reasonText = const Value.absent(),
+                required String originalBasis,
+                Value<double?> originalServingGrams = const Value.absent(),
+                Value<bool> basisAssumed = const Value.absent(),
+                Value<String?> originalSource = const Value.absent(),
+                Value<bool> userEdited = const Value.absent(),
+                required String preservedJson,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LegacyEntityMappingsCompanion.insert(
+                id: id,
+                legacyKind: legacyKind,
+                legacyId: legacyId,
+                sourceFingerprint: sourceFingerprint,
+                conversionVersion: conversionVersion,
+                foodId: foodId,
+                menuItemId: menuItemId,
+                outcome: outcome,
+                reasonCode: reasonCode,
+                reasonText: reasonText,
+                originalBasis: originalBasis,
+                originalServingGrams: originalServingGrams,
+                basisAssumed: basisAssumed,
+                originalSource: originalSource,
+                userEdited: userEdited,
+                preservedJson: preservedJson,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LegacyEntityMappingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LegacyEntityMappingsTable,
+      LegacyEntityMappingRow,
+      $$LegacyEntityMappingsTableFilterComposer,
+      $$LegacyEntityMappingsTableOrderingComposer,
+      $$LegacyEntityMappingsTableAnnotationComposer,
+      $$LegacyEntityMappingsTableCreateCompanionBuilder,
+      $$LegacyEntityMappingsTableUpdateCompanionBuilder,
+      (
+        LegacyEntityMappingRow,
+        BaseReferences<
+          _$AppDatabase,
+          $LegacyEntityMappingsTable,
+          LegacyEntityMappingRow
+        >,
+      ),
+      LegacyEntityMappingRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -45936,4 +49329,6 @@ class $AppDatabaseManager {
       $$EmbeddingIndexTableTableManager(_db, _db.embeddingIndex);
   $$BackgroundJobsTableTableManager get backgroundJobs =>
       $$BackgroundJobsTableTableManager(_db, _db.backgroundJobs);
+  $$LegacyEntityMappingsTableTableManager get legacyEntityMappings =>
+      $$LegacyEntityMappingsTableTableManager(_db, _db.legacyEntityMappings);
 }

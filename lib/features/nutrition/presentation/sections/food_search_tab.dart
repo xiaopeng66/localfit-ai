@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_insets.dart';
 import 'package:localfit_ai/app/design/widgets/app_error_text.dart';
+import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_category.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart';
@@ -55,9 +56,17 @@ class FoodSearchTab extends StatelessWidget {
         Expanded(
           // 空查询不给默认列表：数千条食物按名称排序的头几条没有浏览意义。
           child: query.trim().isEmpty
-              ? const FoodEmptyHint(
+              ? FoodEmptyHint(
                   title: '输入名称搜索食物',
                   subtitle: '也可以点搜索框右边的「+」自建食物。',
+                  action: onCreateFood == null
+                      ? null
+                      : LfTextButton(
+                          key: const Key('food-search-empty-action'),
+                          icon: Icons.add,
+                          label: '自建食物',
+                          onPressed: onCreateFood,
+                        ),
                 )
               : FutureBuilder<List<FoodRecord>>(
                   key: ValueKey('$query-$revision'),
@@ -71,9 +80,20 @@ class FoodSearchTab extends StatelessWidget {
                     }
                     final foods = snapshot.data!;
                     if (foods.isEmpty) {
-                      return const FoodEmptyHint(
+                      // E-1 复核补齐（2026-10-27）：搜不到时给一个**能做的事**——
+                      // 自建这条食物（同一份流程，入口与搜索框右侧的「+」相同）。
+                      // 原来只在文案里指路，用户得自己去找那枚钮。
+                      return FoodEmptyHint(
                         title: '没有找到食物',
-                        subtitle: '换个词再试，或点搜索框右边的「+」自建食物。',
+                        subtitle: '换个词再试，或现在就自建这条食物。',
+                        action: onCreateFood == null
+                            ? null
+                            : LfTextButton(
+                                key: const Key('food-search-empty-action'),
+                                icon: Icons.add,
+                                label: '自建食物',
+                                onPressed: onCreateFood,
+                              ),
                       );
                     }
                     // Round7 阶段 3（D36）：两条数据路径同一套**单卡列表**

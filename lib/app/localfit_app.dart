@@ -1,3 +1,4 @@
+import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,8 @@ import 'package:localfit_ai/features/campus_menus/application/food_reference_ser
 import 'package:localfit_ai/features/daily_plan/data/planning_constraints_repository.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/application/food_library_controller.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/catalog_bootstrap.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/ai_conversation_service.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_coordinator.dart';
@@ -32,6 +35,7 @@ import 'package:localfit_ai/features/hydration/data/water_repository.dart';
 import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
 import 'package:localfit_ai/features/progress/application/scale_sync_controller.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
+import 'package:localfit_ai/features/settings/application/data_self_check.dart';
 import 'package:localfit_ai/features/settings/application/load_profile_overview.dart';
 import 'package:localfit_ai/features/settings/data/app_settings_repository.dart';
 import 'package:localfit_ai/features/settings/data/profile_identity_repository.dart';
@@ -93,7 +97,11 @@ class LocalFitApp extends StatefulWidget {
     this.resolveMealScanCandidates,
     this.canteenRepository,
     this.foodReferenceService,
+    this.database,
+    this.foodCatalogService,
+    this.supplyCatalogRepository,
     this.planningConstraintsRepository,
+    this.dataSelfCheck,
     this.pickDishImage,
     this.dishNutritionPrefill,
     this.foodLibraryController,
@@ -161,7 +169,13 @@ class LocalFitApp extends StatefulWidget {
   /// 菜单 tab 控制器（2.0-6c；main 按应用私有目录构造）。
   final CanteenRepository? canteenRepository;
   final FoodReferenceService? foodReferenceService;
+  final AppDatabase? database;
+  final FoodCatalogService? foodCatalogService;
+  final SupplyCatalogRepository? supplyCatalogRepository;
   final PlanningConstraintsRepository? planningConstraintsRepository;
+
+  /// 「数据自检」（D-1/D-2，docs/64）。null＝设置页不渲染该行。
+  final DataSelfCheck? dataSelfCheck;
 
   /// 菜品照片取图（docs/29 §P7 需求 16）；null＝菜品表单不渲染照片字段。
   final Future<String?> Function(bool fromCamera)? pickDishImage;
@@ -265,7 +279,11 @@ class _LocalFitAppState extends State<LocalFitApp> {
         resolveMealScanCandidates: widget.resolveMealScanCandidates,
         canteenRepository: widget.canteenRepository,
         foodReferenceService: widget.foodReferenceService,
+        database: widget.database,
+        foodCatalogService: widget.foodCatalogService,
+        supplyCatalogRepository: widget.supplyCatalogRepository,
         planningConstraintsRepository: widget.planningConstraintsRepository,
+        dataSelfCheck: widget.dataSelfCheck,
         pickDishImage: widget.pickDishImage,
         foodLibraryController: widget.foodLibraryController,
         exerciseRepository: widget.exerciseRepository,

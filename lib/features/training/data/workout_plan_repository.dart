@@ -276,10 +276,28 @@ final class WorkoutPlanRepository {
   }
 
   Future<bool> removePlan(String id) async {
-    final deleted = await (database.delete(
-      database.workoutPlans,
-    )..where((row) => row.id.equals(id))).go();
-    return deleted == 1;
+    return database.transaction(() async {
+      final plannedIds =
+          await (database.select(database.plannedExercises)..where(
+                (row) => row.dayId.isInQuery(
+                  database.selectOnly(database.workoutDays)
+                    ..addColumns([database.workoutDays.id])
+                    ..where(database.workoutDays.planId.equals(id)),
+                ),
+              ))
+              .map((row) => row.id)
+              .get();
+      if (plannedIds.isNotEmpty) {
+        // Cardio prescriptions use a restrictive FK and must go first.
+        await (database.delete(
+          database.cardioPrescriptions,
+        )..where((row) => row.plannedExerciseId.isIn(plannedIds))).go();
+      }
+      final deleted = await (database.delete(
+        database.workoutPlans,
+      )..where((row) => row.id.equals(id))).go();
+      return deleted == 1;
+    });
   }
 
   void _validateDraft(WorkoutPlanDraft draft) {

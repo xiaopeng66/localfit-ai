@@ -8,6 +8,7 @@ import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/app/design/widgets/lf_food_kcal_ring.dart';
+import 'package:localfit_ai/app/design/widgets/lf_picker_row.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_category.dart';
 import 'package:localfit_ai/features/nutrition/presentation/food_category_icon.dart';
 import 'package:localfit_ai/utils/food_display.dart';
@@ -123,82 +124,48 @@ class FoodCard extends StatelessWidget {
 
     // A `.food-row`：行不是卡。上下 8 是行自己的内衬（左右那 12 由列表卡给），
     // 上下 8 + 图标 40 = 行高 56 = 原型实测值（跳转保护依赖它，别加第三件）。
+    // 【需求 11a（2026-10-25）】行壳改用**共享件** `LfPickerRow`：按食材记录
+    // 与按菜品记录两个入口从此是同一行形态（左件 40 + 间距 10 + 标题/副行
+    // 同档 + 右侧动作贴行右缘）。本卡只提供内容（分类图标 / 名称 / 品牌行 /
+    // 热量环），几何由共享件保证——各写一遍必然漂。
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceSmall),
-      child: Row(
-        // 需求 20（本轮沿用）：图标 40 / 名称 / 环共心中线（行高由最高的那件定）。
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          FoodCategoryIcon(
-            foodId: id,
-            category: category,
-            size: LfDimens.foodCardIconSize,
-            // A `.food-symbol`（polish 覆盖）：底 `--bg`、图形充满 40dp
-            // （styles 里的 brand-soft 底与内衬都被 polish 拿掉了）。
-            padding: EdgeInsets.zero,
-            background: c.background,
-          ),
-          const SizedBox(width: LfDimens.spaceSmallPlus),
-          // 名称 + （可选）警告图标同属一个 `Expanded`：警告图标要**紧贴名称
-          // 之后**而不是贴右边缘（贴右会与环挤在一起，且看不出它修饰的是名称）。
-          Expanded(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    displayName,
-                    key: Key('food-card-name-$id'),
-                    style: LfText.bodyStrong.copyWith(color: c.cardForeground),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      child: LfPickerRow(
+        leadingKey: null,
+        leading: FoodCategoryIcon(
+          foodId: id,
+          category: category,
+          size: LfDimens.foodCardIconSize,
+          // A `.food-symbol`（polish 覆盖）：底 `--bg`、图形充满 40dp
+          // （styles 里的 brand-soft 底与内衬都被 polish 拿掉了）。
+          padding: EdgeInsets.zero,
+          background: c.background,
+        ),
+        title: displayName,
+        titleKey: Key('food-card-name-$id'),
+        titleSuffix: canJoinPlan
+            ? null
+            : Semantics(
+                label: '营养不完整，不可加入计划',
+                child: Icon(
+                  Icons.info_outline,
+                  key: Key('food-card-incomplete-$id'),
+                  size: LfDimens.iconSm,
+                  color: c.warningText,
                 ),
-                // 内联品牌：同一行、micro 档、不追加行高。名称优先省略，
-                // 品牌跟随（`Flexible` 在外层，两者共享剩余宽）。
-                if (showBrand)
-                  Flexible(
-                    child: Text(
-                      ' · $inlineBrand',
-                      key: Key('food-card-brand-$id'),
-                      style: LfText.micro.copyWith(color: c.mutedForeground),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                if (!canJoinPlan) ...[
-                  const SizedBox(width: LfDimens.spaceTiny),
-                  // docs/07 §9.3：能搜到不等于能进计划，这件事要写在明面上。
-                  // 整行文字退场后，图标 + 语义标签是最低成本的保留：它不占
-                  // 独立行、不加行高（原型仍是单行）。形状随 A 的 info（14dp
-                  // muted），但色与尺寸按功能事实定为 warning/16dp（D38）。
-                  Semantics(
-                    label: '营养不完整，不可加入计划',
-                    child: Icon(
-                      Icons.info_outline,
-                      key: Key('food-card-incomplete-$id'),
-                      size: LfDimens.iconSm,
-                      color: c.warningText,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(
-            // A：行内段距 10（`.food-row{gap:10px}`）+ 环前额外的
-            // `.food-density{margin-left:4px}`。
-            width: LfDimens.spaceSmallPlus + LfDimens.spaceXSmall,
-          ),
-          // 图形化热量：环 36dp（上轮 44）。环下的 `kcal/100g` 口径标签退到
-          // 列表头的 `FoodDensityScaleNote`（那里已经写全「环 = 每 100g 能量
-          // 密度 · 满刻度 1000 kcal/100g」），逐行重复一遍是噪声。
-          LfFoodKcalRing(
-            kcalPer100g: kcal,
-            keyPrefix: 'food-card-ring-$id',
-            size: LfDimens.foodKcalRingSmallSize,
-            stroke: LfDimens.foodKcalRingSmallStroke,
-          ),
-        ],
+              ),
+        subtitle: showBrand ? inlineBrand : null,
+        subtitleKey: showBrand ? Key('food-card-brand-$id') : null,
+        trailingGap: LfPickerRow.defaultTrailingGap,
+        // 右侧动作整块的锚点（需求 11a 的几何判据按**整块**量：里面的环/徽标
+        // 自带内边距，量内层会把「贴右缘」量成偏心）。
+        trailingKey: Key('food-card-actions-$id'),
+        trailing: LfFoodKcalRing(
+          kcalPer100g: kcal,
+          keyPrefix: 'food-card-ring-$id',
+          size: LfDimens.foodKcalRingSmallSize,
+          stroke: LfDimens.foodKcalRingSmallStroke,
+        ),
       ),
     );
     // 整行可点（含上下 8 的内衬）。`MaterialType.transparency` 只为给 ink 一个
@@ -300,19 +267,30 @@ class MacroDotRows extends StatelessWidget {
 /// 2.0× 字号：每项 `maxLines: 1` + `FittedBox.scaleDown` 兜底——把
 /// 「蛋白质 12.3g」折成两行会让三列基线错位，宁可等比缩小。
 class MacroDotLine extends StatelessWidget {
-  const MacroDotLine({this.protein, this.carbs, this.fat, super.key});
+  const MacroDotLine({
+    this.protein,
+    this.carbs,
+    this.fat,
+    this.shortLabels = false,
+    super.key,
+  });
 
   final double? protein;
   final double? carbs;
   final double? fat;
 
+  /// 【2026-10-31 用户（round11/editor）：已添加卡压成两行】紧凑卡用短词
+  /// 「蛋白/碳水/脂肪」——同一行里还要放下三组「词+数值」，全称太占宽。
+  final bool shortLabels;
+
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
+    final (pl, cl, fl) = shortLabels ? ('蛋白', '碳水', '脂肪') : ('蛋白质', '碳水', '脂肪');
     final entries = <(Color, String, double)>[
-      if (protein case final value?) (c.protein, '蛋白质', value),
-      if (carbs case final value?) (c.carbs, '碳水', value),
-      if (fat case final value?) (c.fat, '脂肪', value),
+      if (protein case final value?) (c.protein, pl, value),
+      if (carbs case final value?) (c.carbs, cl, value),
+      if (fat case final value?) (c.fat, fl, value),
     ];
     if (entries.isEmpty) return const SizedBox.shrink();
     return Row(

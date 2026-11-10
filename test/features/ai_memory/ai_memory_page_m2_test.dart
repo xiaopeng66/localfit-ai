@@ -131,6 +131,15 @@ void main() {
     await drain(tester);
   });
 
+  /// 【v2（2026-10-30 用户批准 design/round8/memory-v2.html）】设置项
+  /// （开关 / 待确认候选 / 整理建议 / 规则 / 复制 / 清空）从首屏撤进 ⚙️ 弹层。
+  /// 断言这些控件前先打开设置弹层；key 与行为不变，只是位置变了。
+  Future<void> openSettings(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('ai-memory-settings')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ai-memory-settings-sheet')), findsOneWidget);
+  }
+
   testWidgets('整理建议入口与弹层（B7）：空态如实', (tester) async {
     await memories.remember(text: '喜欢清淡');
     final hygiene = MemoryHygiene(
@@ -139,8 +148,8 @@ void main() {
       vectorIndex: _FakeVectors(),
     );
     await pumpPage(tester, hygiene: hygiene);
-    expect(find.byKey(const Key('ai-memory-hygiene')), findsOneWidget);
-
+    // 【v2】整理建议入口在 ⚙️ 设置弹层里。
+    await openSettings(tester);
     expect(find.byKey(const Key('ai-memory-hygiene')), findsOneWidget);
     await tester.tap(find.byKey(const Key('ai-memory-hygiene')));
     // 弹层内容是异步扫描后才构建的：多泵几帧再断言。
@@ -170,6 +179,8 @@ void main() {
     );
     await pumpPage(tester, hygiene: hygiene);
 
+    // 【v2】整理建议入口在 ⚙️ 设置弹层里（点开后设置弹层先关、再开整理弹层）。
+    await openSettings(tester);
     await tester.tap(find.byKey(const Key('ai-memory-hygiene')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -212,9 +223,18 @@ void main() {
     );
     await pumpPage(tester, queue: queue);
 
-    await tester.tap(find.byKey(const Key('ai-memory-pending')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    // 【v2】待确认入口在 ⚙️ 设置弹层里（页面统计行胶囊与弹层行都能开，
+    // 这里走弹层行——与用户实际路径一致）。
+    await openSettings(tester);
+    await tester.tap(find.byKey(const Key('ai-memory-pending-row')));
+    // 【v2】设置弹层先退场、下一帧才开待确认弹层（避免叠两层弹层）：
+    // 多泵一帧让 postFrameCallback 跑到，再等弹层动画结束。
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('ai-memory-pending-sheet')),
+      findsOneWidget,
+      reason: '设置弹层的「待确认候选」行应打开待确认弹层',
+    );
 
     // 第 0 条与已有记忆相同 → 保存失败，就地显示错误键。
     await tester.tap(find.byKey(const Key('ai-memory-pending-save-0')));
@@ -243,6 +263,8 @@ void main() {
       ),
     );
     await pumpPage(tester, queue: queue);
+    // 【v2】自动提炼开关在 ⚙️ 设置弹层里。
+    await openSettings(tester);
     final toggle = find.byKey(const Key('ai-memory-auto-extract-toggle'));
     expect(toggle, findsOneWidget);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
@@ -268,6 +290,8 @@ void main() {
       clock: FixedAppClock(now),
     );
     await pumpPage(tester, queue: queue);
+    // 【v2】自动提炼开关在 ⚙️ 设置弹层里。
+    await openSettings(tester);
     final toggle = find.byKey(const Key('ai-memory-auto-extract-toggle'));
     expect(
       tester.widget<SwitchListTile>(toggle).value,
@@ -324,6 +348,7 @@ void main() {
     expect(await memories.listActive(), isEmpty, reason: '提炼不自动写库');
 
     await pumpPage(tester, queue: queue);
+    // 【v2】待确认在统计行里以胶囊呈现（0 条不渲染）。
     expect(find.byKey(const Key('ai-memory-pending')), findsOneWidget);
     expect(find.text('待确认 1 条'), findsOneWidget);
 

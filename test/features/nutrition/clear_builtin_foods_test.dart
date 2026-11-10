@@ -73,16 +73,31 @@ void main() {
               createdAt: ts,
             ),
           );
-      await database
-          .into(database.foodNutritionRevisions)
-          .insert(
-            FoodNutritionRevisionsCompanion.insert(
-              id: 'revision-$foodId',
-              foodId: foodId,
-              revisionNumber: 1,
-              createdAt: ts,
-            ),
-          );
+      // docs/67 §3.1：经 `FoodRepository.create` 建的自建食物已经自带第 1 版
+      // 基线修订，这里只为内置行补一条（否则撞唯一索引 (food_id, number)）。
+      if (foodId == userFoodId) {
+        await database
+            .into(database.foodNutritionRevisions)
+            .insert(
+              FoodNutritionRevisionsCompanion.insert(
+                id: 'revision-manual-$foodId',
+                foodId: foodId,
+                revisionNumber: 2,
+                createdAt: ts,
+              ),
+            );
+      } else {
+        await database
+            .into(database.foodNutritionRevisions)
+            .insert(
+              FoodNutritionRevisionsCompanion.insert(
+                id: 'revision-$foodId',
+                foodId: foodId,
+                revisionNumber: 1,
+                createdAt: ts,
+              ),
+            );
+      }
       await database
           .into(database.foodPortions)
           .insert(
@@ -232,16 +247,26 @@ void main() {
   test('级联表跟着内置行走：别名/修订/份量清掉，自建的留着', () async {
     await ClearBuiltinFoods(database).call();
 
+    // 别名 / 份量：内置行的随食物删掉，只剩自建那一条。
     for (final ids in [
       (await database.select(database.foodAliases).get()).map((row) => row.id),
-      (await database.select(database.foodNutritionRevisions).get()).map(
-        (row) => row.id,
-      ),
       (await database.select(database.foodPortions).get()).map((row) => row.id),
     ]) {
-      expect(ids, everyElement(endsWith(userFoodId)));
-      expect(ids, hasLength(1));
+      expect(ids, [endsWith(userFoodId)]);
     }
+    // 修订：docs/67 起每条自建食物自带生效基线修订，所以自建行保留
+    // 「基线 + 测试手工插入」两条；**内置行的修订一条都不能留**。
+    final revisions = await database
+        .select(database.foodNutritionRevisions)
+        .get();
+    expect(revisions, isNotEmpty);
+    expect(
+      revisions.every((row) => row.foodId == userFoodId),
+      isTrue,
+      reason:
+          '内置食物的修订必须随食物一起清掉：'
+          '${revisions.map((row) => row.foodId).toList()}',
+    );
   });
 
   test('幂等：连跑两次不抛，第二次全 0，自建行原样', () async {

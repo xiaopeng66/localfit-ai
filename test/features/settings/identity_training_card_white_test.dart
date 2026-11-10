@@ -360,13 +360,13 @@ void main() {
     Widget hero({
       int finishedCount = 4,
       Duration duration = const Duration(minutes: 168),
-      int? weekIndex = 38,
+      String weekRangeText = '9/7 – 9/13',
       List<int> capacity = const [30, 0, 45, 0, 60, 0, 0],
       int todayIndex = 4,
       List<int> rest = const [2, 4, 7],
     }) => host(
       TrainingHero(
-        weekIndex: weekIndex,
+        weekRangeText: weekRangeText,
         finishedCount: finishedCount,
         totalDuration: duration,
         totalKcal: null,
@@ -411,7 +411,7 @@ void main() {
                   body: Padding(
                     padding: const EdgeInsets.all(LfDimens.pagePadding),
                     child: TrainingHero(
-                      weekIndex: 38,
+                      weekRangeText: '9/7 – 9/13',
                       finishedCount: 4,
                       totalDuration: const Duration(minutes: 168),
                       totalKcal: null,
@@ -579,10 +579,12 @@ void main() {
       expect(find.text('休息日 · 三'), findsOneWidget);
     });
 
-    testWidgets('无训练历史：不渲染「第 N 周」，且三段仍齐全', (tester) async {
-      await tester.pumpWidget(hero(weekIndex: null));
+    // 【2026-10-29（R-6）】「第 N 周」退役 → 本周真实日期区间恒渲染。
+    testWidgets('右上角恒渲染本周日期区间，且三段仍齐全', (tester) async {
+      await tester.pumpWidget(hero());
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('training-hero-week')), findsNothing);
+      expect(find.byKey(const Key('training-hero-week')), findsOneWidget);
+      expect(find.text('9/7 – 9/13'), findsOneWidget);
       expect(find.byKey(const Key('training-hero-count')), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

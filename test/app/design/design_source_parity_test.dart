@@ -166,6 +166,16 @@ void main() {
       expect(c.ring, t.color('--lf-ring'));
       expect(c.primary, t.color('--lf-primary'));
       expect(c.primaryForeground, round7.color('.btn.primary', 'color'));
+      // 【2026-10-29 用户裁决】实心品牌面回到**基础层**口径：
+      // `styles.css:148` `.btn.primary{background:var(--brand-strong);
+      // color:var(--card)}`。refinement 层的「亮绿底 + #10271D 深字」两轮
+      // 实机被判「根本看不清」，所以新增这对 token 与基础层逐值对账
+      // （primaryForeground 本身保留：仍有 primary 底上的旧调用点）。
+      expect(
+        LfColors.brandStrong(Brightness.light),
+        round7.light['--brand-strong'],
+      );
+      expect(LfColors.onBrandStrong(Brightness.light), round7.light['--card']);
     });
 
     test('状态色与证据分级色', () {
@@ -245,9 +255,14 @@ void main() {
       expect(c.input, t.darkColor('--lf-input'));
       expect(c.ring, t.darkColor('--lf-ring'));
       expect(c.primary, t.darkColor('--lf-primary'));
-      // 同浅色组：主按钮前景 = A `.btn.primary` 的 `#10271D`（两主题同值，
-      // `refinement.css:2`；不是主题自定义属性，因此两主题读同一条规则）。
+      // 同浅色组：primaryForeground 保留（refinement 层 #10271D，两主题同值）。
       expect(c.primaryForeground, round7.color('.btn.primary', 'color'));
+      // 【2026-10-29】实心面 token 对（brandStrong / onBrandStrong）暗色逐值。
+      expect(
+        LfColors.brandStrong(Brightness.dark),
+        round7.dark['--brand-strong'],
+      );
+      expect(LfColors.onBrandStrong(Brightness.dark), round7.dark['--card']);
       expect(c.success, t.darkColor('--lf-state-success'));
       expect(c.warning, t.darkColor('--lf-state-warning'));
       expect(c.error, t.darkColor('--lf-state-error'));

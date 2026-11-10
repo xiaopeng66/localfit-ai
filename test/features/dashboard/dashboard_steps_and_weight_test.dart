@@ -129,14 +129,36 @@ void main() {
         reason: '关闭后一个字都不写（包括 0 步）',
       );
 
-      // 重新打开：开关流触发一次读数，数据行出现。
+      // 重新打开：开关流触发一次读数。
+      //
+      // 【2026-10-26 语义变更（用户：「步数它读不到系统数据」）】原来这里断言
+      // 「打开后就落一行」——那行是**当天第一次读立的基线所对应的 0 步**，
+      // 卡上会显示「0 / 10,000 步」，用户以为没读到。现在首次读只落基线、
+      // 不写 0；要拿到数字得再读一次（回到前台 / 点卡片进弹层「重新读取」）。
       await repository.setEnabled(true);
+      await tester.pumpAndSettle();
+      // 首次读**不写库** ⇒ 没有流事件来驱动帧，pumpAndSettle 可能在
+      // `_sync` 的 setState 之前就返回；多推几拍把异步链跑完。
+      await tester.pump(const Duration(milliseconds: 10));
       await tester.pumpAndSettle();
       expect(
         await database.select(database.stepsDaily).get(),
-        hasLength(1),
-        reason: '打开后恢复正常读数与落库',
+        isEmpty,
+        reason: '首次读只立基线，不写假的 0 步',
       );
+      expect(
+        (await repository.readBaseline())?.counter,
+        5000,
+        reason: '打开后基线要落（否则永远等不到第二次差值）',
+      );
+      // 再有一次读数（累计值抬到 5432）⇒ 差值 432 才落库。
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5432,
+        'atMs': 2,
+      };
+      await repository.syncToday('2026-10-16');
+      expect(await repository.stepsForDate('2026-10-16'), 432);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
@@ -156,6 +178,8 @@ void main() {
 
     testWidgets('授权成功后自动重读：拿到值就上屏，不再停在空态', (tester) async {
       var reads = 0;
+      // 读数里的累计值（授权后可以继续涨：模拟「走了几步再读」）。
+      var counter = 1234;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
             switch (call.method) {
@@ -170,7 +194,7 @@ void main() {
                   },
                   _ => <Object?, Object?>{
                     'status': 'ok',
-                    'counter': 1234,
+                    'counter': counter,
                     'atMs': 9,
                   },
                 };
@@ -206,10 +230,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(reads, greaterThanOrEqualTo(3), reason: '授权后必须真的重读');
+      // 【2026-10-26 语义变更】授权后的**第一次**成功读只立基线（今日步数
+      // 还不存在），不是「0 步」。【2026-10-31 用户：没有数据就显示暂无
+      // 记录】界面文案改为「暂无记录」——首读立基线的仓储语义不变。
       expect(
-        find.byKey(const Key('dashboard-steps-value')),
+        find.text('暂无记录'),
         findsOneWidget,
-        reason: '重试读到值后要上屏，不再停在空态',
+        reason: '首读只立基线：不能拿 0 冒充「今天没走」',
+      );
+      // 下一次读数（累计值涨到 1440）才有可信差值 ⇒ 1,440 - 1,234 = 206。
+      counter = 1440;
+      await repository.syncToday('2026-10-16');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('dashboard-steps-value')))
+            .data,
+        '206',
+        reason: '重试/再读读到差值后要上屏，不再停在空态',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1228,6 +1266,136 @@ void main() {
       expect(addTaps, 1);
       // 整卡 tap：InkWell 的 onTap 为 null（语义标签不再宣称可点）。
       expect(find.bySemanticsLabel(RegExp('点击记录体重')), findsNothing);
+    });
+  });
+
+  // ── 2026-10-26 用户：「步数它读不到系统数据，也不能自己输入」──────────────
+  group('步数：首次读不写 0 / 手动录入 / 手动优先', () {
+    late AppDatabase database;
+    late StepsRepository repository;
+
+    setUp(() {
+      database = AppDatabase(NativeDatabase.memory());
+      repository = StepsRepository(
+        database: database,
+        channel: StepsChannel(),
+        idGenerator: _Ids(),
+        clock: FixedAppClock(DateTime.utc(2026, 10, 16, 8)),
+      );
+    });
+
+    tearDown(() async {
+      await database.close();
+    });
+
+    /// 挂卡并**等到 `_sync` 真的跑完**：首次读不写库时没有流事件驱动帧，
+    /// 单靠 `pumpAndSettle` 可能在 `setState` 之前就返回（时序不稳）。
+    Future<void> pumpCard(WidgetTester tester) async {
+      await tester.pumpWidget(
+        host(
+          StepsStatCard(
+            repository: repository,
+            localDate: '2026-10-16',
+            goal: 10000,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> unmount(WidgetTester tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    }
+
+    testWidgets('当天第一次读只立基线：卡上不写「0」，显示「暂无记录」', (tester) async {
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await pumpCard(tester);
+
+      expect(
+        find.text('暂无记录'),
+        findsOneWidget,
+        reason: '首次读只立基线，此刻「今日 0 步」不是事实',
+      );
+      expect(find.text('0'), findsNothing);
+      expect(await database.select(database.stepsDaily).get(), isEmpty);
+
+      await unmount(tester);
+    });
+
+    testWidgets('点「刚开始读取」的卡 → 步数弹层 → 手动记录 → 卡上带「手动」', (tester) async {
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await pumpCard(tester);
+
+      // 传感器读不到/读不出的用户，路就在这里：点卡进弹层。
+      await tester.tap(find.byKey(const Key('dashboard-stat-steps')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('steps-manual-entry')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('steps-manual-entry')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('steps-manual-input')),
+        '6500',
+      );
+      await tester.tap(find.byKey(const Key('steps-manual-save')));
+      await tester.pumpAndSettle();
+
+      expect(await repository.stepsForDate('2026-10-16'), 6500);
+      expect(
+        (await repository.readDay('2026-10-16'))!.source,
+        StepsRepository.sourceManual,
+      );
+
+      // 关掉弹层（返回键），卡上应显示 6,500 并标出「手动」。
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('dashboard-steps-value')))
+            .data,
+        '6,500',
+      );
+      expect(find.byKey(const Key('dashboard-steps-manual')), findsOneWidget);
+
+      await unmount(tester);
+    });
+
+    testWidgets('手动值当天不被传感器覆盖；「恢复自动读取」后交还给传感器', (tester) async {
+      await repository.saveManualSteps(localDate: '2026-10-16', steps: 6500);
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await pumpCard(tester);
+
+      // 卡自己那次同步读到了传感器，但手动值优先。
+      expect(await repository.stepsForDate('2026-10-16'), 6500);
+
+      // 弹层里点「恢复自动读取」→ 手动行被清掉。
+      await tester.tap(find.byKey(const Key('dashboard-stat-steps')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('steps-manual-clear')));
+      await tester.pumpAndSettle();
+      expect(await repository.stepsForDate('2026-10-16'), isNull);
+      expect(
+        find.byKey(const Key('steps-manual-entry')),
+        findsOneWidget,
+        reason: '清掉之后按钮文案回到「手动记录步数」',
+      );
+
+      await unmount(tester);
     });
   });
 }

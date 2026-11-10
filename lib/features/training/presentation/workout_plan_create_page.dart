@@ -376,12 +376,19 @@ class _FormView extends StatelessWidget {
                   Expanded(
                     // 快捷值一排 = §3.8 B3 小胶囊（原手写 8 圆角块，8 不是本
                     // 设计系统的圆角档；B3 是 full 圆角 + 32 高 + 12 w500）。
+                    //
+                    // 【需求 12（2026-10-25）】`dense: true` + 外层 padding 4→2：
+                    // 七枚并排时每枚只有 ≈50dp（412dp），胶囊默认左右各 20dp 内边距
+                    // ⇒ 内容区只剩 10dp，「3天」被折成两行（取帧实证）。dense 把
+                    // 内边距收到 8，标签侧改由胶囊自己的 `_lfSingleLineLabel`
+                    // 保证单行 + 居中。
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: LfPillButton(
                         key: Key('plan-days-$d'),
                         label: '$d天',
                         selected: selectedDays == d,
+                        dense: true,
                         onPressed: () => onDaysChanged(d),
                       ),
                     ),

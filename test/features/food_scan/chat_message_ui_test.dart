@@ -171,7 +171,9 @@ void main() {
     });
   });
 
-  testWidgets('用户气泡用品牌色实底（语义层 primary）', (tester) async {
+  // 【2026-10-29 用户裁决】气泡底从 primary（亮绿）改为 brandStrong：
+  // primary + #10271D 深字属「绿底深字看不清」类，统一回品牌强档。
+  testWidgets('用户气泡用实心品牌底（brandStrong）', (tester) async {
     await pump(
       tester,
       const ChatMessageUI(message: '你好', type: MessageType.user),
@@ -184,28 +186,26 @@ void main() {
     final decoration = box.decoration! as BoxDecoration;
     expect(
       decoration.color,
-      LfSemanticColors.light.primary,
-      reason: '用户气泡应取品牌 500 档（语义层 primary 的亮色值）',
+      LfColors.brandStrong(Brightness.light),
+      reason: '用户气泡底 = 品牌强档（亮 #187653）',
     );
-    // 字色也必须走 token：设计稿是 `var(--lf-primary-foreground)`；写死
-    // `Colors.white` 会在暗色主题下与主题给的 primaryForeground 不一致。
+    // 字色走 onBrandStrong（亮白）：深绿底上的反色。
     expect(
       tester.widget<Text>(find.text('你好')).style?.color,
-      LfSemanticColors.light.primaryForeground,
+      LfColors.onBrandStrong(Brightness.light),
     );
   });
 
-  testWidgets('暗色下用户气泡字色仍是主题给的 primaryForeground（不是写死白）', (tester) async {
-    // 亮色 primaryForeground 恰好就是纯白，写死 `Colors.white` 在亮色下是
-    // **等价变异**（观测不到差别）；只有暗色档（近黑 #0F1412）才把它区分开——
-    // 所以这条断言必须挂在暗色宿主上。
+  testWidgets('暗色下用户气泡字色取 onBrandStrong 暗档（不是写死白）', (tester) async {
+    // 暗色实心档是浅薄荷底 + 深字：写死 `Colors.white` 会在这里露馅
+    // （白字压 #4ED9A6 只有 1.8:1），所以这条断言挂在暗色宿主上。
     await pump(
       tester,
       const ChatMessageUI(message: '你好', type: MessageType.user),
       dark: true,
     );
     final bubbleColor = tester.widget<Text>(find.text('你好')).style?.color;
-    expect(bubbleColor, LfSemanticColors.dark.primaryForeground);
+    expect(bubbleColor, LfColors.onBrandStrong(Brightness.dark));
     expect(bubbleColor, isNot(Colors.white));
   });
 }

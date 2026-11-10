@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:localfit_ai/app/app_router.dart';
+import 'package:localfit_ai/app/app_version.dart';
 import 'package:localfit_ai/app/localfit_app.dart';
 import 'package:localfit_ai/features/campus_menus/application/food_reference_service.dart';
 import 'package:localfit_ai/features/campus_menus/application/menu_item_matcher.dart';
@@ -29,10 +30,13 @@ import 'package:localfit_ai/features/ai_conversation/data/file_chat_image_store.
 import 'package:localfit_ai/features/ai_conversation/domain/chat_image.dart';
 import 'package:localfit_ai/features/ai_conversation/data/open_ai_compatible_conversation_service.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_coordinator.dart';
+import 'package:localfit_ai/features/ai_conversation/application/existing_fact_probe.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_executor.dart';
 import 'package:localfit_ai/features/ai_conversation/data/chat_edit_context_loader.dart';
 import 'package:localfit_ai/features/ai_memory/data/ai_memory_repository.dart';
 import 'package:localfit_ai/features/daily_plan/data/planning_constraints_repository.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
+import 'package:localfit_ai/features/nutrition/application/master_nutrition_sink_adapter.dart';
 import 'package:localfit_ai/features/nutrition/application/food_library_controller.dart';
 import 'package:localfit_ai/features/nutrition/data/bundled_user_food_importer.dart';
 import 'package:localfit_ai/features/nutrition/data/catalog_bootstrap.dart';
@@ -46,6 +50,7 @@ import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/core/storage/secure_key_value_store.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
+import 'package:localfit_ai/data/database/legacy_nutrition_converter.dart';
 import 'package:localfit_ai/data/database/database_key_manager.dart';
 import 'package:localfit_ai/features/food_scan/application/load_meal_recognition_disclosure.dart';
 import 'package:localfit_ai/features/food_scan/application/resolve_meal_scan_candidates.dart';
@@ -63,6 +68,7 @@ import 'package:localfit_ai/features/settings/data/avatar_image_store.dart';
 import 'package:localfit_ai/features/settings/data/dio_ai_endpoint_probe.dart';
 import 'package:localfit_ai/features/settings/data/local_ai_provider_settings_store.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:localfit_ai/features/settings/application/data_self_check.dart';
 import 'package:localfit_ai/features/settings/application/load_profile_overview.dart';
 import 'package:localfit_ai/features/settings/data/app_settings_repository.dart';
 import 'package:localfit_ai/features/retrieval/application/semantic_runtime.dart';
@@ -71,8 +77,9 @@ import 'package:localfit_ai/features/settings/data/profile_identity_repository.d
 import 'package:localfit_ai/features/nutrition/data/food_library_normalizer.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
-import 'package:localfit_ai/features/nutrition/application/add_canteen_dishes_to_library.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/application/add_dish_to_meal.dart';
+import 'package:localfit_ai/features/nutrition/application/catalog_resolver.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/hydration/application/update_water_target_ml.dart';
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
@@ -145,10 +152,9 @@ Future<void> main() async {
     idGenerator: const UuidV7Generator(),
     clock: const SystemAppClock(),
   );
-  final addDishToMeal = AddDishToMeal(
-    mealRepository: mealRepository,
-    clock: const SystemAppClock(),
-  );
+  // 供应读取口先于用例创建（见下方 `supplyCatalogRepository`），这里延后赋值：
+  // 菜单页「加入一餐」必须走统一换算并写全供应快照（docs/67 §4.3）。
+  late final AddDishToMeal addDishToMeal;
   final measurementRepository = MeasurementRepository(
     database: database,
     idGenerator: const UuidV7Generator(),
@@ -167,7 +173,7 @@ Future<void> main() async {
   final conversationMessageRepository = DriftConversationMessageRepository(
     database: database,
   );
-  const chatImageStore = FileChatImageStore(idGenerator: UuidV7Generator());
+  final chatImageStore = FileChatImageStore(idGenerator: UuidV7Generator());
   final pickChatImage = PickChatImage(
     picker: ImagePickerMealImagePicker(),
     processor: const IsolateMealImageProcessor(),
@@ -291,6 +297,25 @@ Future<void> main() async {
     fileStore: backupFileStore,
   );
   final hasProfile = await database.hasProfile();
+  // docs/67 §7.3：归一**幂等可重入**。schema 31 升级时跑过一次；这里每次
+  // 启动再补跑一遍，兜住"升级中断 / 旧版本期间新分析的菜 / 恢复的旧包"等
+  // 漏网供应（台账唯一键保证不给同一旧键造第二条主食物）。失败只记日志，
+  // 不挡启动（下次启动再试）。
+  unawaited(() async {
+    try {
+      final report = await LegacyNutritionConverter(
+        database: database,
+        idGenerator: const UuidV7Generator(),
+        clock: const SystemAppClock(),
+      ).run();
+      if (report.dishLibraryRows + report.suppliesTotal > 0 &&
+          !report.isClean) {
+        debugPrint('营养归一补跑完成（有待补全/冲突）：$report');
+      }
+    } on Object catch (error) {
+      debugPrint('营养归一补跑失败（下次启动重试）：$error');
+    }
+  }());
   final completeOnboarding = CompleteOnboarding(
     database: database,
     idGenerator: const UuidV7Generator(),
@@ -323,6 +348,11 @@ Future<void> main() async {
     database: database,
     clock: const SystemAppClock(),
   );
+  // 数据自检（D-1/D-2，docs/64）：设置 → 数据管理的入口用。
+  final dataSelfCheck = DataSelfCheck(
+    database: database,
+    clock: const SystemAppClock(),
+  );
   // 长期记忆（docs/38 S11）：与对话命令 `memory.remember/forget`、快照注入、
   // 「我的 → AI 记忆」页共用同一仓储；数据只在本机。
   // 向量索引在 semanticRuntime 构造后接上（见下）——判重与整理建议要用它。
@@ -334,20 +364,37 @@ Future<void> main() async {
     store: dishImageStore,
     clock: const SystemAppClock(),
   );
-  // 食堂目录 ⇄ 菜品库是**同一个库**（2026-10-24 用户：「加入菜品目录里不能
-  // 自动加入菜品库吗…我希望他们就是一个库，不要分开，不要自己加入」）：
-  // 菜品一写出营养就自动进菜品库，改名/改份量跟着更新，删菜/删窗口/删地点
-  // 跟着删。钩子在组合根注入——数据层不认识 nutrition，分层门禁不破。
-  // `late final` + 闭包向后引用：仓储先建、服务后建，钩子在**写入发生那一刻**
-  // 才解引用（那时赋值已完成）。
-  late final AddCanteenDishesToLibrary addCanteenDishesToLibrary;
+  // 食堂目录 → 菜品库的**自动复制链已退役**（docs/67 §D01/§P2-U23）：
+  // 供应的当前营养从主食物生效修订派生，不再往 `dish_library` 写一份每份
+  // 副本。旧行保留为只读兼容资料（历史餐/旧引用仍可读），但没有任何写入
+  // 入口会再造一份"独立的当前营养"。
   final canteenRepository = CanteenRepository(
     database: database,
     idGenerator: const UuidV7Generator(),
     clock: const SystemAppClock(),
     dishImageStore: dishImageStore,
-    onDishUpserted: (dishId) => addCanteenDishesToLibrary.syncDish(dishId),
-    onDishDeleted: (dishId) => addCanteenDishesToLibrary.removeDish(dishId),
+    // 批准后的当前营养写进主食物修订（docs/67 §3.2）：食堂证据只是
+    // 分析记录，不是第二个当前事实。
+    masterNutritionSink: CatalogMasterNutritionSink(
+      FoodCatalogService(
+        database: database,
+        idGenerator: const UuidV7Generator(),
+        clock: const SystemAppClock(),
+      ),
+    ),
+  );
+  // 统一主库写服务：手动界面、AI 命令、食堂目录共用同一套事务与校验。
+  final foodCatalogService = FoodCatalogService(
+    database: database,
+    idGenerator: const UuidV7Generator(),
+    clock: const SystemAppClock(),
+  );
+  // 供应的统一读取口（食堂目录 / 记餐搜索 / AI 快照同一份投影）。
+  final supplyCatalogRepository = SupplyCatalogRepository(database: database);
+  addDishToMeal = AddDishToMeal(
+    mealRepository: mealRepository,
+    clock: const SystemAppClock(),
+    supplyCatalog: supplyCatalogRepository,
   );
 
   // 索引协调器（docs/39 §5.2）：段级失效映射 + orphan sweep + 重建。
@@ -403,34 +450,9 @@ Future<void> main() async {
     // G14：恢复后派生索引已被清空，入队重建任务（幂等）。
     onRestored: () => foodDataMaintenance.enqueueIndexRebuildAfterRestore(),
   );
-  // 食堂目录 → 菜品库（菜单页唯一主来源，docs/21 §5.3 写入路径 1）。
-  // 2026-10-24 起它不再由用户点按钮触发，而是挂在 `canteenRepository` 的
-  // 同步钩子上自动跑（见上面的 `onDishUpserted` / `onDishDeleted`）。
-  addCanteenDishesToLibrary = AddCanteenDishesToLibrary(
-    dishLibrary: dishLibraryRepository,
-    canteen: canteenRepository,
-  );
-  // 2026-10-24 升级补齐：把**已经分析过**的食堂菜按来源键写进菜品库——老库里
-  // 那些「分析过但没手动加入菜品库」的菜，更新后立刻出现在菜单页。幂等（按
-  // 来源 upsert），KV 打标只跑一次；失败不打标，下次启动重试。
-  unawaited(() async {
-    try {
-      if (await appSettingsRepository.getBool(kCanteenLibraryBackfillKey)) {
-        return;
-      }
-      final result = await addCanteenDishesToLibrary.backfillAll();
-      await appSettingsRepository.setBool(
-        kCanteenLibraryBackfillKey,
-        value: true,
-      );
-      debugPrint(
-        '食堂菜→菜品库补齐：写入/更新 ${result.written} 道，'
-        '跳过（未分析）${result.skipped} 道。',
-      );
-    } on Object catch (error) {
-      debugPrint('食堂菜→菜品库补齐失败（下次启动重试）：$error');
-    }
-  }());
+  // 旧「食堂菜→菜品库补齐」一次性回填同样退役（docs/67 §P2-U23）：
+  // 它属于"独立每份营养副本"的自动复制链。旧行仍在库里可读，需要时由
+  // `LegacyNutritionConverter` 归一进主库，而不是继续复制新副本。
 
   // 食物库搜索（2.0-6f）：主库 LIKE + 分片 FTS5 合并（目录未就位时为空）。
   // 详情（2.0-1j）：主库条目读主库，未导入的目录条目读分片（份量/修订/证据）。
@@ -475,6 +497,19 @@ Future<void> main() async {
           database: database,
           idGenerator: const UuidV7Generator(),
           clock: const SystemAppClock(),
+        )
+        .then(
+          (_) => FoodRepository(
+            database: database,
+            idGenerator: const UuidV7Generator(),
+            clock: const SystemAppClock(),
+          ).backfillImportedFoodIdentity(),
+        )
+        .then(
+          (flipped) => debugPrint('食物库来源回填：$flipped 条由「自建」改回「内置」（T11 前旧库）。'),
+          onError: (Object error) {
+            debugPrint('食物库来源回填失败（可重试）：$error');
+          },
         )
         .then(
           (_) => FoodLibraryNormalizer(
@@ -532,6 +567,8 @@ Future<void> main() async {
   // AI 对话通用编辑（docs/23）：快照 + 协议 + 执行器都只聚合既有仓储，
   // 不新建任何写路径；用户点「应用」前不落任何库。
   final chatEditCoordinator = ChatEditCoordinator(
+    // 解析 `items[].food` 的展示名（卡片标题不能显示 [food:uuid]）。
+    database: database,
     contextBuilder: DriftChatEditContextLoader(
       database: database,
       clock: const SystemAppClock(),
@@ -540,6 +577,7 @@ Future<void> main() async {
       semantic: semanticRuntime,
       waterRepository: waterRepository,
       canteenRepository: canteenRepository,
+      supplyCatalog: supplyCatalogRepository,
       workoutPlanRepository: workoutPlanRepository,
       workoutSessionRepository: workoutSessionRepository,
       // 发送前食物库预检索（docs/40 §2.4）：top3 注入「食物库参考」段。
@@ -568,7 +606,29 @@ Future<void> main() async {
         idGenerator: const UuidV7Generator(),
         // `nutritionFrom='food'` 的本地匹配（docs/43 B10）。
         foodReferenceService: foodReferenceService,
+        // 统一主库写服务（docs/67 §6.2）：AI 的新建/挂窗与手动流程同源。
+        foodCatalog: foodCatalogService,
+        // `[canteen-dish:id]` 解析（docs/67 §6.4）：AI 记餐也要认供应。
+        supplyCatalog: supplyCatalogRepository,
       ),
+    ),
+    // 需求 6d：应用记餐前查一次「这个食材在库里吗」——
+    // 缺食材 + 同卡有 food.create ⇒ 弹确认并先建再记。
+    foodExists: (name) async =>
+        (await foodRepository.searchExact(name)).isNotEmpty,
+    // 重复可见化（2123）：应用前把「今天已有相同记录」摆到卡片上
+    // （只提示、不阻断——用户可能真的又喝了一杯水）。
+    duplicateProbe: ExistingFactProbe(
+      mealRepository: mealRepository,
+      waterRepository: waterRepository,
+      measurementRepository: measurementRepository,
+      clock: const SystemAppClock(),
+    ).call,
+    // 同名候选的选择卡：主食物 / 食堂供应 / 旧菜品统一解析由这里接线。
+    catalogResolver: CatalogResolver(
+      foods: foodRepository,
+      dishes: dishLibraryRepository,
+      supplies: supplyCatalogRepository,
     ),
   );
 
@@ -583,7 +643,11 @@ Future<void> main() async {
         mealRepository: mealRepository,
         canteenRepository: canteenRepository,
         foodReferenceService: foodReferenceService,
+        database: database,
+        foodCatalogService: foodCatalogService,
+        supplyCatalogRepository: supplyCatalogRepository,
         planningConstraintsRepository: planningConstraintsRepository,
+        dataSelfCheck: dataSelfCheck,
         pickDishImage: pickDishImage.pick,
         foodLibraryController: foodLibraryController,
         scaleSync: scaleSync,
@@ -656,11 +720,14 @@ ClearAllLocalData createAppDataClearer(
 
 /// 应用版本号（docs/21 §5.6 📱 关于）。
 ///
+/// 【不再返回 null】2026-10-25 用户实测设置页显示「版本未知」：根因是我构建时
+/// 漏传 `--dart-define=APP_VERSION=`。判据与两层修法见
+/// `lib/app/app_version.dart`——那里有随包兜底值，`define` 缺失也给真实号。
+///
 /// 不引 package_info 插件：那要走平台通道，为了一行版本文字多一个原生依赖
-/// 不划算。改成构建期注入 `--dart-define=APP_VERSION=`；未注入时返回 null，
-/// 设置页会如实显示「版本未知」而不是编一个号冒充事实。
+/// 不划算。构建脚本（`tool/build_release.bat`）负责把 versionCode 注入进来。
 const String _appVersionDefine = String.fromEnvironment('APP_VERSION');
-const String? _appVersion = _appVersionDefine == '' ? null : _appVersionDefine;
+final String _appVersion = resolveAppVersion(injected: _appVersionDefine);
 
 /// 读取随包目录资产。
 ///

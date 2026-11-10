@@ -34,6 +34,16 @@ abstract interface class ChatEditContextBuilder {
   /// 非空时实现方可以做消息相关的预检索（docs/40 §2.4 的食物库 top3 注入、
   /// docs/41 §5 的 query-aware 记忆），并把结果作为独立段拼进快照。
   ///
+  /// [foodQuery]（docs/66 §5.2）：**只**驱动食物库预览段的查询词，与
+  /// [userMessage] 分离——手动编译时把「用户请求 + 目标回复」作为 foodQuery
+  /// 传入以找回食物名，但菜品推荐意图门控与记忆检索仍按 [userMessage]（真实
+  /// 用户请求），避免长文把无关候选菜撑进上下文。null = 与旧行为一致（用
+  /// [userMessage]）。
+  ///
   /// [pendingProposal] 非空时把「还没点应用的上一张卡」渲染成独立段。
-  Future<String> build({String? userMessage, PendingProposal? pendingProposal});
+  Future<String> build({
+    String? userMessage,
+    PendingProposal? pendingProposal,
+    String? foodQuery,
+  });
 }

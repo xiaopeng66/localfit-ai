@@ -14,6 +14,7 @@ import 'package:localfit_ai/features/backup/application/restore_encrypted_backup
 import 'package:localfit_ai/features/backup/application/export_csv_files.dart';
 import 'package:localfit_ai/features/backup/application/restore_localfit_data.dart';
 import 'package:localfit_ai/features/backup/data/backup_file_store.dart';
+import 'package:localfit_ai/features/settings/data/app_settings_repository.dart';
 import 'package:localfit_ai/features/settings/presentation/settings_page.dart';
 import 'package:localfit_ai/features/training/data/exercise_seed_importer.dart';
 
@@ -90,6 +91,18 @@ void main() {
     ),
   );
 
+  /// 备份/恢复现在收在「备份与导出」二级弹层里。
+  Future<void> openBackupHub(WidgetTester tester) async {
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-backup-hub')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-backup-hub')));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('exports an encrypted backup into the file store', (
     tester,
   ) async {
@@ -98,6 +111,7 @@ void main() {
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
 
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('cta-backup')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -135,6 +149,7 @@ void main() {
     useTallViewport(tester);
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('cta-backup')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -182,6 +197,7 @@ void main() {
 
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('cta-restore')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -217,6 +233,7 @@ void main() {
 
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
+    await openBackupHub(tester);
     await tester.tap(find.byKey(const Key('cta-restore')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -263,7 +280,8 @@ void main() {
           .style
           ?.foregroundColor
           ?.resolve(<WidgetState>{}),
-      LfSemanticColors.light.error,
+      // 2026-11-09：破坏性文字按钮用文字档 errorText（AA 达标）。
+      LfSemanticColors.light.errorText,
     );
     // 确认按钮在未输入确认文字时禁用。
     await tester.tap(find.byKey(const Key('backup-clear-confirm')));
@@ -337,6 +355,45 @@ void main() {
     );
   });
 
+  testWidgets('「备份与导出」行尾自动备份开关：只切偏好，不误开抽屉', (tester) async {
+    useTallViewport(tester);
+    final settingsRepo = AppSettingsRepository(database: database);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SettingsPage(
+          createEncryptedBackup: createBackup,
+          restoreEncryptedBackup: restoreBackup,
+          clearAllLocalData: ClearAllLocalData(database),
+          exportCsvFiles: ExportCsvFiles(
+            database: database,
+            fileStore: fileStore,
+          ),
+          appSettingsRepository: settingsRepo,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-backup-hub')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('settings-auto-backup-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('cta-backup')),
+      findsNothing,
+      reason: '点开关只能切开关；弹出备份抽屉说明行点击抢了子控件手势',
+    );
+    expect(
+      await settingsRepo.getBool(AppSettingsRepository.autoBackupEnabledKey),
+      isTrue,
+    );
+  });
+
   /// docs/21 §5.6 的「数据管理」分组只在**具备备份能力**时出现，导出行
   /// （T8 起文案为「导出饮食记录」，不再带 CSV 后缀）同组。这两条 Key 因此
   /// 挂在有完整备份接线的 harness 上（无备份能力时分组自己收起来，只在
@@ -353,7 +410,7 @@ void main() {
               axisDirectionToAxis(w.axisDirection) == Axis.vertical,
         )
         .first;
-    const docKeys = <String>['settings-group-data', 'cta-export-csv'];
+    const docKeys = <String>['settings-group-data', 'settings-backup-hub'];
     final missing = <String>[];
     for (final key in docKeys) {
       var found = find.byKey(Key(key)).evaluate().isNotEmpty;
@@ -370,6 +427,8 @@ void main() {
       reason: '我的页缺少 docs/21 §5.6 的 Key：${missing.join('、')}',
     );
     expect(find.text('数据管理'), findsOneWidget);
+    await openBackupHub(tester);
+    expect(find.byKey(const Key('cta-export-csv')), findsOneWidget);
     expect(find.text('导出饮食记录'), findsOneWidget);
   });
 }

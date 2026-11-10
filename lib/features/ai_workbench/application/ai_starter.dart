@@ -51,7 +51,7 @@ const List<AiStarter> aiStarters = [
     id: 'menu-normalize',
     group: AiStarterGroup.diet,
     title: '解析学校菜单',
-    description: '把粘贴的菜单文本整理成待确认草案；确认后才发布为菜单快照。',
+    description: '整理成待确认草案，确认后才发布。',
     icon: Icons.receipt_long_outlined,
     inputHint: '粘贴菜单文本（食堂/窗口、菜名）',
     promptBuilder: _menuNormalizePrompt,
@@ -60,7 +60,7 @@ const List<AiStarter> aiStarters = [
     id: 'dish-nutrition',
     group: AiStarterGroup.diet,
     title: '分析菜品营养',
-    description: '输入菜品名与配料提示，估算每 100g 营养与证据等级',
+    description: '估算每 100g 营养与证据等级。',
     icon: Icons.auto_awesome_outlined,
     inputHint: '每行一道菜，例：\n番茄炒蛋\n宫保鸡丁 花生米少许',
     promptBuilder: _dishNutritionPrompt,
@@ -73,9 +73,7 @@ const List<AiStarter> aiStarters = [
     // `daily_plan` 整族退役（docs/58 D1）已经不存在，这句是在给用户承诺一个
     // 没有的功能。现在改成如实描述：产出的是一份**可应用的编辑卡**，
     // 点了才记进当天餐记录，不点就什么都不写。
-    description:
-        '用本地菜单候选和目标先算一遍，再让 AI 只在这些候选里选；'
-        '结果是一张可应用的卡片——点「应用」才记进当天餐记录。',
+    description: '只从本地候选中选，应用后才记入当天。',
     icon: Icons.today_outlined,
     inputHint: '想吃什么或忌口（可留空；留空则只看本地目标）',
     promptBuilder: _dailyMenuPlanPrompt,
@@ -84,7 +82,7 @@ const List<AiStarter> aiStarters = [
     id: 'dish-guidance',
     group: AiStarterGroup.diet,
     title: '这道菜怎么吃',
-    description: '只解释怎么吃：份量、搭配与可替换方向；营养由本地目录计算，AI 不提供营养数字，也不写入任何记录。',
+    description: '只给份量与搭配建议，不提供营养数字。',
     icon: Icons.restaurant_outlined,
     inputHint: '菜名（可加说明，如「食堂的番茄炒蛋，少油」）',
     promptBuilder: _dishGuidancePrompt,
@@ -93,7 +91,7 @@ const List<AiStarter> aiStarters = [
     id: 'workout-plan',
     group: AiStarterGroup.training,
     title: '训练计划',
-    description: '只从本地动作库组织训练计划；确认后创建为训练计划，不会自动开始会话。',
+    description: '只从本地动作库组织，确认后创建计划。',
     icon: Icons.fitness_center,
     inputHint: '例如：一周 4 练，增肌，家里只有哑铃',
     promptBuilder: _workoutPlanPrompt,
@@ -102,7 +100,7 @@ const List<AiStarter> aiStarters = [
     id: 'meal-pairing',
     group: AiStarterGroup.training,
     title: '常吃搭配',
-    description: '你点名的本地食材 → AI 只在这些食材里组织搭配 → 本地重算营养（只读建议）。不上传餐食历史。',
+    description: '只用你点名的本地食材，本地重算营养。',
     icon: Icons.sync_alt,
     inputHint: '想搭配的本地食材，用顿号分隔，如：鸡胸肉、米饭、西兰花',
     promptBuilder: _mealPairingPrompt,

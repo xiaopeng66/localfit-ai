@@ -502,6 +502,62 @@ void main() {
     await drain(tester);
   });
 
+  testWidgets('添加菜品：可填「一份多少克」，写入后菜品带份量', (tester) async {
+    final venueId = await repository.createVenue(
+      name: '东区食堂',
+      campusName: '示范大学',
+    );
+    final windowId = await repository.createWindow(
+      venueId: venueId,
+      name: '一楼快餐',
+      openTime: '08:00',
+      closeTime: '13:30',
+    );
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(Key('canteen-add-dish-$windowId')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('canteen-dish-name')), '番茄炒蛋');
+    await tester.enterText(
+      find.byKey(const Key('canteen-dish-serving')),
+      '300',
+    );
+    await tester.tap(find.byKey(const Key('canteen-form-submit')));
+    await tester.pumpAndSettle();
+
+    final dishes = await repository.listDishes(windowId);
+    expect(dishes.single.name, '番茄炒蛋');
+    expect(dishes.single.servingGrams, 300);
+    await drain(tester);
+  });
+
+  testWidgets('添加菜品：份量 0 被拒，弹层内报错且不写库', (tester) async {
+    final venueId = await repository.createVenue(
+      name: '东区食堂',
+      campusName: '示范大学',
+    );
+    final windowId = await repository.createWindow(
+      venueId: venueId,
+      name: '一楼快餐',
+      openTime: '08:00',
+      closeTime: '13:30',
+    );
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(Key('canteen-add-dish-$windowId')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('canteen-dish-name')), '番茄炒蛋');
+    await tester.enterText(find.byKey(const Key('canteen-dish-serving')), '0');
+    await tester.tap(find.byKey(const Key('canteen-form-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('0–2000'), findsOneWidget);
+    expect(await repository.listDishes(windowId), isEmpty);
+    await drain(tester);
+  });
+
   testWidgets('点菜品 → 动作表：改名 / AI 分析（未分析时）/ 删除', (tester) async {
     final venueId = await repository.createVenue(
       name: '东区食堂',

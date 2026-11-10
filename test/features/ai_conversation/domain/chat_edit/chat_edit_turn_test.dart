@@ -222,7 +222,10 @@ void main() {
       expect(restored.hasProposed, isTrue);
     });
 
-    test('dismissed 行不进 outcomes（不占结果位）', () {
+    test('dismissed 行落库为 status=dismissed（docs/66 §5.8：重启不复活）', () {
+      // 【docs/66 §5.8 变更】旧断言「dismissed 不进 outcomes」锁住的正是要修
+      // 的缺陷：重启后 `_parseRow` 恢复成 proposed，用户忽略过的卡又能再应用。
+      // 现在 outcomes 写 `status: dismissed`（`ok` 布尔保留给旧 reader）。
       final turn = parseChatEditTurn(envelope, registry)!;
       final encoded = encodeChatEditTurn(
         ChatEditTurn(
@@ -234,7 +237,30 @@ void main() {
         ),
       );
       final outcomes = (jsonDecode(encoded) as Map)['outcomes'];
-      expect(outcomes, isNull);
+      expect(outcomes, isNotNull);
+      expect((outcomes! as List).single, containsPair('status', 'dismissed'));
+      // 回环：dismissed 还是 dismissed，不会复活成 proposed。
+      final restored = parseChatEditTurn(encoded, registry)!;
+      expect(restored.rows[0].status, ChatEditRowStatus.dismissed);
+      expect(restored.rows[1].status, turn.rows[1].status);
+    });
+  });
+
+  group('itemNotes 落库回环（每样食物的结果说明，2026-11-07）', () {
+    test('应用行的 itemNotes 编码进 outcomes 并原样还原', () {
+      final turn = parseChatEditTurn(envelope, registry)!;
+      final applied = turn.rows.first.copyWith(
+        status: ChatEditRowStatus.applied,
+        resultMessage: '已记录早餐，共 1 样。',
+        itemNotes: const {'米饭': '已记入今天的早餐'},
+      );
+      final encoded = encodeChatEditTurn(
+        ChatEditTurn(reply: turn.reply, rows: [applied]),
+      );
+      final restored = parseChatEditTurn(encoded, registry)!;
+      expect(restored.rows.single.status, ChatEditRowStatus.applied);
+      expect(restored.rows.single.itemNotes, {'米饭': '已记入今天的早餐'});
+      expect(restored.rows.single.resultMessage, '已记录早餐，共 1 样。');
     });
   });
 

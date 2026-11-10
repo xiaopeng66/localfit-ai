@@ -28,6 +28,7 @@ class NutritionRecordEnergyCard extends StatelessWidget {
     required this.target,
     required this.selectedDate,
     required this.now,
+    this.onEditTarget,
   });
 
   final NutritionValues consumed;
@@ -42,6 +43,9 @@ class NutritionRecordEnergyCard extends StatelessWidget {
   /// 与页面其余部分同一份时钟）。
   final DateTime now;
 
+  /// 点「依据」那一格 → 打开「手动指定营养目标」（null = 不接，不可点）。
+  final VoidCallback? onEditTarget;
+
   @override
   Widget build(BuildContext context) => LfEnergyCard(
     consumed: consumed,
@@ -52,5 +56,6 @@ class NutritionRecordEnergyCard extends StatelessWidget {
     remainingKey: const Key('nutrition-record-energy-remaining'),
     ratiosKey: const Key('nutrition-record-energy-ratios'),
     statusKey: const Key('nutrition-record-energy-status'),
+    onEditTarget: onEditTarget,
   );
 }

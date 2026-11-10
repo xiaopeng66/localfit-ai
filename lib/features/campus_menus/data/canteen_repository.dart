@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
 import 'package:localfit_ai/core/validation/entity_name.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/campus_menus/data/dish_image_store.dart';
 import 'package:localfit_ai/features/campus_menus/domain/ingredients.dart';
+import 'package:localfit_ai/features/campus_menus/domain/master_nutrition_sink.dart';
+import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 
 /// 食堂营养证据允许的 `origin` 三档（docs/40 §3.1）。
 ///
@@ -42,8 +45,7 @@ class CanteenRepository {
     required this.idGenerator,
     required this.clock,
     this.dishImageStore,
-    this.onDishUpserted,
-    this.onDishDeleted,
+    this.masterNutritionSink,
   });
 
   static const _catalogSnapshotSuffix = 'canteen-catalog';
@@ -56,42 +58,14 @@ class CanteenRepository {
   /// 未接线的装配），只影响孤儿文件，不影响数据正确性。
   final DishImageStore? dishImageStore;
 
-  /// 菜品**写入/更新**后的同步钩子（2026-10-24 用户：「加入菜品目录里不能
-  /// 自动加入菜品库吗…我希望他们就是一个库，不要分开，不要自己加入」）。
+  /// 批准后的当前营养**唯一的落点**（docs/67 §3.2）。
   ///
-  /// 组合根（`main.dart`）注入成「把这条菜自动写进菜品库」；默认 null =
-  /// 不同步（单测直接构造仓储时的旧行为逐字不变）。
+  /// 供应自己只保留分析证据（`menu_item_nutrition_evidence`，是可追溯的
+  /// 分析记录）；当前生效值写进主食物的修订。null = 未接线（单测/纯目录
+  /// 读写），此时只写证据，不假装已经更新了主库。
   ///
-  /// 钩在这里而不是各调用点：写入口有建菜 / 改名 / 换照片 / 改份量 / 写营养
-  /// 五处，漏一处就是「用户改了、菜品库没跟上」；而 campus_menus **不能**
-  /// import nutrition（分层门禁冻结了跨 feature 边），所以依赖方向由回调
-  /// 反转，不在数据层新增任何 import。
-  final Future<void> Function(String dishId)? onDishUpserted;
-
-  /// 菜品**删除**后的同步钩子：菜品库里的同源行跟随删除，一个库不留幽灵。
-  final Future<void> Function(String dishId)? onDishDeleted;
-
-  /// 调同步钩子；异常吞掉并如实记录取舍：同步的是**派生视图**，它失败不该
-  /// 让用户看到「菜没建成」的假象。下一次写入、或重新分析，会再同步一次。
-  Future<void> _notifyUpserted(String dishId) async {
-    final hook = onDishUpserted;
-    if (hook == null) return;
-    try {
-      await hook(dishId);
-    } on Object {
-      // 见上：派生视图同步失败不阻断目录写入。
-    }
-  }
-
-  Future<void> _notifyDeleted(String dishId) async {
-    final hook = onDishDeleted;
-    if (hook == null) return;
-    try {
-      await hook(dishId);
-    } on Object {
-      // 同 `_notifyUpserted`。
-    }
-  }
+  /// 端口定义在 campus_menus/domain，实现在 nutrition；依赖方向不反转。
+  final MasterNutritionSink? masterNutritionSink;
 
   /// 某个食堂的自建目录快照 id（内部父节点，不参与「新鲜度」语义）。
   static String catalogSnapshotIdFor(String venueId) =>
@@ -217,20 +191,13 @@ class CanteenRepository {
       evidenceByItem.putIfAbsent(evidence.menuItemId, () => evidence);
     }
     final dishesByWindow = <String, List<CanteenDish>>{};
+    final masterById = await _masterFoodsFor(dishRows);
     for (final row in dishRows) {
       (dishesByWindow[row.serviceId] ??= []).add(
-        CanteenDish(
-          id: row.id,
-          windowId: row.serviceId,
-          name: row.displayName,
-          stationName: row.stationName,
-          imagePath: row.imagePath,
-          evidenceGrade: row.evidenceGrade,
-          itemStatus: row.itemStatus,
+        _dishOf(
+          row,
           evidence: evidenceByItem[row.id],
-          servingGrams: row.servingGrams,
-          tags: decodeCanteenTags(row.tagsJson),
-          ingredients: CanteenIngredientInfo.decode(row.ingredientsJson),
+          master: row.foodId == null ? null : masterById[row.foodId],
         ),
       );
     }
@@ -253,6 +220,65 @@ class CanteenRepository {
       );
     }
     return result;
+  }
+
+  /// 一次批量取「供应链接的主食物」（docs/67 §3.3）：固定 1 条查询，
+  /// 不随供应条数增长。
+  Future<Map<String, Food>> _masterFoodsFor(List<MenuItem> rows) async {
+    final foodIds = {
+      for (final row in rows)
+        if (row.foodId != null) row.foodId!,
+    };
+    if (foodIds.isEmpty) return const {};
+    final masterRows = await (database.select(
+      database.foods,
+    )..where((t) => t.id.isIn(foodIds))).get();
+    return {for (final food in masterRows) food.id: food};
+  }
+
+  /// `MenuItems` 行 → [CanteenDish] 的**唯一映射**。
+  ///
+  /// 两个读取口（单窗口 `listDishes` / 批量 `listWindowsByVenue`）必须共用它：
+  /// 各写一遍时「主食物派生」只在其中一个里生效，地点统计就会显示
+  /// 「已分析 0」而列表里明明有营养（本轮实测踩到）。
+  CanteenDish _dishOf(
+    MenuItem row, {
+    required MenuItemNutritionEvidenceData? evidence,
+    required Food? master,
+  }) => CanteenDish(
+    id: row.id,
+    windowId: row.serviceId,
+    name: row.displayName,
+    stationName: row.stationName,
+    imagePath: row.imagePath,
+    evidenceGrade: row.evidenceGrade,
+    itemStatus: row.itemStatus,
+    evidence: evidence,
+    servingGrams: row.servingGrams,
+    tags: decodeCanteenTags(row.tagsJson),
+    ingredients: CanteenIngredientInfo.decode(row.ingredientsJson),
+    foodId: row.foodId,
+    masterPer100g: _masterValuesOf(master),
+  );
+
+  /// 主食物的每 100g 四项；不完整返回 null（**不填零**）。
+  static ({double kcal, double protein, double carbs, double fat})?
+  _masterValuesOf(Food? food) {
+    if (food == null) return null;
+    if (!isCompleteNutrition(
+      kcalPer100g: food.kcalPer100g,
+      proteinPer100g: food.proteinPer100g,
+      carbsPer100g: food.carbsPer100g,
+      fatPer100g: food.fatPer100g,
+    )) {
+      return null;
+    }
+    return (
+      kcal: food.kcalPer100g,
+      protein: food.proteinPer100g,
+      carbs: food.carbsPer100g,
+      fat: food.fatPer100g,
+    );
   }
 
   /// `catalogSnapshotIdFor` 的逆解析；格式不对（老数据/脏行）返回 null，
@@ -306,40 +332,26 @@ class CanteenRepository {
     );
   }
 
-  /// 删除地点：窗口/菜品/证据/内部目录快照随外键级联删除。
+  /// 删除地点：窗口/菜品/证据/所有菜单快照随地点一起删除。
   ///
-  /// venues 被 menu_snapshots.venueId 引用（无级联），所以先删快照行——
-  /// 它是本仓库为地点建的父节点，不是用户数据。
+  /// `menu_snapshots.venueId` 没有级联（历史导入/AI 快照也可能存在），所以
+  /// 必须先删除**地点名下全部快照**，不能只删本仓库生成的 catalog snapshot。
   Future<void> deleteVenue(String venueId) async {
-    // 菜品库的同源行要跟着走（一个库），所以先把这道地点下的菜品 id 收好。
-    final dishIds = await _dishIdsForVenue(venueId);
     await database.transaction(() async {
-      final snapshotId = catalogSnapshotIdFor(venueId);
       await (database.delete(
         database.menuSnapshots,
-      )..where((row) => row.id.equals(snapshotId))).go();
+      )..where((row) => row.venueId.equals(venueId))).go();
+      // sourceId 不是级联到 venue 的关系；快照删除后再删来源，避免留下空来源。
       await (database.delete(
+        database.menuSources,
+      )..where((row) => row.venueId.equals(venueId))).go();
+      final deleted = await (database.delete(
         database.venues,
       )..where((row) => row.id.equals(venueId))).go();
+      if (deleted != 1) {
+        throw StateError('食堂地点不存在或已被删除。');
+      }
     });
-    for (final dishId in dishIds) {
-      await _notifyDeleted(dishId);
-    }
-  }
-
-  Future<List<String>> _dishIdsForVenue(String venueId) async {
-    final windows =
-        await (database.select(database.menuServices)..where(
-              (row) => row.snapshotId.equals(catalogSnapshotIdFor(venueId)),
-            ))
-            .get();
-    if (windows.isEmpty) return const [];
-    final rows =
-        await (database.select(database.menuItems)..where(
-              (row) => row.serviceId.isIn(windows.map((w) => w.id).toList()),
-            ))
-            .get();
-    return [for (final row in rows) row.id];
   }
 
   // ── 窗口（menu_service）──────────────────────────────────────────────
@@ -388,15 +400,9 @@ class CanteenRepository {
 
   /// 删除窗口：菜品与营养证据级联删除。
   Future<void> deleteWindow(String windowId) async {
-    final dishes = await (database.select(
-      database.menuItems,
-    )..where((row) => row.serviceId.equals(windowId))).get();
     await (database.delete(
       database.menuServices,
     )..where((row) => row.id.equals(windowId))).go();
-    for (final dish in dishes) {
-      await _notifyDeleted(dish.id);
-    }
   }
 
   // ── 菜品（menu_item）────────────────────────────────────────────────
@@ -408,6 +414,22 @@ class CanteenRepository {
               ..orderBy([(row) => OrderingTerm.asc(row.createdAt)]))
             .get();
     return _mapDishes(rows);
+  }
+
+  /// 同窗口内按**精确名**找菜；找不到返回 null（AI 建菜查重用）。
+  ///
+  /// 判据 = trim 后全等：窗口内同名就是同一道菜，不猜、不模糊。
+  Future<CanteenDish?> findDishInWindow({
+    required String windowId,
+    required String name,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
+    final dishes = await listDishes(windowId);
+    for (final dish in dishes) {
+      if (dish.name.trim() == trimmed) return dish;
+    }
+    return null;
   }
 
   /// 菜单项行 → [CanteenDish]（含每项**最新**一条营养证据）。
@@ -426,20 +448,13 @@ class CanteenRepository {
     for (final evidence in evidenceRows) {
       evidenceByItem.putIfAbsent(evidence.menuItemId, () => evidence);
     }
+    final masterById = await _masterFoodsFor(rows);
     return [
       for (final row in rows)
-        CanteenDish(
-          id: row.id,
-          windowId: row.serviceId,
-          name: row.displayName,
-          stationName: row.stationName,
-          imagePath: row.imagePath,
-          evidenceGrade: row.evidenceGrade,
-          itemStatus: row.itemStatus,
+        _dishOf(
+          row,
           evidence: evidenceByItem[row.id],
-          servingGrams: row.servingGrams,
-          tags: decodeCanteenTags(row.tagsJson),
-          ingredients: CanteenIngredientInfo.decode(row.ingredientsJson),
+          master: row.foodId == null ? null : masterById[row.foodId],
         ),
     ];
   }
@@ -454,6 +469,11 @@ class CanteenRepository {
     required String name,
     String? stationName,
     String? imagePath,
+    String? foodId,
+    double? servingGrams,
+    // 给了克数就当"已知"（调用方是在这一步明确填的）；null 才退回 unknown。
+    ServingGramsStatus? servingGramsStatus,
+    ServingGramsSource servingGramsSource = ServingGramsSource.userInput,
   }) async {
     final dishName = name.trim();
     if (dishName.isEmpty) {
@@ -481,14 +501,20 @@ class CanteenRepository {
             imagePath: Value(imagePath),
             // 自建目录里菜名是用户输入的事实（不是从 AI 草案猜出来的）。
             evidenceGrade: const Value('C'),
-            itemStatus: const Value('unresolved'),
+            itemStatus: Value(foodId == null ? 'unresolved' : 'estimated'),
             createdAt: now,
             updatedAt: now,
+            foodId: Value(foodId),
+            servingGrams: Value(servingGrams),
+            servingGramsStatus: Value(
+              servingGrams == null
+                  ? ServingGramsStatus.unknown.storedValue
+                  : (servingGramsStatus ?? ServingGramsStatus.known)
+                        .storedValue,
+            ),
+            servingGramsSource: Value(servingGramsSource.storedValue),
           ),
         );
-    // 自动同步（2026-10-24）：此刻多半还没有营养，钩子是空操作；一旦这道菜
-    // 已有营养（例如测试预置了证据），它立刻出现在菜品库里。
-    await _notifyUpserted(id);
     return id;
   }
 
@@ -524,8 +550,6 @@ class CanteenRepository {
         updatedAt: Value(clock.nowUtc()),
       ),
     );
-    // 改名/换照片后同步：菜品库那一行跟着改，不新增第二张卡。
-    await _notifyUpserted(dishId);
   }
 
   /// 写入结构化标签与配料（docs/40 §2.5）：用户编辑走这条；AI 起草走
@@ -546,11 +570,125 @@ class CanteenRepository {
         servingGrams: setServingGrams
             ? Value(servingGrams)
             : const Value.absent(),
+        servingGramsStatus: setServingGrams
+            ? Value(
+                servingGrams == null
+                    ? ServingGramsStatus.unknown.storedValue
+                    : ServingGramsStatus.known.storedValue,
+              )
+            : const Value.absent(),
+        servingGramsSource: setServingGrams
+            ? Value(
+                servingGrams == null
+                    ? ServingGramsSource.legacyUnknown.storedValue
+                    : ServingGramsSource.userInput.storedValue,
+              )
+            : const Value.absent(),
         updatedAt: Value(clock.nowUtc()),
       ),
     );
-    // 份量改了 ⇒ 菜品库那一行的「每份」值要跟着重算（每份 = per100g × 克数）。
-    await _notifyUpserted(dishId);
+  }
+
+  /// 唯一的「已确认匹配」写法：先清掉该供应的旧匹配，再写一条 confirmed。
+  ///
+  /// 权威链接只有 `menu_items.food_id` 一个；匹配表是历史/审计视图。两处写入
+  /// 必须共用这一段，避免出现"两条 confirmed 不知用哪条"。
+  Future<void> _writeConfirmedMatch({
+    required String menuItemId,
+    required String foodId,
+    required DateTime now,
+  }) async {
+    await (database.delete(
+      database.menuItemFoodMatches,
+    )..where((row) => row.menuItemId.equals(menuItemId))).go();
+    await database
+        .into(database.menuItemFoodMatches)
+        .insert(
+          MenuItemFoodMatchesCompanion.insert(
+            id: idGenerator.next(),
+            menuItemId: menuItemId,
+            foodId: foodId,
+            confidence: const Value(1),
+            matchStatus: const Value('confirmed'),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+  }
+
+  /// 把供应链接到统一主库的一条食物（docs/67 §3.3、§5.2）。
+  ///
+  /// 链接后当前营养**从主食物生效修订派生**，不再复制一份到证据表；
+  /// 匹配表同时置 confirmed，保证"唯一权威链接"只有一个说法。
+  Future<void> linkSupplyToFood({
+    required String dishId,
+    required String foodId,
+  }) async {
+    final food =
+        await (database.select(database.foods)
+              ..where((row) => row.id.equals(foodId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (food == null) {
+      throw const CanteenWriteException('要引用的食物不存在。');
+    }
+    if (food.archivedAt != null) {
+      throw const CanteenWriteException('这条食物已归档，不能新挂窗。');
+    }
+    await database.transaction(() async {
+      final updated =
+          await (database.update(
+            database.menuItems,
+          )..where((row) => row.id.equals(dishId))).write(
+            MenuItemsCompanion(
+              foodId: Value(foodId),
+              itemStatus: const Value('estimated'),
+              evidenceGrade: const Value('B'),
+              updatedAt: Value(clock.nowUtc()),
+            ),
+          );
+      if (updated == 0) {
+        throw const CanteenWriteException('菜品不存在，可能已被删除。');
+      }
+      await _writeConfirmedMatch(
+        menuItemId: dishId,
+        foodId: foodId,
+        now: clock.nowUtc(),
+      );
+    });
+  }
+
+  /// 只改「一份多少克」：不动标签/配料/照片。
+  ///
+  /// `null` = 清空（回到「按 100g 估算」）；有值时菜品库的「每份」会按
+  /// `per100g × grams / 100` 重算。用户不填就保持未知，不替用户编份量。
+  Future<void> updateDishServingGrams(String dishId, double? grams) async {
+    if (grams != null && (!grams.isFinite || grams <= 0 || grams > 2000)) {
+      throw const CanteenWriteException('一份的克数要填 0–2000 之间的数字。');
+    }
+    final updated =
+        await (database.update(
+          database.menuItems,
+        )..where((row) => row.id.equals(dishId))).write(
+          MenuItemsCompanion(
+            servingGrams: Value(grams),
+            // 用户在这一步亲手填的克数才算"已知"；清空回到 unknown。
+            servingGramsStatus: Value(
+              grams == null
+                  ? ServingGramsStatus.unknown.storedValue
+                  : ServingGramsStatus.known.storedValue,
+            ),
+            servingGramsSource: Value(
+              grams == null
+                  ? ServingGramsSource.legacyUnknown.storedValue
+                  : ServingGramsSource.userInput.storedValue,
+            ),
+            updatedAt: Value(clock.nowUtc()),
+          ),
+        );
+    if (updated == 0) {
+      throw const CanteenWriteException('菜品不存在，可能已被删除。');
+    }
   }
 
   /// 删除菜品：营养证据级联删除；照片文件尽力清理（store 未接线时只
@@ -566,7 +704,6 @@ class CanteenRepository {
       database.menuItems,
     )..where((row) => row.id.equals(dishId))).go();
     // 菜品库的同源行跟着删（一个库不留幽灵）。
-    await _notifyDeleted(dishId);
   }
 
   /// 该窗口内、尚未做营养分析的菜品（AI 分析入口的输入集合）。
@@ -606,6 +743,33 @@ class CanteenRepository {
     }
     if (!kCanteenNutritionOrigins.contains(origin)) {
       throw const CanteenWriteException('营养来源只能是 AI 估算 / 食物库引用 / 用户输入。');
+    }
+    final item = await (database.select(
+      database.menuItems,
+    )..where((row) => row.id.equals(dishId))).getSingleOrNull();
+    if (item == null) {
+      throw const CanteenWriteException('菜品不存在，可能已被删除。');
+    }
+    validateDishNutrition(
+      name: item.displayName,
+      kcal: kcalPer100g,
+      proteinG: proteinPer100g,
+      carbsG: carbsPer100g,
+      fatG: fatPer100g,
+    );
+    if (!confidence.isFinite || confidence < 0 || confidence > 1) {
+      throw const CanteenWriteException('置信度必须在 0–1 之间。');
+    }
+    if (kcalMin != null &&
+        (!kcalMin.isFinite || kcalMin < 0 || kcalMin > 900)) {
+      throw const CanteenWriteException('热量下限必须在 0–900 kcal 之间。');
+    }
+    if (kcalMax != null &&
+        (!kcalMax.isFinite || kcalMax < 0 || kcalMax > 900)) {
+      throw const CanteenWriteException('热量上限必须在 0–900 kcal 之间。');
+    }
+    if (kcalMin != null && kcalMax != null && kcalMin > kcalMax) {
+      throw const CanteenWriteException('热量下限不能高于上限。');
     }
     final now = clock.nowUtc();
     await database.transaction(() async {
@@ -651,14 +815,64 @@ class CanteenRepository {
           updatedAt: Value(stamped),
         ),
       );
+
+      // 批准后的当前营养只有一个生效位置：主食物的新修订。证据行是分析
+      // 记录（可追溯），不是第二个当前事实。同一事务，失败一起回滚。
+      final sink = masterNutritionSink;
+      if (sink != null) {
+        final linked =
+            await (database.select(database.menuItems)
+                  ..where((row) => row.id.equals(dishId))
+                  ..limit(1))
+                .getSingleOrNull();
+        final values = ApprovedPer100g(
+          kcalPer100g: kcalPer100g,
+          proteinPer100g: proteinPer100g,
+          carbsPer100g: carbsPer100g,
+          fatPer100g: fatPer100g,
+        );
+        var foodId = linked?.foodId;
+        if (foodId == null) {
+          // 还没有主食物的供应被批准分析：**建库并链接**。否则目录按证据
+          // 说「已分析」、记餐/推荐按主库说「待分析」，同一条供应两处读数
+          // 打架（docs/67 §6.2）。
+          foodId = await sink.createMasterFromAnalysis(
+            displayName: linked?.displayName ?? '',
+            values: values,
+            origin: origin,
+            isEstimated: origin == 'ai_estimate',
+            rawValuesJson: sourceText,
+          );
+          if (foodId != null) {
+            await (database.update(
+              database.menuItems,
+            )..where((row) => row.id.equals(dishId))).write(
+              MenuItemsCompanion(
+                foodId: Value(foodId),
+                updatedAt: Value(stamped),
+              ),
+            );
+            await _writeConfirmedMatch(
+              menuItemId: dishId,
+              foodId: foodId,
+              now: stamped,
+            );
+          }
+        } else {
+          await sink.applyApprovedNutrition(
+            foodId: foodId,
+            values: values,
+            origin: origin,
+            isEstimated: origin == 'ai_estimate',
+            rawValuesJson: sourceText,
+          );
+        }
+      }
     });
-    // 营养写完 ⇒ 自动进菜品库（2026-10-24 用户：「就是一个库，不要自己加入」）。
-    await _notifyUpserted(dishId);
   }
 
   /// 按 id 取一条菜品（含最新营养证据）；不存在返回 null。
   ///
-  /// 自动同步用它把刚写完的那条菜读回来（`createDish` 只回 id）。
   Future<CanteenDish?> findDish(String dishId) async {
     final row =
         await (database.select(database.menuItems)
@@ -858,6 +1072,8 @@ class CanteenDish {
     this.servingGrams,
     this.tags = const [],
     this.ingredients = CanteenIngredientInfo.empty,
+    this.foodId,
+    this.masterPer100g,
   });
 
   final String id;
@@ -884,15 +1100,34 @@ class CanteenDish {
   /// 配料三层来源（用户 > AI > 词典）；过敏原由它推导。
   final CanteenIngredientInfo ingredients;
 
+  /// 权威主引用（docs/67 §3.3）。非空 = 当前营养从主食物生效修订派生。
+  final String? foodId;
+
+  /// 所链主食物的每 100g 四项（不完整时为 null）。
+  final ({double kcal, double protein, double carbs, double fat})?
+  masterPer100g;
+
   bool get hasPhoto => imagePath != null && imagePath!.isNotEmpty;
 
   /// 有代表值才算「已分析」：只写了区间的历史行读取侧当无营养（不取中点）。
-  bool get hasNutrition => evidence?.kcalPer100g != null;
+  ///
+  /// 否则只有热量的菜会显示「已分析」却永远进不了菜品库。
+  bool get hasNutrition {
+    if (masterPer100g != null) return true;
+    final value = evidence;
+    return value != null &&
+        value.kcalPer100g != null &&
+        value.proteinPer100g != null &&
+        value.carbsPer100g != null &&
+        value.fatPer100g != null;
+  }
 
-  double? get kcalPer100g => evidence?.kcalPer100g;
-  double? get proteinPer100g => evidence?.proteinPer100g;
-  double? get carbsPer100g => evidence?.carbsPer100g;
-  double? get fatPer100g => evidence?.fatPer100g;
+  // 主食物是**当前事实**；证据是分析记录（没有链接时才回退到它）。
+  double? get kcalPer100g => masterPer100g?.kcal ?? evidence?.kcalPer100g;
+  double? get proteinPer100g =>
+      masterPer100g?.protein ?? evidence?.proteinPer100g;
+  double? get carbsPer100g => masterPer100g?.carbs ?? evidence?.carbsPer100g;
+  double? get fatPer100g => masterPer100g?.fat ?? evidence?.fatPer100g;
 }
 
 /// 食堂菜结构化标签的编解码（`menu_items.tags_json`）。

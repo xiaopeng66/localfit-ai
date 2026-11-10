@@ -5,20 +5,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-/// 2.0-1 schema v11 migration tests: the food-catalog tables must appear,
-/// existing foods must get a correct backfilled `state`, and all pre-v11
-/// data must survive the upgrade.
+/// v10 → current schema: catalog tables and food state are introduced at v11;
+/// schema 31 then gives each complete food an active per-100g baseline revision
+/// (docs/67 §3.2, docs/68 §2). Historical meal snapshots must never be recomputed.
 void main() {
   test(
-    'upgrades a populated v10 database to v11 with catalog tables',
+    'upgrades v10 with active baseline revisions and unchanged meal snapshots',
     () async {
       final directory = await Directory.systemTemp.createTemp('localfit-v11-');
       final file = File(
         '${directory.path}${Platform.pathSeparator}localfit.sqlite',
       );
       _createV10Database(file.path);
+      final raw = sqlite.sqlite3.open(file.path);
+      late Map<String, Object?> mealBefore;
+      late Map<String, Object?> itemBefore;
+      try {
+        mealBefore = Map.of(raw.select('SELECT * FROM meals').single);
+        itemBefore = Map.of(raw.select('SELECT * FROM meal_items').single);
+      } finally {
+        raw.dispose();
+      }
 
-      final database = AppDatabase(NativeDatabase(file));
+      var database = AppDatabase(NativeDatabase(file));
       addTearDown(() async {
         await database.close();
         await directory.delete(recursive: true);
@@ -42,24 +51,83 @@ void main() {
       expect(foods.every((food) => food.licenseStatus == 'unknown'), isTrue);
       expect(foods.every((food) => food.locale == null), isTrue);
 
-      // 新目录表存在且为空。
+      // schema 31：完整的旧主食物必须各有且仅有一条生效 baseline，
+      // 主表仍是原来的四项，不把每 100g 错当每份再换算。
+      const expectedNutrition = <String, List<double>>{
+        'food-seed': [116, 2.6, 25.9, 0.3],
+        'food-user': [200, 10, 20, 5],
+      };
+      final revisions = await database
+          .select(database.foodNutritionRevisions)
+          .get();
+      expect(revisions, hasLength(2));
+      for (final food in foods) {
+        final revision = revisions.singleWhere((row) => row.foodId == food.id);
+        expect(food.currentRevisionId, revision.id);
+        expect(revision.revisionNumber, 1);
+        expect(revision.origin, 'baseline');
+        expect(revision.nutritionBasis, 'per100g');
+        expect(revision.basisServingGrams, isNull);
+        expect(revision.basisAssumed, isFalse);
+        expect(revision.isEstimated, isFalse);
+        expect([
+          food.kcalPer100g,
+          food.proteinPer100g,
+          food.carbsPer100g,
+          food.fatPer100g,
+        ], expectedNutrition[food.id]);
+        expect([
+          revision.kcalPer100g,
+          revision.proteinGPer100g,
+          revision.carbsGPer100g,
+          revision.fatGPer100g,
+        ], expectedNutrition[food.id]);
+        expect(revision.fiberPer100g, isNull);
+        expect(revision.sodiumMgPer100g, isNull);
+        expect(revision.vitaminDMcgPer100g, isNull);
+      }
       expect(await database.select(database.foodAliases).get(), isEmpty);
-      expect(
-        await database.select(database.foodNutritionRevisions).get(),
-        isEmpty,
-      );
       expect(await database.select(database.foodPortions).get(), isEmpty);
       expect(await database.select(database.foodEvidence).get(), isEmpty);
       expect(await database.select(database.foodImportJobs).get(), isEmpty);
 
-      // 既有数据不受影响：meals/meal_items 快照保留。
+      // 对照所有历史列，包括名称/克数/四项/审计时间；快照热量故意是
+      // 100 而不是主食物的 116，能抓到迁移误重算历史的缺陷。
       expect(
-        (await database.select(database.meals).get()).single.id,
-        'meal-v10',
+        (await database.customSelect('SELECT * FROM meals').getSingle()).data,
+        mealBefore,
+      );
+      final itemAfter =
+          (await database.customSelect('SELECT * FROM meal_items').getSingle())
+              .data;
+      expect({
+        for (final column in itemBefore.keys) column: itemAfter[column],
+      }, itemBefore);
+      expect(itemAfter['source_type'], 'food');
+      expect(itemAfter['source_id'], 'food-seed');
+      for (final column in const [
+        'supply_id',
+        'nutrition_revision_id',
+        'servings',
+        'serving_grams',
+      ]) {
+        expect(itemAfter[column], isNull, reason: '历史来源未知时不得编造 $column');
+      }
+      expect(
+        await database.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+
+      // 重开已迁移的真文件，不能再补一条 baseline 或换掉生效指针。
+      await database.close();
+      database = AppDatabase(NativeDatabase(file));
+      expect(
+        await database.select(database.foodNutritionRevisions).get(),
+        unorderedEquals(revisions),
       );
       expect(
-        (await database.select(database.mealItems).get()).single.kcalSnapshot,
-        100,
+        await database.select(database.foods).get(),
+        unorderedEquals(foods),
       );
     },
   );

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
-import 'package:localfit_ai/app/design/lf_insets.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/app/design/widgets/app_error_text.dart';
@@ -10,9 +9,15 @@ import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
 import 'package:localfit_ai/app/design/widgets/app_snack_bar.dart';
 import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
+import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_empty_state.dart';
+import 'package:localfit_ai/app/design/widgets/lf_float_actions.dart';
 import 'package:localfit_ai/app/design/widgets/skeleton_box.dart';
+import 'package:localfit_ai/features/daily_plan/domain/planning_constraints.dart';
 import 'package:localfit_ai/features/nutrition/application/build_daily_meal_recommendation.dart';
+import 'package:localfit_ai/features/nutrition/application/supply_dish_candidates.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
+import 'package:localfit_ai/features/nutrition/application/swap_daily_set_with_ai.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/retrieval/application/feedback_store.dart';
@@ -21,11 +26,16 @@ import 'package:localfit_ai/features/retrieval/data/feedback_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/daily_meal_set_card.dart';
-import 'package:localfit_ai/features/nutrition/presentation/sections/dish_card.dart';
+import 'package:localfit_ai/features/nutrition/presentation/sections/dish_visuals.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/degradation_matrix.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_search_field.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_search_results.dart';
 import 'package:localfit_ai/features/retrieval/application/dish_search.dart';
+
+typedef _MenuCatalogData = ({
+  List<DishRecord> dishes,
+  List<SupplyCatalogItem>? supplies,
+});
 
 /// 「菜单」sub-tab（docs/28 §4.1）：**段头 + 今日三餐整套推荐**。
 ///
@@ -47,9 +57,8 @@ import 'package:localfit_ai/features/retrieval/application/dish_search.dart';
 /// 组件之上（用户 2026-10-03 要求五个界面位置一致），所以本页的滚动内容从
 /// 段头块开始（顶距 12 = A `.page{padding-top:12px}`）。
 ///
-/// 主来源是 [DishLibraryRepository]（docs/21 §5.3 数据源裁决）。**不得**渲染
-/// `MenuItems`——那张表的语义是「菜单上印着的名字」，证据等级低且可能没有
-/// 营养值。
+/// 主来源是 [SupplyCatalogRepository] 的全量供应；无主链接或份量未知也可
+/// 如实展示，但不当作可计算推荐。未接供应源时兼容旧菜品库只读视图。
 ///
 /// 三餐推荐由 [buildDailyMealRecommendation] 算出（本地、确定性、零 AI）：
 /// 同一份数据每次进页面都给同一组推荐，用户不会觉得「它在随机挑」。
@@ -58,15 +67,23 @@ class MenuDishList extends StatefulWidget {
     super.key,
     required this.repository,
     this.mealRepository,
+    this.loadDietaryConstraints,
     this.now,
     this.onAddToMeal,
     this.onOpenCanteen,
+    this.onSwapSetWithAi,
     this.onAskAiForSet,
     this.semantic,
     this.searchService = const DishSearchService(),
     this.searchDebounce = const Duration(milliseconds: 200),
     this.addClock,
+    this.supplyCatalog,
   });
+
+  /// 全量供应用于展示；本地推荐只取完整营养与有效份量（估计值明确标约），
+  /// AI 自动推荐仍只接受 known + trusted。预算统一按一份比较。
+  /// null = 未接线，退回菜品库旧只读视图。
+  final SupplyCatalogRepository? supplyCatalog;
 
   /// null = 未接线：只渲染 hero 与空态（不退回拿别的表冒充菜品）。
   final DishLibraryRepository? repository;
@@ -74,8 +91,15 @@ class MenuDishList extends StatefulWidget {
   /// 当日目标与「今天已经吃过什么」的来源（三餐预算 + 已记录餐次）。
   /// null = 没有目标也没有记录，推荐退化成「只看证据等级 + 菜名」。
   final MealRepository? mealRepository;
+
+  /// 设置里的饮食约束（标签 / 忌口）。null = 未接线，按空约束推荐。
+  final Future<PlanningConstraints> Function()? loadDietaryConstraints;
   final DateTime? now;
-  final Future<void> Function(DishRecord dish)? onAddToMeal;
+
+  /// 加入一餐；`slotOverride` 是**用户点的那一餐**（推荐段），优先于菜品
+  /// 自己在库里的默认餐次。
+  final Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
+  onAddToMeal;
 
   /// 「加入餐」冷却用的时钟（测试注入；null = 系统时间）。
   final DateTime Function()? addClock;
@@ -83,16 +107,18 @@ class MenuDishList extends StatefulWidget {
   /// 「管理食堂目录」二级入口（docs/22 裁决 ②）。null → 不渲染该入口。
   final VoidCallback? onOpenCanteen;
 
-  /// 「换一整套」在 **AI 已配置**时的分支（D3 裁决第一条）：跳到 AI 对话页
-  /// 并预填「生成今日吃法」，由模型用 `meal.create` 逐餐重配。
+  /// 「换一整套」的 **AI 内联重配**（R-4，2026-10-29 用户：点击换一套后
+  /// **不要跳转 AI 对话界面**，显示加载中、在原界面直接问 AI；内容必须
+  /// 来源于食堂目录，AI 限定检索、不许随机生成或用食物库食材）。
   ///
-  /// **返回值**：`true` = 已交给 AI（调用方不要再做本地重排）；
-  /// `false` = AI 其实没配好（配置在组合根查证），调用方继续本地重排 + 实话。
-  /// null = 未接线。
-  ///
-  /// 【为什么是跳转而不是就地调 AI】本组件没有 AI 服务依赖（构造函数里只有
-  /// 仓储与几个回调）。跳转复用**已经可用**的 AI 链路（`daily-menu-plan`
-  /// starter → 可应用的编辑卡），不新造第二条 AI 路径。
+  /// 返回值：`MenuSetSwapResult`（已本地硬校验的每餐菜 + 被过滤条数）；
+  /// null = AI 未配置/食堂目录没有可用菜/输出不可解析 —— 调用方回退本地
+  /// 重排并如实说明。**本组件不写任何餐记录**（换的是推荐表，不是账）。
+  final Future<MenuSetSwapResult?> Function()? onSwapSetWithAi;
+
+  /// 【2026-11-10 退役】空态「让 AI 生成今日菜单」已改为**内联**调
+  /// [onSwapSetWithAi]（在本界面生成推荐清单，不跳对话页、不写库）。
+  /// 该回调保留参数位但组件不再使用；组合根清理后可移除。
   final Future<bool> Function()? onAskAiForSet;
 
   /// 语义检索运行时（docs/43 A1）：null = 未接线——搜索自动退关键词 + 标签，
@@ -121,6 +147,21 @@ class _MenuDishListState extends State<MenuDishList> {
   /// build 时写入，纯 UI 状态。
   Map<MealSlot, DailyMealSetSlotView> _viewsOfCurrentPlan = const {};
 
+  /// 【R-4】AI 内联换一套：进行中标志（按钮就地显示「挑菜中…」）。
+  bool _swapping = false;
+
+  /// 【R-4】AI 选中的每餐菜（已本地硬校验）。空 = 用本地候选榜。
+  /// 纯 UI 状态：不写库、离开页面即失效。
+  Map<MealSlot, List<DishRecord>> _aiPicks = const {};
+
+  /// 全量本地计划，判断是否真的存在可重排候选，不拿供应条数冒充候选。
+  DailyMealRecommendation? _localPlan;
+
+  /// 设置里的饮食约束。首帧为空（不误过滤），加载完再刷新推荐；从别的
+  /// 分支（设置页改完约束）切回来时，`didChangeDependencies` 会重读。
+  PlanningConstraints _constraints = const PlanningConstraints();
+  bool _constraintsVisible = true;
+
   DateTime get _now => widget.now ?? DateTime.now();
 
   // 2026-10-24（`RV4-P2-09`，已锁裁决 D2）：陈旧提示 + 手动同步整族退役。
@@ -128,7 +169,7 @@ class _MenuDishListState extends State<MenuDishList> {
   // （`DishLibraryRepository.upsertBySource` 跳过 `userEdited`），
   // 「食堂营养有更新 + 同步」这套交互已无对象。
 
-  /// 推荐反馈（「不错 / 换一个」）：写 `app_settings` KV，不新增表。
+  /// 推荐反馈（「不错 / 换一整套」）：写 `app_settings` KV，不新增表。
   FeedbackRepository? get _feedbackRepository {
     final repository = widget.repository;
     return repository == null
@@ -136,39 +177,106 @@ class _MenuDishListState extends State<MenuDishList> {
         : FeedbackRepository(database: repository.database);
   }
 
-  /// 记一次显式反馈。**失败不打扰用户**：反馈是锦上添花，不该挡住浏览。
-  Future<void> _recordFeedback(DishRecord dish, FeedbackVote vote) async {
+  /// 已加载的反馈存储。它有两个用途：
+  /// 1. 重进页面时把点过「不错」的菜显示成「已记下」（不再只活在 SnackBar）；
+  /// 2. 传给推荐引擎做同级内软排序——此前反馈只写不读，按钮等于没有作用。
+  FeedbackStore? _feedback;
+
+  /// 点过「不错」的菜名（归一化）。`DailyMealSetCard` 用它决定按钮外观。
+  Set<String> get _likedDishNames => _feedback?.likedNames ?? const {};
+
+  Future<void> _loadFeedback() async {
     final repository = _feedbackRepository;
     if (repository == null) return;
     try {
-      await repository.record(dish.name, vote);
+      final store = await repository.load();
+      if (!mounted) return;
+      setState(() => _feedback = store);
     } on Object {
-      // 忽略：反馈是软排序信号，不承载记账正确性。
+      // 反馈读失败不影响浏览；推荐退化为中性排序。
+    }
+  }
+
+  /// 记一次显式反馈并同步内存里的 store。
+  ///
+  /// 返回 false = 没有落库（未接线/写失败）。调用方据此决定是否显示
+  /// 「已记下」——没写进去却把按钮改成已记下，是在骗用户。
+  Future<bool> _recordFeedback(DishRecord dish, FeedbackVote vote) async {
+    final repository = _feedbackRepository;
+    if (repository == null) return false;
+    try {
+      final store = await repository.record(dish.name, vote);
+      if (mounted) setState(() => _feedback = store);
+      return true;
+    } on Object {
+      // 反馈是软排序信号，不承载记账正确性：失败只影响按钮反馈。
+      return false;
     }
   }
 
   Future<void> _like(BuildContext context, DishRecord dish) async {
-    await _recordFeedback(dish, FeedbackVote.like);
+    final saved = await _recordFeedback(dish, FeedbackVote.like);
     if (!context.mounted) return;
-    AppSnackBar.show(
-      context,
-      '已记下「不错」，以后同类会多推荐',
-      icon: AppSnackBar.successIcon,
-    );
+    if (!saved) {
+      AppSnackBar.show(context, '没有记下，请重试。', icon: AppSnackBar.errorIcon);
+    }
+    // 成功时不再弹 SnackBar：按钮就地变成「已记下」，比底部一闪而过的提示
+    // 更可靠（用户原话：「我要是没看到不就完了吗」）。
   }
 
   @override
   void initState() {
     super.initState();
     _bindStream();
+    unawaited(_loadFeedback());
+    unawaited(_loadConstraints());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 设置页在另一个分支里：改完饮食约束切回饮食页时，本组件仍常驻。
+    // TickerMode 由 shell 的分支可见性翻转，借它重读一次，不靠手动刷新。
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (!_constraintsVisible && visible) {
+      unawaited(_loadConstraints());
+    }
+    _constraintsVisible = visible;
+  }
+
+  Future<void> _loadConstraints() async {
+    final loader = widget.loadDietaryConstraints;
+    if (loader == null) return;
+    try {
+      final loaded = await loader();
+      if (!mounted) return;
+      if (loaded.dietaryLabelsJson == _constraints.dietaryLabelsJson &&
+          loaded.allergenAvoidancesJson ==
+              _constraints.allergenAvoidancesJson) {
+        return;
+      }
+      setState(() => _constraints = loaded);
+    } on Object {
+      // 读失败按空约束继续推荐；不因设置读取失败把菜单卡住。
+    }
   }
 
   @override
   void didUpdateWidget(MenuDishList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.supplyCatalog != widget.supplyCatalog) {
       _bindStream();
       _lastDishes = const [];
+      _aiPicks = const {};
+      _swapOffset.clear();
+      _localPlan = null;
+      _feedback = null;
+      unawaited(_loadFeedback());
+    }
+    if (oldWidget.loadDietaryConstraints != widget.loadDietaryConstraints) {
+      _constraints = const PlanningConstraints();
+      unawaited(_loadConstraints());
     }
   }
 
@@ -176,10 +284,29 @@ class _MenuDishListState extends State<MenuDishList> {
   /// 在 build 里现取等于「每次重建都换流 → 重订阅 → 立刻 emit 新的 List
   /// 实例 → 又触发陈旧刷新 → setState」，页面永远 settle 不下来
   /// （实测一次 pumpAndSettle 触发 3001 次刷新）。
-  Stream<List<DishRecord>>? _dishStream;
+  Stream<_MenuCatalogData>? _dishStream;
 
+  // 流收到新事实就使在途 AI 快照失效，不等下一帧 build 才计版本。
+  int _catalogGeneration = 0;
+
+  /// 显示层保留全量供应；可计算池单独映射，不用 0 千卡哨兵填补列表。
   void _bindStream() {
-    _dishStream = widget.repository?.watchAll();
+    _catalogGeneration++;
+    final catalog = widget.supplyCatalog;
+    if (catalog == null) {
+      _dishStream = widget.repository?.watchAll().map((dishes) {
+        _catalogGeneration++;
+        return (dishes: dishes, supplies: null);
+      });
+      return;
+    }
+    _dishStream = catalog.watchAll().map((supplies) {
+      _catalogGeneration++;
+      return (
+        dishes: supplyDishCandidates(supplies, now: _now, strict: false),
+        supplies: supplies,
+      );
+    });
   }
 
   @override
@@ -262,19 +389,27 @@ class _MenuDishListState extends State<MenuDishList> {
 
   @override
   Widget build(BuildContext context) {
-    final repository = widget.repository;
-    if (repository == null) {
+    if (_dishStream == null) {
       return CustomScrollView(
         slivers: [
           _headerSliver(
             child: const _MenuHeader(plannedMeals: 0, plannedKcal: null),
           ),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             // 缺陷 ㉓：空态统一 LfEmptyState（A 的图标块语言）。
+            // E-1（docs/64）：给一个能做的事——去食堂目录先建菜品。
             child: LfEmptyState(
               icon: Icons.menu_book_outlined,
               title: '菜品库尚未配置。',
               message: '接线后这里会列出可加入的菜品。',
+              action: widget.onOpenCanteen == null
+                  ? null
+                  : LfTextButton(
+                      key: const Key('menu-empty-action'),
+                      icon: Icons.storefront_outlined,
+                      label: '去食堂目录',
+                      onPressed: widget.onOpenCanteen,
+                    ),
             ),
           ),
           ..._pageEnd(),
@@ -282,8 +417,8 @@ class _MenuDishListState extends State<MenuDishList> {
         ],
       );
     }
-    return StreamBuilder<List<DishRecord>>(
-      stream: _dishStream ??= repository.watchAll(),
+    return StreamBuilder<_MenuCatalogData>(
+      stream: _dishStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return CustomScrollView(
@@ -302,8 +437,11 @@ class _MenuDishListState extends State<MenuDishList> {
             ],
           );
         }
-        final dishes = snapshot.data;
+        final data = snapshot.data;
+        final dishes = data?.dishes;
         if (dishes != null && !identical(dishes, _lastDishes)) {
+          // 主链接、份量或营养变化后不能继续显示旧 AI 快照。
+          _aiPicks = const {};
           _lastDishes = dishes;
           // 只在**数据真的换了实例**时重跑搜索：写在每次 build 里会形成
           // 「检索 → notifyListeners → setState → 再检索」的死循环（实测
@@ -336,7 +474,7 @@ class _MenuDishListState extends State<MenuDishList> {
             ],
           );
         }
-        return _withMealFacts(dishes);
+        return _withMealFacts(data!);
       },
     );
   }
@@ -361,20 +499,12 @@ class _MenuDishListState extends State<MenuDishList> {
   /// 是否可用无关——原来它挂在 hero 卡上时同样是无条件渲染的。
   List<Widget> _pageEnd() {
     final c = context.lf;
-    final onOpenCanteen = widget.onOpenCanteen;
     return [
-      if (onOpenCanteen != null)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              LfDimens.pagePadding,
-              LfDimens.spaceLarge,
-              LfDimens.pagePadding,
-              0,
-            ),
-            child: _CanteenLink(onTap: onOpenCanteen),
-          ),
-        ),
+      // 【需求 13a（2026-10-25）】「管理食堂目录」的页尾 `.list-link` 行
+      // **整枚迁出**：用户要它挪到**右下浮动按钮**。浮动按钮由页面壳
+      // （`NutritionPage` 的 Stack）画，与记录页 FAB 同一层——它不该跟着
+      // 列表滚走（原来滚到页面底部才看得见）。`cta-manage-canteen` 的 Key
+      // 与回调一起迁到那枚浮钮上。
       // A 的 `.subtle-note`（`styles.css:162`，11 muted）中**在本仓成立**的半句：
       // A 的前半句「候选与营养值为演示样例」是原型免责声明，本仓的数据是真实
       // 分析结果，搬过来是假话（D28）。没有加入动作时不写这句（说了也没用）。
@@ -397,32 +527,126 @@ class _MenuDishListState extends State<MenuDishList> {
     ];
   }
 
+  /// 不可自动推荐的供应仍须可见；展示事实，不塞进非空营养的 DishRecord。
+  List<Widget> _supplyStatusSlivers(
+    List<SupplyCatalogItem>? supplies, {
+    String query = '',
+  }) {
+    if (supplies == null) return const [];
+    final normalized = query.trim().toLowerCase();
+    final incomplete = supplies
+        .where(
+          (supply) =>
+              !supply.isAutoRecommendable &&
+              (normalized.isEmpty ||
+                  '${supply.displayName} ${supply.windowLabel}'
+                      .toLowerCase()
+                      .contains(normalized)),
+        )
+        .toList();
+    if (incomplete.isEmpty) return const [];
+    final colors = context.lf;
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(
+          LfDimens.pagePadding,
+          LfDimens.cardGap,
+          LfDimens.pagePadding,
+          0,
+        ),
+        sliver: SliverList.list(
+          children: [
+            Text('供应资料待补充', style: LfText.title),
+            Text(
+              '以下供应真实存在，但营养或每份克数尚待确认；不会进入 AI 自动推荐。',
+              style: LfText.label.copyWith(color: colors.mutedForeground),
+            ),
+            for (final supply in incomplete)
+              Padding(
+                key: Key('nutrition-menu-supply-${supply.id}'),
+                padding: const EdgeInsets.symmetric(
+                  vertical: LfDimens.spaceSmall,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(supply.displayName, style: LfText.title),
+                    Text(
+                      '${supply.windowLabel} · ${supply.servingWindow}',
+                      style: LfText.label.copyWith(
+                        color: colors.mutedForeground,
+                      ),
+                    ),
+                    Text(_supplyStatus(supply), style: LfText.label),
+                    if (supply.isAnalyzable && !supply.foodArchived)
+                      Text(
+                        '${_supplyNumber(supply.kcalPer100g!)} kcal/100g',
+                        style: LfText.label,
+                      ),
+                  ],
+                ),
+              ),
+            if (widget.onOpenCanteen != null)
+              LfTextButton(
+                key: const Key('nutrition-menu-complete-supplies'),
+                icon: Icons.storefront_outlined,
+                label: '去食堂目录补营养与每份克数',
+                onPressed: widget.onOpenCanteen,
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  static String _supplyNumber(double value) =>
+      value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1);
+
+  static String _supplyStatus(SupplyCatalogItem supply) {
+    if (supply.foodArchived) return '主食物已归档，请核对营养与份量。';
+    if (!supply.isAnalyzable) return '待补营养：尚未链接主食物或营养不完整。';
+    if (!supply.canRecordByServing || supply.kcalPerServing?.isFinite != true) {
+      return '份量未知，请补每份克数；暂不计算每份营养。';
+    }
+    final grams = _supplyNumber(supply.servingGrams!);
+    if (supply.state == SupplyNutritionState.servingEstimated) {
+      return '估计份量 · 约 $grams g/份，加入餐前请确认。';
+    }
+    return '$grams g/份 · 份量来源未确认，请先核对。';
+  }
+
   /// 把「当日目标」与「今天已记录的餐食」读进来，再交给纯函数算推荐。
   ///
   /// 两路数据都来自 `MealRepository`；未接线时按「没有目标、没有记录」处理
   /// （推荐仍然给得出，只是不按预算挑、不显示已安排餐次）。
-  Widget _withMealFacts(List<DishRecord> dishes) {
+  Widget _withMealFacts(_MenuCatalogData data) {
     final meals = widget.mealRepository;
-    if (meals == null) return _body(dishes, const {}, null);
+    if (meals == null) return _body(data, const {}, null, null);
     final date = formatLocalDate(_now);
     return StreamBuilder<DailyNutritionSummary>(
       stream: meals.watchNutritionForDate(date),
       builder: (context, targetSnapshot) => StreamBuilder<List<MealRecord>>(
         stream: meals.watchForDate(date),
         builder: (context, mealSnapshot) => _body(
-          dishes,
+          data,
           recordedKcalBySlot(mealSnapshot.data ?? const []),
+          // 【需求 1（2026-10-25）】三餐推荐的口径统一为**区间**：
+          // 上限（旧参数名保留）+ 下限一起传，预算按 `target.min/max − 已摄入`
+          // 分配（不许硬编码，也不许只按上限估）。
           targetSnapshot.data?.target?.calorieMaxKcal,
+          targetSnapshot.data?.target?.calorieMinKcal,
         ),
       ),
     );
   }
 
   Widget _body(
-    List<DishRecord> dishes,
+    _MenuCatalogData data,
     Map<MealSlot, double> recorded,
-    double? dailyTargetKcal,
+    double? dailyTargetMaxKcal,
+    double? dailyTargetMinKcal,
   ) {
+    final dishes = data.dishes;
     // 搜索态（docs/43 A1）：结果替换推荐区；清空后回到推荐区、不保留状态。
     final searchResult = _search.result;
     if (_search.isSearching && searchResult != null) {
@@ -453,20 +677,40 @@ class _MenuDishListState extends State<MenuDishList> {
                 ? null
                 : (dish) => _addToMeal(context, dish),
           ),
+          ..._supplyStatusSlivers(data.supplies, query: _search.query),
           ..._pageEnd(),
           _navReserve(),
         ],
       );
     }
-    final plan = buildDailyMealRecommendation(
-      dishes: dishes,
-      recordedKcalBySlot: recorded,
-      dailyTargetKcal: dailyTargetKcal,
-      nowMinute: _now.hour * 60 + _now.minute,
-    );
-    // 菜品库是空的：三餐块会退化成三个「暂无推荐」，不如直接给一个能照做的
-    // 空态（去哪写菜、让谁生成），段头保留以便用户看到「今天已安排了几餐」。
-    if (dishes.isEmpty) {
+    DailyMealRecommendation localPlanFor(List<DishRecord> candidates) =>
+        buildDailyMealRecommendation(
+          dishes: candidates,
+          recordedKcalBySlot: recorded,
+          dailyTargetKcal: dailyTargetMaxKcal,
+          dailyTargetMinKcal: dailyTargetMinKcal,
+          nowMinute: _now.hour * 60 + _now.minute,
+          feedback: _feedback,
+          constraints: _constraints,
+        );
+    _localPlan = localPlanFor(dishes);
+    // AI 已选中的供应不再给未返回的餐次补位，否则会跨餐重复。
+    final aiIds = {
+      for (final entry in _aiPicks.entries)
+        if (!recorded.containsKey(entry.key) &&
+            isMealRecommendationSlotOpen(
+              entry.key,
+              _now.hour * 60 + _now.minute,
+            ))
+          ...entry.value.map((dish) => dish.id),
+    };
+    final plan = _aiPicks.isEmpty
+        ? _localPlan!
+        : localPlanFor(dishes.where((d) => !aiIds.contains(d.id)).toList());
+    final hasSupplies = data.supplies?.isNotEmpty ?? dishes.isNotEmpty;
+    // 只有真实无供应时才说库空；不可计算不等于不存在。
+    if (!hasSupplies && _aiPicks.isEmpty) {
+      _viewsOfCurrentPlan = const {};
       return CustomScrollView(
         slivers: [
           _headerSliver(
@@ -475,11 +719,36 @@ class _MenuDishListState extends State<MenuDishList> {
               plannedKcal: plan.plannedMeals == 0 ? null : plan.plannedKcal,
             ),
           ),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: LfEmptyState(
               icon: Icons.menu_book_outlined,
               title: '菜品库还是空的。',
-              message: '在食堂目录里自建菜品，或让 AI 生成今日菜单。',
+              message: '请先到食堂目录添加供应并补充营养与每份克数；AI 只能从已有可信供应选菜。',
+              // E-1（docs/64）：两个入口并列（AI 优先，食堂目录次之）。
+              action: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onSwapSetWithAi != null)
+                    LfTextButton(
+                      key: const Key('menu-empty-action'),
+                      icon: Icons.auto_awesome_outlined,
+                      // 2026-11-10 用户：生成要在**本界面**完成，产出一份
+                      // 推荐清单（不跳对话页、不直接记餐）。复用「换一套」
+                      // 的内联 AI 重配——它本来就不写今日摄入。
+                      label: _swapping ? 'AI 正在从食堂目录挑菜…' : '让 AI 生成今日菜单',
+                      onPressed: _swapping
+                          ? null
+                          : () => unawaited(_repickSet()),
+                    ),
+                  if (widget.onOpenCanteen != null)
+                    LfTextButton(
+                      key: const Key('menu-empty-action-canteen'),
+                      icon: Icons.storefront_outlined,
+                      label: '去食堂目录',
+                      onPressed: widget.onOpenCanteen,
+                    ),
+                ],
+              ),
             ),
           ),
           ..._pageEnd(),
@@ -492,15 +761,44 @@ class _MenuDishListState extends State<MenuDishList> {
       for (final meal in plan.meals) meal.slot: _viewFor(meal),
     };
     _viewsOfCurrentPlan = views;
+    // AI 可以把唯一供应安排到本地原本没有主推的餐位；状态、理由和汇总必须
+    // 跟实际显示一致，不能一边显示成功菜品、一边仍说本餐没有候选。
+    final displayedMeals = [
+      for (final meal in plan.meals)
+        if (views[meal.slot]?.displayed case final DishRecord dish)
+          MealRecommendation(
+            slot: meal.slot,
+            state: MealRecommendationState.recommended,
+            reason: _aiPicks[meal.slot]?.isNotEmpty == true
+                ? 'AI 已从可信供应中选出，营养、份量与供应餐次已由本地校验。'
+                : meal.reason,
+            primary: dish,
+            alternatives: views[meal.slot]!.candidates
+                .where((candidate) => candidate.id != dish.id)
+                .toList(),
+            budgetKcal: meal.budgetKcal,
+            budgetMinKcal: meal.budgetMinKcal,
+            kcal: dish.kcal,
+          )
+        else
+          meal,
+    ];
+    final plannedMeals = displayedMeals
+        .where((meal) => meal.state != MealRecommendationState.empty)
+        .length;
+    final plannedKcal = displayedMeals.fold<double>(
+      0,
+      (total, meal) => total + (meal.kcal ?? 0),
+    );
 
     return CustomScrollView(
       slivers: [
         _headerSliver(
           child: _MenuHeader(
-            plannedMeals: plan.plannedMeals,
+            plannedMeals: plannedMeals,
             // 一道都没排时不写 0 kcal，写「—」：0 的意思是「今天不吃」，
             // 而这里的意思是「还没有推荐」（docs/28 §4.1）。
-            plannedKcal: plan.plannedMeals == 0 ? null : plan.plannedKcal,
+            plannedKcal: plannedMeals == 0 ? null : plannedKcal,
           ),
         ),
         _searchSliver(),
@@ -517,19 +815,23 @@ class _MenuDishListState extends State<MenuDishList> {
               // 2026-10-22 用户：「根据食堂菜品，直接给出从早餐到晚餐的一整套
               // 推荐，而不是分开」——早/午/晚从三张独立卡收进同一张整套卡。
               DailyMealSetCard(
-                meals: plan.meals,
+                meals: displayedMeals,
                 views: views,
+                likedDishNames: _likedDishNames,
                 onLike: (dish) => _like(context, dish),
                 onRepickSet: () => unawaited(_repickSet()),
+                swapping: _swapping,
                 onShowCandidates: (slot) => _showCandidates(slot, views[slot]!),
                 onAddToMeal: widget.onAddToMeal == null
                     ? null
-                    : (dish) => _addToMeal(context, dish),
+                    : (dish, {slotOverride}) =>
+                          _addToMeal(context, dish, slotOverride: slotOverride),
                 onOpenCanteen: widget.onOpenCanteen,
               ),
             ],
           ),
         ),
+        ..._supplyStatusSlivers(data.supplies),
         ..._pageEnd(),
         // 底部预留见 record_tab 同处注释：用无子节点的 [SliverPadding] 而不是
         // 末尾的 SizedBox sliver，后者会成为最深的渲染叶子、被
@@ -541,6 +843,25 @@ class _MenuDishListState extends State<MenuDishList> {
 
   /// 某一格当前展示哪个候选（`_swapOffset` 是唯一决定因素）。
   DailyMealSetSlotView _viewFor(MealRecommendation meal) {
+    // 已记录或已过的餐次没有推荐位；即使用户此前换过 AI 候选，也不能
+    // 在记下这一餐后继续把旧推荐当成待吃菜品展示。
+    if (meal.state == MealRecommendationState.planned ||
+        !isMealRecommendationSlotOpen(
+          meal.slot,
+          _now.hour * 60 + _now.minute,
+        )) {
+      return const DailyMealSetSlotView(candidates: []);
+    }
+    // 【R-4】AI 换一套之后：该餐直接用 AI 的（已校验）菜当候选榜，
+    // displayed = 第一道；本地偏移不再叠加（AI 的顺序就是它给的顺序）。
+    final ai = _aiPicks[meal.slot];
+    if (ai != null && ai.isNotEmpty) {
+      return DailyMealSetSlotView(
+        candidates: ai,
+        displayed: ai.first,
+        displayedIndex: 0,
+      );
+    }
     final candidates = [?meal.primary, ...meal.alternatives];
     if (candidates.isEmpty) {
       return const DailyMealSetSlotView(candidates: []);
@@ -553,52 +874,92 @@ class _MenuDishListState extends State<MenuDishList> {
     );
   }
 
-  /// 「换一整套」（`RV4-P2-08` / `docs/56` R10-a，已锁裁决 D3）。
-  ///
-  /// 三格各自的「换一个」退役了：单格换会破坏整套营养平衡。现在的行为：
-  /// 1. **整套重排**——把三餐的候选偏移整体往后挪一格（同一份候选榜、同一套
-  ///    规则，所以「同一道菜不跨餐重复」仍然成立）；
-  /// 2. **给一句实话**：本页没接 AI 配置，所以这是本地重排而不是「AI 重新分析」。
-  ///    （已配置 AI 的入口在 AI 对话页的「生成今日吃法」，那里走 chat-edit
-  ///    逐餐提议；本页不复制那条写路径。）
-  /// 3. 记一次 dislike 软反馈（用户表达了「这一套现在不太想吃」）。
-  ///
-  /// **不写库**：纯 UI 状态，与原来的「换一个」同性质。
+  /// 只换推荐、不写摄入。详细失败沿用同一个回调传入；旧 null 结果仍兼容。
+  /// 仅有真实本地候选才重排，资料不足时不把失败包装成「已重排」。
   Future<void> _repickSet() async {
-    // 【D3 裁决的第一条分支，2026-10-25 补齐】「已配置 AI → 走
-    // `aiStarterRequest`（AI 用 `meal.create` 逐餐提议）」。
-    //
-    // 【缺陷原委】原实现**只做了第二条分支**（本地重排），而且不管配没配 AI
-    // 都弹「**AI 未配置**」——那句是写死的，`_repickSet` 从未检查过任何配置。
-    // 于是配好 AI 的用户被告知「AI 未配置」，以为配置没生效或链路断了
-    // （用户实测原话：「我配置了AI，但还是显示AI未配置的提示」）。
-    //
-    // 现在：`onAskAiForSet` 只在 **AI 确实已配置**时被注入（判定在组合根），
-    // 有它就**优先走 AI**；没有（未配置）才落到下面的本地重排 + 实话。
-    final askAi = widget.onAskAiForSet;
-    if (askAi != null) {
-      final handled = await askAi();
-      // await 期间页面可能已被销毁（用户切走/退栈）——用 context 前必须确认。
+    if (_swapping) return;
+    String? failure;
+    final swapWithAi = widget.onSwapSetWithAi;
+    if (swapWithAi != null) {
+      final requestedGeneration = _catalogGeneration;
+      setState(() => _swapping = true);
+      MenuSetSwapResult? result;
+      try {
+        result = await swapWithAi();
+      } on Object {
+        failure = MenuSetSwapUnavailableReason.requestFailed.message;
+      }
       if (!mounted) return;
-      if (handled) return;
+      if (requestedGeneration != _catalogGeneration) {
+        setState(() {
+          _swapping = false;
+          _aiPicks = const {};
+        });
+        AppSnackBar.show(
+          context,
+          '食堂目录已更新，本次 AI 结果已丢弃，请重试。',
+          icon: AppSnackBar.infoIcon,
+        );
+        return;
+      }
+      setState(() => _swapping = false);
+      if (result != null &&
+          result.unavailableReason == null &&
+          result.bySlot.values.any((picks) => picks.isNotEmpty)) {
+        final success = result;
+        setState(() {
+          _aiPicks = {
+            for (final entry in success.bySlot.entries)
+              entry.key: List<DishRecord>.of(entry.value),
+          };
+          _swapOffset.clear();
+        });
+        if (success.filtered > 0) {
+          AppSnackBar.show(
+            context,
+            '已按食堂目录换一套；${success.filtered} 条未通过目录、餐次或预算校验的建议已忽略。',
+          );
+        }
+        return;
+      }
+      failure ??=
+          result?.unavailableReason?.message ??
+          'AI 暂不可用，请检查配置、供应营养与每份克数，或稍后重试。';
     }
+    final localMeals =
+        _localPlan?.meals.where((meal) => meal.primary != null).toList() ??
+        const <MealRecommendation>[];
     final shown = [
-      for (final view in _viewsOfCurrentPlan.values) view.displayed,
+      for (final view in _viewsOfCurrentPlan.values)
+        if (view.displayed case final DishRecord dish) dish,
     ];
     setState(() {
-      // 三格一起挪一格：没建立过偏移的餐次（首次点）也要跟着动，
-      // 否则「整套换」只影响之前点过的那几格。
-      for (final slot in _viewsOfCurrentPlan.keys) {
-        _swapOffset[slot] = (_swapOffset[slot] ?? 0) + 1;
+      // 回退后绝不保留上次 AI 快照，否则会把旧结果冒充本地重排。
+      _aiPicks = {};
+      for (final meal in localMeals) {
+        _swapOffset[meal.slot] = (_swapOffset[meal.slot] ?? 0) + 1;
       }
     });
-    for (final dish in shown) {
-      if (dish != null) unawaited(_recordFeedback(dish, FeedbackVote.dislike));
+    final prefix = failure == null ? '' : 'AI 换一套没成功。$failure ';
+    if (localMeals.isEmpty) {
+      AppSnackBar.show(
+        context,
+        '$prefix当前没有可计算的本地候选；请到食堂目录补充营养与每份克数，并核对供应时段。',
+        icon: AppSnackBar.infoIcon,
+      );
+      return;
     }
+    for (final dish in shown) {
+      unawaited(_recordFeedback(dish, FeedbackVote.dislike));
+    }
+    final hasAlternatives = localMeals.any(
+      (meal) => meal.alternatives.isNotEmpty,
+    );
     AppSnackBar.show(
       context,
-      '已按本地规则重排一整套（这一步不调用 AI，即时生效；'
-      '配置 AI 后会走模型逐餐重配）。',
+      hasAlternatives
+          ? '$prefix已按本地规则重排一整套（仅调整推荐，不写今日摄入）。'
+          : '$prefix已按本地规则重新核对推荐，当前没有更多候选。',
       icon: AppSnackBar.infoIcon,
     );
   }
@@ -607,28 +968,52 @@ class _MenuDishListState extends State<MenuDishList> {
     final picked = await AppSheet.show<int>(
       context,
       title: '${slot.label}候选',
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < view.candidates.length; i++)
-              _CandidateRow(
-                dish: view.candidates[i],
-                selected: i == view.displayedIndex,
-                index: i,
-                onTap: () => Navigator.of(context).pop(i),
-              ),
-          ],
+      // 【2026-11-02 用户实机：候选点击后黑屏】弹层由 `AppSheet` 挂在**根
+      // Navigator** 上（`useRootNavigator: true`），页面本身在分支 Navigator
+      // 里。候选行若用页面 `context` 调 `Navigator.of(...).pop`，弹的是页面
+      // 那一层——用户看到整页被 pop 成黑屏。必须用弹层内 Builder 的
+      // `sheetContext` 关弹层自己（与项目弹层纪律同一条）。
+      content: Builder(
+        builder: (sheetContext) => SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < view.candidates.length; i++)
+                _CandidateRow(
+                  dish: view.candidates[i],
+                  selected: i == view.displayedIndex,
+                  index: i,
+                  onTap: () => Navigator.of(sheetContext).pop(i),
+                ),
+            ],
+          ),
         ),
       ),
     );
     if (picked == null || !mounted) return;
+    // 【R-4 实机回归】AI 换一套之后：候选来自 AI 推荐集，选中 = 把它排到
+    // 首位（`_swapOffset` 只管本地候选榜，两套状态不混用）。
+    final ai = _aiPicks[slot];
+    if (ai != null && ai.isNotEmpty) {
+      if (picked <= 0 || picked >= ai.length) return;
+      setState(() {
+        _aiPicks[slot] = [
+          ai[picked],
+          ...ai.where((d) => d.id != ai[picked].id),
+        ];
+      });
+      return;
+    }
     setState(() => _swapOffset[slot] = picked);
   }
 
   DateTime _nowForAdd() => widget.addClock?.call() ?? DateTime.now();
 
-  Future<void> _addToMeal(BuildContext context, DishRecord dish) async {
+  Future<void> _addToMeal(
+    BuildContext context,
+    DishRecord dish, {
+    MealSlot? slotOverride,
+  }) async {
     final add = widget.onAddToMeal;
     if (add == null) return;
     if (!_addingDishIds.add(dish.id)) return;
@@ -642,7 +1027,7 @@ class _MenuDishListState extends State<MenuDishList> {
     setState(() {});
     var succeeded = false;
     try {
-      await add(dish);
+      await add(dish, slotOverride: slotOverride);
       succeeded = true;
       // 2026-10-16 用户：「点加入午餐什么的时候，没有提示」——成功也要
       // 上屏（原来只有失败分支有提示）：说清加进了哪一餐、以及「记为已吃」
@@ -650,7 +1035,7 @@ class _MenuDishListState extends State<MenuDishList> {
       if (context.mounted) {
         AppSnackBar.show(
           context,
-          '已加入${DishCard.mealSlotLabel(dish.mealSlot)}（记为已吃）',
+          '已加入${DishVisuals.mealSlotLabel(dish.mealSlot)}（记为已吃）',
           icon: AppSnackBar.successIcon,
         );
       }
@@ -670,8 +1055,17 @@ class _MenuDishListState extends State<MenuDishList> {
     }
   }
 
+  /// 页尾让位：【2026-10-31 用户】右下「管理食堂目录」浮钮（与训练页浮钮
+  /// 列同一套统一阴影/尺寸后）也会盖住滚到底的内容——与训练页
+  /// `columnContentClearance` 同一命题：让最后一行能滚出浮钮覆盖带。
+  /// 带字档高同 48（emphasized:1）。
   SliverPadding _navReserve() => SliverPadding(
-    padding: EdgeInsets.only(bottom: LfInsets.navReserve(context)),
+    padding: EdgeInsets.only(
+      bottom: PositionedLfFloatingActions.columnContentClearance(
+        context,
+        emphasized: 1,
+      ),
+    ),
   );
 }
 
@@ -725,79 +1119,10 @@ class _CandidateRow extends StatelessWidget {
   }
 }
 
-/// 页尾的 A `.list-link`（`styles.css:359–363` + `polish.css:106–107`）：
-/// 圆角 chip + 两行文字 + 右箭头，整行可点、**不是卡**（`.list-link{border:0}`）。
-///
-/// **2026-10-14（3-1 D28）**：它承接原 hero 右上角 [LfCircleIconButton] 的
-/// 「管理食堂目录」入口——`cta-manage-canteen` 的 Key 一起迁过来（同一个路由、
-/// 同一个回调，只是从卡上一枚圆钮变成页尾一行）。A 的 chip 用 `book` 图标
-/// （`app.js:185` 的 `chip('book')`），底色被 `polish.css:107` 覆盖成
-/// brand-soft / brand-strong。
-class _CanteenLink extends StatelessWidget {
-  const _CanteenLink({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.lf;
-    final brightness = Theme.of(context).brightness;
-    return InkWell(
-      key: const Key('cta-manage-canteen'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(LfDimens.radiusMd),
-      child: Padding(
-        // A `.list-link{padding:10px 0;min-height:64px}`。
-        padding: const EdgeInsets.symmetric(vertical: LfDimens.spaceSmallPlus),
-        child: Row(
-          children: [
-            Container(
-              // A `.icon-chip`：36×36 / 12 圆角；`.list-link .icon-chip` 改
-              // brand-soft 底 + brand-strong 字。
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: LfColors.brandSoft(brightness),
-                borderRadius: BorderRadius.circular(LfDimens.radiusMd),
-              ),
-              child: Icon(
-                Icons.menu_book_outlined,
-                size: LfDimens.iconMd,
-                color: LfColors.mintText(brightness),
-              ),
-            ),
-            const SizedBox(width: LfDimens.spaceMedium),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '管理食堂目录',
-                    // A `.list-link b{font-size:12px}`（`b` 是粗体，落 captionStrong）。
-                    style: LfText.captionStrong.copyWith(
-                      color: c.cardForeground,
-                    ),
-                  ),
-                  const SizedBox(height: LfDimens.spaceMicro),
-                  Text(
-                    '地点、窗口与菜品',
-                    style: LfText.caption.copyWith(color: c.mutedForeground),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: LfDimens.iconSm,
-              color: c.mutedForeground,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// 【退役（需求 13a，2026-10-25）】`_CanteenLink`（A 的页尾
+// `.list-link` 两行行）整件删除：入口迁到菜单 tab 右下角的浮动按钮
+// （`NutritionPage` 的 `PositionedLfFloatingActions`，Key 不变）。
+// 保留这条说明是为了让后来者知道「页尾那行不是丢失，是搬家」。
 
 /// 菜单页首**段头块**（A `nutritionMenus()` 页首三件，`app.js:181`）。
 ///
@@ -857,9 +1182,7 @@ class _MenuHeader extends StatelessWidget {
         ),
         const SizedBox(height: LfDimens.spaceXSmall),
         Text(
-          searchMode
-              ? '输入菜名、口味或窗口，搜索本地已分析的菜品。'
-              : '按你的食堂窗口推荐 · 先看看今天的候选，选好份量后再加入饮食记录。',
+          searchMode ? '输入菜名、口味或窗口，搜索本地已分析的菜品。' : '按食堂窗口推荐，选好后加入记录。',
           key: const Key('nutrition-menu-intro'),
           style: LfText.caption.copyWith(color: c.mutedForeground),
         ),

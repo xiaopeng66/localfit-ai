@@ -6,6 +6,7 @@ import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
+import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_dish_list.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/retrieval/application/dish_search.dart';
@@ -72,7 +73,8 @@ void main() {
     WidgetTester tester, {
     SemanticRuntime? semantic,
     DishSearchService? search,
-    Future<void> Function(DishRecord dish)? onAddToMeal,
+    Future<void> Function(DishRecord dish, {MealSlot? slotOverride})?
+    onAddToMeal,
     Size size = const Size(420, 2400),
   }) async {
     final view = tester.view;
@@ -128,7 +130,10 @@ void main() {
   testWidgets('关键词命中：行上有「加入餐」', (tester) async {
     final seeded = await seed();
     final added = <DishRecord>[];
-    await pumpMenu(tester, onAddToMeal: (dish) async => added.add(dish));
+    await pumpMenu(
+      tester,
+      onAddToMeal: (dish, {slotOverride}) async => added.add(dish),
+    );
 
     await tester.enterText(
       find.byKey(const Key('nutrition-menu-search')),

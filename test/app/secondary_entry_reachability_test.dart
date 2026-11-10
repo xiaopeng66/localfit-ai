@@ -353,6 +353,8 @@ void main() {
       _useTallViewport(tester);
       await pumpApp(tester, initialLocation: AppRoutes.training);
 
+      // 2026-11-02：动作库收在上拉三角里，先把浮钮列展开。
+      await tapKey(tester, 'training-actions-toggle');
       await tapKey(tester, 'training-exercise-library');
       expect(
         find.byKey(const Key('training-exercise-library-back')),
@@ -366,8 +368,8 @@ void main() {
       _useTallViewport(tester);
       await pumpApp(tester, initialLocation: AppRoutes.training);
 
-      // 入口行在计划列表之下：懒加载列表不滚过去不会构建。
-      await _scrollTo(tester, 'training-target-progress');
+      // 2026-11-02：训练达标同样收在上拉三角里，展开后直接点圆钮。
+      await tapKey(tester, 'training-actions-toggle');
       await tapKey(tester, 'training-target-progress');
       expect(
         find.byKey(const Key('dashboard-training-targets')),
@@ -400,7 +402,7 @@ void main() {
       await unmountApp(tester);
     });
 
-    testWidgets('关于组五个入口都可达', (tester) async {
+    testWidgets('关于组四个入口都可达', (tester) async {
       _useTallViewport(tester);
       await pumpApp(tester, initialLocation: AppRoutes.settings);
 

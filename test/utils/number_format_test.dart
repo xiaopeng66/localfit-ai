@@ -21,4 +21,24 @@ void main() {
       expect(formatGroupedInt(-49464), '-49,464');
     });
   });
+
+  group('formatMegabytes', () {
+    test('formats megabytes with one decimal', () {
+      expect(formatMegabytes(41_000_000), '39.1 MB');
+      expect(formatMegabytes(1024 * 1024), '1.0 MB');
+      expect(formatMegabytes(1024 * 1024 * 10), '10.0 MB');
+      expect(formatMegabytes(1024 * 1024 * 100), '100.0 MB');
+    });
+
+    test('falls back to KB below one megabyte', () {
+      expect(formatMegabytes(1024), '1.0 KB');
+      expect(formatMegabytes(1024 * 500), '500 KB');
+      expect(formatMegabytes(0), '0.0 KB');
+    });
+
+    test('treats negative byte counts as zero', () {
+      // 服务器没给 content-length 时上游会传 -1：不许把它算成「-1 MB」。
+      expect(formatMegabytes(-1), '0.0 KB');
+    });
+  });
 }

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
 import 'package:localfit_ai/core/text/search_text.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/core/validation/entity_name.dart';
@@ -7,7 +8,9 @@ import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/food_scan/application/local_food_search.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_category.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_name_format.dart';
+import 'package:localfit_ai/features/nutrition/data/food_revision_writer.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart';
+import 'package:localfit_ai/features/settings/data/app_settings_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_write_failure.dart';
 
 final class FoodRepository implements LocalFoodSearch {
@@ -154,12 +157,20 @@ final class FoodRepository implements LocalFoodSearch {
 
   /// 精确同名（trim 后全等）查找：0 或多于 1 条都原样返回，
   /// 调用方据此区分「找不到」与「有歧义」（docs/23 §4 不猜名字）。
+  ///
+  /// **写入会归一化名称**（`（外卖，…）` → `（外卖；…）`，见 [_row]），所以
+  /// 查询必须用同一套归一化试一次；否则「刚建过、下一轮拿原话再引用」会
+  /// 0 命中（2026-11-05 审计实测）。先原样、再归一化，兼容历史未归一化行。
   Future<List<FoodRecord>> searchExact(String name) async {
     final normalized = name.trim();
     if (normalized.isEmpty) return const [];
+    final formatted = normalizeFoodNameFormat(normalized);
+    final candidates = formatted == normalized
+        ? [normalized]
+        : [normalized, formatted];
     final rows = await (database.select(
       database.foods,
-    )..where((row) => row.name.equals(normalized))).get();
+    )..where((row) => row.name.isIn(candidates))).get();
     return rows.map(_map).toList(growable: false);
   }
 
@@ -177,6 +188,13 @@ final class FoodRepository implements LocalFoodSearch {
         now: now,
         source: 'user',
       );
+      // docs/67 §3.1：任何新建的可计算食物都必须有一条**生效修订**，
+      // 主表四项是它的投影。放在仓储里而不是每个调用方，才不会有人忘。
+      await FoodRevisionWriter(
+        database: database,
+        idGenerator: idGenerator,
+        clock: clock,
+      ).appendBaseline(foodId: id, food: food, origin: 'user_input', now: now);
     });
     return _map(row);
   }
@@ -196,13 +214,74 @@ final class FoodRepository implements LocalFoodSearch {
   /// 做过同一套判据，真走到这里的坏行是意外，为它丢掉整批（以及同事务里
   /// 已经写好的几万行）代价太大。DB 级错误相反——**直接抛出**让调用方
   /// 回滚，吞掉它会把「全都没进去」报成「全进去了」。
+  /// 【2026-10-30（用户实机：2w+ 导入食物全部显示「自建」）】一次性数据回填。
+  ///
+  /// 根因：T11（2026-10-23）之前，CSV 导入走**逐行 [create]** ——而 [create]
+  /// 的身份口径是「App 内新建 = 自建」，于是早期导入的整批目录行被标成
+  /// `is_user_created = 1`。T11 之后写入路径已改对（[createMany] → 内置），
+  /// 但**存量行没有迁移**，老库的目录行就一直顶着「自建」。
+  ///
+  /// 修复判据（批量信号）：`is_user_created = 1` 且 `source = 'user'` 的行里，
+  /// **同一分钟内创建 ≥ 30 行**的桶 = 一次批量导入 → 翻成内置
+  /// （`is_user_created=0, source='import', state='verified'`）。
+  /// 手动新建是零星操作，一分钟内不会出现几十行——孤立行保持自建不动。
+  /// KV 门槛保证只跑一次；本方法幂等（再跑无行可翻，返回 0）。
+  ///
+  /// 【为什么不用 migration 版本号】schema 30 不动（版本号 = 表结构版本），
+  /// 这是**数据**修复，挂 KV 门槛即可；调用点在 main.dart 启动链。
+  ///
+  /// 【为什么是**一条**集合式 UPDATE（2026-10-30 实机时序）】第一版按行
+  /// `batch.update`（2.4 万条 = 2.4 万条语句），模拟器实测首启卡骨架
+  /// **3.5 分钟**（04:25:36 启动 → 04:29:06 回填完成）。SQLCipher 下每行
+  /// 都要重加密，逐行语句的固定开销把一次性迁移拖成了事故。改成单条
+  /// `UPDATE ... WHERE id IN (按分钟分桶 HAVING COUNT>=30)`：分桶在 SQL 里
+  /// 做（`created_at / 60` 整除 = 同一分钟；drift 的 dateTime 存 INTEGER
+  /// 秒），语句数从 2.4 万降到 1。
+  Future<int> backfillImportedFoodIdentity() async {
+    final settings = AppSettingsRepository(database: database);
+    if (await settings.getBool(kFoodImportIdentityBackfillKey)) return 0;
+
+    final flipped = await database.customUpdate(
+      '''
+      UPDATE foods
+         SET is_user_created = 0, source = 'import', state = 'verified'
+       WHERE is_user_created = 1
+         AND source = 'user'
+         AND id IN (
+           SELECT f.id
+             FROM foods f
+             JOIN (
+               SELECT created_at / 60 AS bucket
+                 FROM foods
+                WHERE is_user_created = 1 AND source = 'user'
+                GROUP BY bucket
+               HAVING COUNT(*) >= ?
+             ) bulk ON f.created_at / 60 = bulk.bucket
+            WHERE f.is_user_created = 1 AND f.source = 'user'
+         )
+      ''',
+      variables: [Variable.withInt(bulkBucketMinRows)],
+      updates: {database.foods},
+    );
+    await settings.setBool(kFoodImportIdentityBackfillKey, value: true);
+    return flipped;
+  }
+
+  /// 上面的回填 KV 门槛（app_settings 键）。
+  static const String kFoodImportIdentityBackfillKey =
+      'food_import_identity_backfill_v1';
+
+  /// 同一分钟桶至少多少行才算「一次批量导入」。
+  static const int bulkBucketMinRows = 30;
+
   Future<FoodBatchCreateResult> createMany(List<NewFood> foods) async {
     if (foods.isEmpty) {
       return const FoodBatchCreateResult(created: 0, rejected: 0);
     }
     final now = clock.nowUtc();
-    final rows = <Food>[];
+    final rows = <Insertable<Food>>[];
     final aliasRows = <FoodAliase>[];
+    final revisionRows = <FoodNutritionRevisionsCompanion>[];
     var rejected = 0;
     for (final food in foods) {
       try {
@@ -212,7 +291,26 @@ final class FoodRepository implements LocalFoodSearch {
         continue;
       }
       final id = idGenerator.next();
-      rows.add(_row(food, id: id, now: now, isUserCreated: false));
+      final revisionId = '$id-rev-1';
+      // 批量导入同样必须带生效修订（docs/67 §3.1）。修订行拼进同一个
+      // batch：几万行导入不能因为"补修订"退回逐条往返。
+      revisionRows.add(
+        FoodRevisionWriter.baselineCompanion(
+          revisionId: revisionId,
+          foodId: id,
+          food: food,
+          origin: 'import',
+          now: now,
+        ),
+      );
+      rows.add(
+        _row(
+          food,
+          id: id,
+          now: now,
+          isUserCreated: false,
+        ).toCompanion(false).copyWith(currentRevisionId: Value(revisionId)),
+      );
       // 别名与食物同一批、同一事务落库（ADR-037）：几万行导入时不能每条
       // 再开一次「查旧别名 + 插入」的往返。
       aliasRows.addAll(
@@ -232,6 +330,9 @@ final class FoodRepository implements LocalFoodSearch {
         }
         for (final alias in aliasRows) {
           batch.insert(database.foodAliases, alias);
+        }
+        for (final revision in revisionRows) {
+          batch.insert(database.foodNutritionRevisions, revision);
         }
       });
     }
@@ -336,9 +437,30 @@ final class FoodRepository implements LocalFoodSearch {
 
     /// 显式给了才写（AI 的 `food.update` 会带；编辑弹层不带 ⇒ 保留旧值）。
     double? defaultServingGrams,
+
+    /// 读-改-写冲突检测：调用方把"打开表单时那一版的 updatedAt"带回来。
+    /// 库里已被改过（不同秒）就抛 [FoodWriteFailure]，不静默覆盖
+    /// （docs/67 §3.2 第 7 条）。null = 不做检查（AI/导入等无表单场景）。
+    DateTime? expectedUpdatedAt,
   }) async {
     _validate(food);
     await _requireUserCreated(id);
+    if (expectedUpdatedAt != null) {
+      final current =
+          await (database.select(database.foods)
+                ..where((row) => row.id.equals(id))
+                ..limit(1))
+              .getSingleOrNull();
+      if (current == null) {
+        throw const FoodWriteFailure('这条食物已不在本地数据里。');
+      }
+      final sameSecond =
+          current.updatedAt.millisecondsSinceEpoch ~/ 1000 ==
+          expectedUpdatedAt.millisecondsSinceEpoch ~/ 1000;
+      if (!sameSecond) {
+        throw const FoodWriteFailure('这条食物刚在别处被改过，请重新打开再改。');
+      }
+    }
     final now = clock.nowUtc();
     await database.transaction(() async {
       await (database.update(
@@ -370,6 +492,30 @@ final class FoodRepository implements LocalFoodSearch {
         now: now,
         source: 'user',
       );
+      // 营养修改 = 追加修订 + 切指针（同一事务）：主表四项永远能解释
+      // "按哪一版算的"，旧修订也保留下来供历史餐追溯。
+      final number = await _nextRevisionNumber(id) + 1;
+      final revisionId = '$id-rev-$number';
+      await database
+          .into(database.foodNutritionRevisions)
+          .insert(
+            FoodNutritionRevisionsCompanion.insert(
+              id: revisionId,
+              foodId: id,
+              revisionNumber: number,
+              kcalPer100g: Value(food.kcalPer100g),
+              proteinGPer100g: Value(food.proteinPer100g),
+              carbsGPer100g: Value(food.carbsPer100g),
+              fatGPer100g: Value(food.fatPer100g),
+              createdAt: now,
+              nutritionBasis: Value(NutritionBasis.per100g.storedValue),
+              basisAssumed: const Value(false),
+              origin: const Value('user_input'),
+              conversionVersion: const Value('food-write-v1'),
+            ),
+          );
+      await (database.update(database.foods)..where((row) => row.id.equals(id)))
+          .write(FoodsCompanion(currentRevisionId: Value(revisionId)));
     });
     final updated = await getById(id);
     if (updated == null) {
@@ -393,6 +539,17 @@ final class FoodRepository implements LocalFoodSearch {
   /// 库存/价格两张表也在同批删除，所以也没了它们的级联清理。
   Future<void> delete(String id) async {
     await _requireUserCreated(id);
+    // docs/67 D10：仍被食堂供应引用时**不能硬删**——`menu_items.food_id` 是
+    // 真外键（NO ACTION），硬删会撞约束；更重要的是"删一条食物顺手让某个
+    // 窗口的菜失去营养"不是用户表达的意图。归档才是默认动作。
+    final referencing =
+        await (database.select(database.menuItems)
+              ..where((row) => row.foodId.equals(id))
+              ..limit(1))
+            .getSingleOrNull();
+    if (referencing != null) {
+      throw const FoodWriteFailure('这条食物还被食堂窗口引用，不能删除；可以先归档（不再进新挂窗与推荐）。');
+    }
     await database.transaction(() async {
       await (database.update(database.mealItems)
             ..where((row) => row.foodId.equals(id)))
@@ -400,6 +557,11 @@ final class FoodRepository implements LocalFoodSearch {
       await (database.delete(
         database.menuItemFoodMatches,
       )..where((row) => row.foodId.equals(id))).go();
+      // 台账保留（这是"这条旧记录被移到哪"的历史），只断开主食物指针：
+      // 连台账一起删会让下次归一给同一旧键再造一条主食物。
+      await (database.update(database.legacyEntityMappings)
+            ..where((row) => row.foodId.equals(id)))
+          .write(const LegacyEntityMappingsCompanion(foodId: Value(null)));
       await (database.delete(
         database.foods,
       )..where((row) => row.id.equals(id))).go();
@@ -442,9 +604,20 @@ final class FoodRepository implements LocalFoodSearch {
     proteinPer100g: food.proteinPer100g,
     carbsPer100g: food.carbsPer100g,
     fatPer100g: food.fatPer100g,
-    // 种类落枚举 id 文本（docs/31 S5 需求 53）；null = 调用方不知道，
-    // 留空等种子回填/后续编辑补，不替用户猜。
-    category: food.category?.id,
+    // 种类落枚举 id 文本（docs/31 S5 需求 53）。
+    //
+    // 【2026-10-31 用户：「自定义食材自动加入食物库时也自动分类，不提示用户；
+    // AI 生成的食物也要自动分类」】调用方没给种类时**不再留空**，按名称走
+    // [FoodCategory.classify] 的确定性关键词表归类（同一名字必得同一类，
+    // 不联网、不弹提示）。调用方给了就尊重调用方（AI 带 `rawCategory` 的路径
+    // 仍按它自己的分类列翻译）。
+    //
+    // 【为什么这不违反「不猜分类」】旧注释防的是把**不知道的**一律塞成「其他」
+    // ——那等于用默认值冒充答案可乐库/搜索全靠「全部」过滤，空分类只会让
+    // 新食物在分类页里彻底消失。[FoodCategory.classify] 与 CSV 导入是**同一
+    // 张表**（导入行早就这么归类），所以手动建 / AI 建和导入行看到的是同一类；
+    // 名字里一个关键词都不中的才落 `other`，与导入行同口径，不是新编的答案。
+    category: (food.category ?? FoodCategory.classify(name: food.name)).id,
     // Round 5 T11（需求 75）新结构 15 列：导入才带值，手动新建 / AI 草稿
     // 都是 null（`_text` 把空串也收成 null——库里「未填」是 null）。
     source: isUserCreated ? 'user' : 'import',
@@ -454,6 +627,17 @@ final class FoodRepository implements LocalFoodSearch {
     createdAt: now,
     updatedAt: now,
   );
+
+  Future<int> _nextRevisionNumber(String foodId) async {
+    final row = await database
+        .customSelect(
+          'SELECT COALESCE(MAX(revision_number), 0) AS n '
+          'FROM food_nutrition_revisions WHERE food_id = ?',
+          variables: [Variable.withString(foodId)],
+        )
+        .getSingle();
+    return (row.data['n'] as int? ?? 0);
+  }
 
   void _validate(NewFood food) {
     validatedEntityName(food.name, label: '食物名称');

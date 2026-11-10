@@ -162,16 +162,33 @@ void main() {
 
     tearDown(() => database.close());
 
-    test('available：落库 + 基线写入', () async {
+    // 【2026-10-26 语义变更（用户：「步数它读不到系统数据，也不能自己输入」）】
+    //
+    // 原断言：首次同步 `saved: true` + `steps: 0` + 落一行 0。
+    // 为什么改：当天第一次读只是**立基线**（累计值就是基线），此刻「今日步数」
+    // 还根本不是 0——写 0 等于把「还没读到」记成「没走过」，卡上还会显示
+    // 「0 / 10,000 步」（用户就是这么以为「读不到」的）。现在首次同步不落行、
+    // 只把基线落好；第二次同步才有可信差值。
+    test('available：首次只立基线（不写 0），第二次才落库', () async {
       readReply = <Object?, Object?>{
         'status': 'ok',
         'counter': 5000,
         'atMs': 1,
       };
-      final result = await repository.syncToday('2026-10-07');
-      expect(result.saved, isTrue);
-      expect(result.steps, 0, reason: '首次读：基线即当前值，今日 0');
-      expect(await repository.stepsForDate('2026-10-07'), 0);
+      final first = await repository.syncToday('2026-10-07');
+      expect(first.saved, isFalse, reason: '当天第一次读只是立基线');
+      expect(first.baselineEstablished, isTrue);
+      expect(first.steps, isNull);
+      expect(
+        await repository.stepsForDate('2026-10-07'),
+        isNull,
+        reason: '不许把「还没读到」写成 0 步',
+      );
+      expect(
+        (await repository.readBaseline())?.counter,
+        5000,
+        reason: '基线必须落（否则永远等不到下一次差值）',
+      );
       // 第二次读（同一基线上累加了 3432 步）
       readReply = <Object?, Object?>{
         'status': 'ok',
@@ -182,6 +199,86 @@ void main() {
       expect(second.saved, isTrue);
       expect(second.steps, 3432);
       expect(await repository.stepsForDate('2026-10-07'), 3432);
+    });
+
+    // ── 手动录入（2026-10-26 用户：「也不能自己输入」）────────────────────
+
+    test('手动记录某天：落 manual；传感器同步不再覆盖它', () async {
+      await repository.saveManualSteps(localDate: '2026-10-07', steps: 6500);
+      final day = await repository.readDay('2026-10-07');
+      expect(day?.steps, 6500);
+      expect(day?.source, StepsRepository.sourceManual);
+
+      // 传感器有读数（差值会是 3432）也不能把手动值盖掉：用户自己填的是
+      // 当天的事实，设备的「累计差」在换机/重启/多计步来源时并不可靠。
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await repository.syncToday('2026-10-07');
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 8432,
+        'atMs': 2,
+      };
+      final result = await repository.syncToday('2026-10-07');
+      expect(result.manualKept, isTrue);
+      expect(result.saved, isFalse);
+      expect(await repository.stepsForDate('2026-10-07'), 6500);
+    });
+
+    test('清掉手动记录后：传感器重新接管', () async {
+      await repository.saveManualSteps(localDate: '2026-10-07', steps: 6500);
+      await repository.clearManualSteps('2026-10-07');
+      expect(await repository.stepsForDate('2026-10-07'), isNull);
+      // 清掉之后第一次同步仍是「立基线」（当天还没有可信差值）。
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await repository.syncToday('2026-10-07');
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 8432,
+        'atMs': 2,
+      };
+      final result = await repository.syncToday('2026-10-07');
+      expect(result.saved, isTrue);
+      expect(await repository.stepsForDate('2026-10-07'), 3432);
+    });
+
+    test('clearManualSteps 不动传感器写的那一行（只清手动）', () async {
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 5000,
+        'atMs': 1,
+      };
+      await repository.syncToday('2026-10-07');
+      readReply = <Object?, Object?>{
+        'status': 'ok',
+        'counter': 8432,
+        'atMs': 2,
+      };
+      await repository.syncToday('2026-10-07');
+      await repository.clearManualSteps('2026-10-07');
+      expect(
+        await repository.stepsForDate('2026-10-07'),
+        3432,
+        reason: '传感器数据不是「手动记录」，不该被这个动作删掉',
+      );
+    });
+
+    test('手动步数越界（负数 / 荒谬大数）拒绝，且不落库', () async {
+      for (final invalid in [-1, 200001]) {
+        await expectLater(
+          repository.saveManualSteps(localDate: '2026-10-07', steps: invalid),
+          throwsFormatException,
+          reason: '$invalid 不是可信的步数',
+        );
+      }
+      expect(await repository.stepsForDate('2026-10-07'), isNull);
     });
 
     test('重启回退：落库 0 并重设基线（不是负数）', () async {
@@ -311,7 +408,16 @@ void main() {
         'atMs': 1,
       };
       final result = await repository.syncToday('2026-10-07');
-      expect(result.steps, 0, reason: '坏基线按首次读取处理，而不是抛异常');
+      // 【2026-10-26 语义变更】坏基线 = 没有基线 = 当天第一次读 ⇒ 只立基线、
+      // 不写 0（原来这里断言 `steps == 0`，等于把「还没读到」记成「没走过」）。
+      expect(result.steps, isNull, reason: '坏基线按首次读取处理，而不是抛异常');
+      expect(result.baselineEstablished, isTrue);
+      expect(await repository.stepsForDate('2026-10-07'), isNull);
+      expect(
+        (await repository.readBaseline())?.counter,
+        5000,
+        reason: '坏基线被换成好基线',
+      );
     });
   });
 }

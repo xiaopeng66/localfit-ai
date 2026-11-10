@@ -897,9 +897,9 @@
     2. `tool/food_seed/` 的**生成**脚本（`build_foodcalu.py`、`apply_review.py`、`build_brand_gazetteer.py`、
        `review/review_lib.py`、`review/export_display_preview.dart`）路径仍指向仓库内旧位置，本轮只改了**剥离脚本**
        （它被仓库测试审计）并在 README 写明「重跑前需从归档恢复」；要重跑生成链得先把种子放回 `assets/seed/`。
-    3. `lib/utils/food_brands*.g.dart` 与 `lib/features/nutrition/domain/food_seed_count.g.dart` 的注释里仍写着
-       种子路径与 sha256 —— **故意保留**：那是这批历史数据的来源交代（同时 `kFoodSeedV5RowCountGrouped` 仍被
-       设置页标注使用），静态扫描因此只查代码引用、不查注释。
+    3. `lib/utils/food_brands*.g.dart` 的注释里仍写着种子路径与 sha256 —— **故意保留**：那是这批历史数据的
+       来源交代，静态扫描因此只查代码引用、不查注释。（2026-11-09 全量审查：`food_seed_count.g.dart` 已删——
+       它没有任何消费方，设置页早改为从数据库实算；本条原文里「仍被设置页标注使用」已不成立。）
     4. `.dart_tool/build/generated/` 下还留着已删两个文件的 drift 产物（`.drift_elements.json`/`.drift_module.json`）：
        可弃构建产物，未清理（删 build_runner 的产物条目容易引出无意义的重建报错）。
     5. 升级安装的 4.9 万行**不会自己消失**（本包只管不再随包）⇒ T11 的「清空内置食物」仍是必须项（D14）。

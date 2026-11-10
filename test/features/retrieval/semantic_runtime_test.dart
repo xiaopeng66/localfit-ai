@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
@@ -86,13 +87,16 @@ void main() {
     await service.indexDishes(before);
 
     final target = before.firstWhere((dish) => dish.name == '番茄炒蛋');
-    await dishes.updateNutritionFromSource(
-      id: target.id,
-      kcal: 300,
-      proteinG: 20,
-      carbsG: 10,
-      fatG: 15,
-      sourceUpdatedAt: now,
+    await (db.update(
+      db.dishLibrary,
+    )..where((row) => row.id.equals(target.id))).write(
+      DishLibraryCompanion(
+        kcal: const drift.Value(300),
+        proteinG: const drift.Value(20),
+        carbsG: const drift.Value(10),
+        fatG: const drift.Value(15),
+        updatedAt: drift.Value(now),
+      ),
     );
     final after = await dishes.watchAll().first;
     final report = await service.indexDishes(after);

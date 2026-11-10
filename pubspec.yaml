@@ -1,7 +1,7 @@
 name: localfit_ai
 description: "Local-first AI nutrition and fitness companion."
 publish_to: 'none'
-version: 0.1.0+50
+version: 0.1.0+2140
 
 environment:
   sdk: ^3.13.2
@@ -81,3 +81,5 @@ flutter:
     # 许可证登记在 docs/THIRD_PARTY_LICENSES.md §6，随包理由与体积代价登记在
     # docs/evidence/2026-10-18-p0-eval.md §7。
     - assets/models/
+    # 帮助文档（2026-11 随包 Markdown，离线可读；用户在设置页打开）。
+    - assets/help/

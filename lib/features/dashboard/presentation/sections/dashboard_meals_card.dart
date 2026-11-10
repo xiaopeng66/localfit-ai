@@ -73,15 +73,19 @@ List<RecordedTimelineEntry> buildMealTimeline({
 ///
 /// 【行本身不可点】A 的今日页 `mealRows` 是静态行（没有 `data-action`），
 /// 编辑入口是「查看全部」→ 记录页的行。旧件 `DashboardMealTimeline` 有一个
-/// `onTapRecorded` 参数，但页面从未接线（实测点不动），所以这里不再保留
+/// `onTapRecorded` 参数，但页面从未接线（实测点不��），所以这里不再保留
 /// 该参数——不新增交互、也不留死参数。
+///
+/// 【2026-10-31 用户】「删除今日界面的『记一餐』按钮，只显示记录」：空态里
+/// 那枚 `dashboard-empty-action`（E-1 时期补的）**退役**——记餐入口在本页
+/// 下一餐卡（随时刻变化的那颗主按钮）与饮食页 FAB 上各有一处，空态卡只
+/// 陈述「还没有记录」这条事实。空的 `LfEmptyState` 既不给按钮也不留空槽。
 class DashboardMealsCard extends StatelessWidget {
   const DashboardMealsCard({
     super.key,
     required this.entries,
     required this.meals,
     this.onViewAll,
-    this.onLogMeal,
   });
 
   final List<RecordedTimelineEntry> entries;
@@ -92,9 +96,6 @@ class DashboardMealsCard extends StatelessWidget {
   /// 「查看全部」→ 饮食页记录 tab（A `link('查看全部','nutrition-records')`）。
   final VoidCallback? onViewAll;
 
-  /// 「记录饮食」→ 打开餐食编辑（不指定槽位）。
-  final VoidCallback? onLogMeal;
-
   /// A `.meals-card{padding-top:8px}`（其余三边仍是 `.card` 的 16）。
   static const EdgeInsets cardPadding = EdgeInsets.fromLTRB(
     LfDimens.spaceLarge,
@@ -102,9 +103,6 @@ class DashboardMealsCard extends StatelessWidget {
     LfDimens.spaceLarge,
     LfDimens.spaceLarge,
   );
-
-  /// A `.meals-card > .btn{margin-top:9px}`。
-  static const double buttonMarginTop = 9;
 
   /// A `.meal-row{gap:10px;padding:12px 0}`。
   static const double rowPadding = 12;
@@ -136,11 +134,10 @@ class DashboardMealsCard extends StatelessWidget {
             ],
           ),
           if (entries.isEmpty)
-            LfEmptyState(
-              key: const Key('dashboard-meals-empty'),
+            const LfEmptyState(
+              key: Key('dashboard-meals-empty'),
               icon: Icons.rice_bowl_outlined,
               title: '从第一餐开始',
-              message: '从食物库选择，记录实际吃下的食物。',
             )
           else
             for (var i = 0; i < entries.length; i++)
@@ -151,7 +148,8 @@ class DashboardMealsCard extends StatelessWidget {
               ),
           // 2026-10-22 用户：「已确认 n 项 / 估算 n 项没用就删了」+「不需要
           // 记录饮食的按钮」。两件整块退场：记餐入口仍在今日页的下一餐卡
-          // （`cta-log-dinner`）与饮食页 FAB（`记录一餐`），不因删按钮而断路。
+          // （`cta-log-next-meal`，餐次随时刻变化）与饮食页 FAB（`记录一餐`），
+          // 不因删按钮而断路。
         ],
       ),
     );

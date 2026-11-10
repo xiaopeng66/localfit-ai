@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:localfit_ai/features/ai_conversation/domain/chat_image.dart';
+
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
@@ -20,6 +22,7 @@ class ChatInputBar extends StatelessWidget {
     this.sending = false,
     this.onStop,
     this.enabled = true,
+    this.canSend = true,
     this.hintText,
   });
 
@@ -35,12 +38,19 @@ class ChatInputBar extends StatelessWidget {
   final VoidCallback? onStop;
   final bool enabled;
 
+  /// 发送键是否可用（2026-11-07 用户：图片副本还没就绪时**置灰**，
+  /// 就绪后才能点——避免把系统缓存路径写进聊天记录）。
+  ///
+  /// false 时按钮变中性灰、不可点；输入框仍可继续打字。
+  final bool canSend;
+
   /// 输入框占位（`RV4-P2-05`：会话结束后变「开始新对话…」）。null = 默认文案。
   final String? hintText;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
+    final brightness = Theme.of(context).brightness;
     return Padding(
       key: const Key('input-row-text'),
       padding: const EdgeInsets.fromLTRB(
@@ -97,8 +107,8 @@ class ChatInputBar extends StatelessWidget {
               icon: Icons.stop_rounded,
               iconSize: LfDimens.iconSm,
               tooltip: '停止生成',
-              background: c.primary,
-              iconColor: c.primaryForeground,
+              background: LfColors.brandStrong(brightness),
+              iconColor: LfColors.onBrandStrong(brightness),
               onPressed: onStop,
             )
           else
@@ -106,10 +116,13 @@ class ChatInputBar extends StatelessWidget {
               key: const Key('btn-send'),
               icon: Icons.send_rounded,
               iconSize: LfDimens.iconSm,
-              tooltip: '发送',
-              background: c.primary,
-              iconColor: c.primaryForeground,
-              onPressed: () => onSendText(controller.text),
+              tooltip: canSend ? '发送' : '图片还在处理，马上就好',
+              // 副本未就绪：中性灰 + 不可点（用户明确要求「变灰」）。
+              background: canSend ? LfColors.brandStrong(brightness) : c.muted,
+              iconColor: canSend
+                  ? LfColors.onBrandStrong(brightness)
+                  : c.mutedForeground,
+              onPressed: canSend ? () => onSendText(controller.text) : null,
             ),
         ],
       ),
@@ -124,59 +137,117 @@ class ChatInputBar extends StatelessWidget {
 ///
 /// **2026-10-23 用户**：「底部拍照识别删掉改『确认应用』」——第一枚 chip
 /// 从 `拍照识别`（推入 `/meal-recognition`）换成「应用当前这条 AI 提议」，
-/// 与编辑卡上的「应用」是同一个动作、同一个执行器。三枚仍**等宽占满一整行**
-/// （2026-10-16 用户裁决：`手动记录` 下线后不横滑），大字体下文案折行而不是
-/// 溢出（与 `LfSegmentControl` 同一套大字策略）。
+/// 与编辑卡上的「应用」是同一个动作、同一个执行器。
+///
+/// 【2026-10-25 用户（8c）：按文字长度调整大小】三枚文案长度差一倍
+/// （「今天还剩多少」6 字 vs「记一餐」3 字），等分时长的被挤到换行。
+///
+/// 两版之间的取舍（**都实测过**，别再走一遍）：
+/// * 「按内容宽 + 外层 `Wrap`」→ 320dp × 2.0× 下溢出 170px（`Wrap` 不收缩子项）；
+/// * 「纯等分 + `FittedBox`」→ 不溢出，但宽度与文字长度无关（用户要的正是这个）。
+///
+/// 现在是**两条路的合取**：`LayoutBuilder` 先量可用宽，再看「三枚按内容宽的
+/// 自然总宽 + 间距」放不放得下——
+/// * 放得下（390dp 常见档）⇒ `MainAxisSize.min` + `MainAxisAlignment.center`
+///   按内容宽居中排；某枚仍可能被大字号撑宽到超出，所以每枚内容里保留
+///   `Flexible + FittedBox.scaleDown` 兜底；
+/// * 放不下（320dp × 2.0×）⇒ 回落等分（`Expanded`），与前一版逐字一致。
 class ChatQuickChips extends StatelessWidget {
   const ChatQuickChips({super.key, required this.onChipTap});
 
+  /// 整行容器 key（输入区顺序断言用）。
+  static const Key rowKey = Key('ai-chat-quick-chips');
+
   /// chip key → 文案已固定（applyEdits / can-i-eat / ai-create）。
   final ValueChanged<ChatQuickChip> onChipTap;
+
+  /// 三枚 chip 的（key, 文案, 图标, 底色档, 描边档, 字色档）。
+  ///
+  /// 抽成静态表是**为了能先量自然宽**：`LayoutBuilder` 那一版需要「同一份文案」
+  /// 既参与测量又参与渲染，两处各写一遍必然漂。
+  static const List<({String key, String label, ChatQuickChip chip})> _chips = [
+    (
+      key: 'ai-chat-chip-remaining',
+      label: '今天还剩多少',
+      chip: ChatQuickChip.remainingToday,
+    ),
+    (key: 'ai-chat-chip-log-meal', label: '记一餐', chip: ChatQuickChip.logMeal),
+    (
+      key: 'ai-chat-chip-ai-create',
+      label: 'AI 创作',
+      chip: ChatQuickChip.aiCreate,
+    ),
+  ];
+
+  static const Map<String, IconData> _icons = {
+    'ai-chat-chip-remaining': Icons.pie_chart_outline,
+    'ai-chat-chip-log-meal': Icons.restaurant_menu,
+    'ai-chat-chip-ai-create': Icons.auto_awesome_outlined,
+  };
+
+  /// chip 的水平内边距（与渲染处**同源**：测量与绘制必须用同一个值）。
+  static const EdgeInsets _chipPadding = EdgeInsets.symmetric(
+    horizontal: 10,
+    vertical: 8,
+  );
+
+  /// 图标 + 图标与文字间距（同上，测量与渲染共用）。
+  static const double _chipIconSize = 14;
+  static const double _chipGap = LfDimens.spaceTiny;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
     final mint = LfColors.mint(Theme.of(context).brightness);
+    final textStyle = LfText.captionStrong;
+
+    /// 这一枚 chip 的「自然宽」：内边距 + 图标 + 间距 + 文字宽。
+    ///
+    /// 用 `TextPainter` 在**当前 `textScaler`** 下量——`Text` 的宽度就是它，
+    /// 不依赖布局是否已经跑过一轮（`LayoutBuilder` 里还没有子项尺寸可读）。
+    double naturalWidth(String label) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: textStyle),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final width =
+          _chipPadding.horizontal +
+          _chipIconSize +
+          _chipGap +
+          painter.size.width;
+      painter.dispose();
+      return width;
+    }
+
     Widget chip(
       String label,
-      IconData icon,
-      ChatQuickChip chipKey, {
+      String chipKey,
+      ChatQuickChip chipValue, {
       required Color bg,
       Color? border,
       required Color fg,
-      required Key key,
     }) {
       return InkWell(
-        key: key,
-        onTap: () => onChipTap(chipKey),
+        key: Key(chipKey),
+        onTap: () => onChipTap(chipValue),
         borderRadius: BorderRadius.circular(LfDimens.radiusFull),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: _chipPadding,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(LfDimens.radiusFull),
             border: Border.all(color: border ?? c.border),
           ),
-          // 【2026-10-25 用户：「今天还剩多少的按钮文字换行了」】
-          // 原来三枚 chip 用 `Expanded` **等分**整行，而文案长度不同
-          // （「今天还剩多少」6 字 vs「记一餐」3 字），六字那枚被挤到换行。
-          // 改成**按内容宽度**布局（外层 `Wrap` + 居中），文字单行不折。
-          //
-          // 但大字号的极端情况（320dp × 1.3×）下「今天还剩多少」单行**比
-          // 半屏还宽**，`softWrap: false` 会溢出 52px（实测）。所以：
-          // 内容宽度排版 + 允许在**极窄时**按比例缩小（`FittedBox.scaleDown`，
-          // 与 `LfStatTile` / `MacroDotLine` 同一套大字兜底），既不折行
-          // 也不溢出。
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: fg),
-              const SizedBox(width: LfDimens.spaceTiny),
+              Icon(_icons[chipKey], size: _chipIconSize, color: fg),
+              const SizedBox(width: _chipGap),
               // 【2026-10-25 用户：「今天还剩多少的按钮文字换行了」】
-              // 布局仍是**等分弹**（`Expanded`）——这是经过验证不溢出的形态；
-              // 溢出问题出在「按内容宽 + Wrap」那一版（320dp × 2.0× 实测
-              // overflow 170px）。所以保留等分，只把**文字**改成
-              // 单行 + 居中 + 放不下按比例缩小（`FittedBox.scaleDown`）。
+              // 单行 + 居中 + 放不下按比例缩小（`FittedBox.scaleDown`，
+              // 与 `LfStatTile` / `MacroDotLine` 同一套大字兜底）。
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -184,13 +255,40 @@ class ChatQuickChips extends StatelessWidget {
                     label,
                     textAlign: TextAlign.center,
                     softWrap: false,
-                    style: LfText.captionStrong.copyWith(color: fg),
+                    style: textStyle.copyWith(color: fg),
                   ),
                 ),
               ),
             ],
           ),
         ),
+      );
+    }
+
+    /// 配色：第一枚是品牌色（「能立刻做事」），后两枚 muted（次级）。
+    ///
+    /// 【2026-11-09 审查修复】第一枚原来用 `c.primary` 当文字：压 mint-50
+    /// 只有 2.22:1（浅色主题 12px 文字 + 14dp 图标都不达标）。改用文字档
+    /// `mintText`（5.24:1）；描边仍用 mint-200 保留「品牌感」。
+    (Color bg, Color? border, Color fg) tonesOf(ChatQuickChip value) =>
+        value == ChatQuickChip.remainingToday
+        ? (
+            mint.tone(50),
+            mint.tone(200),
+            LfColors.mintText(Theme.of(context).brightness),
+          )
+        : (c.muted, null, c.foreground);
+
+    Widget buildChipAt(int index) {
+      final spec = _chips[index];
+      final (bg, border, fg) = tonesOf(spec.chip);
+      return chip(
+        spec.label,
+        spec.key,
+        spec.chip,
+        bg: bg,
+        border: border,
+        fg: fg,
       );
     }
 
@@ -202,47 +300,34 @@ class ChatQuickChips extends StatelessWidget {
         LfDimens.spaceMedium,
         4,
       ),
-      child: Row(
-        children: [
-          // `RV4-R16`（`docs/56` §8 已裁决方案 A）：
-          // 原「确认应用」（R15 行级应用之后多余）与「我可以吃吗」（只往输入框
-          // 塞 5 个字，用户还得自己补后半句）双双退役，换成两枚**能立刻做事** 的：
-          //   · 今天还剩多少 —— 本地算，**不发模型**；
-          //   · 记一餐 —— 复用 B3 的 `openMealRecordSheet`，不离开对话页。
-          Expanded(
-            child: chip(
-              '今天还剩多少',
-              Icons.pie_chart_outline,
-              ChatQuickChip.remainingToday,
-              bg: mint.tone(50),
-              border: mint.tone(200),
-              fg: c.primary,
-              key: const Key('ai-chat-chip-remaining'),
-            ),
-          ),
-          const SizedBox(width: LfDimens.spaceSmall),
-          Expanded(
-            child: chip(
-              '记一餐',
-              Icons.restaurant_menu,
-              ChatQuickChip.logMeal,
-              bg: c.muted,
-              fg: c.foreground,
-              key: const Key('ai-chat-chip-log-meal'),
-            ),
-          ),
-          const SizedBox(width: LfDimens.spaceSmall),
-          Expanded(
-            child: chip(
-              'AI 创作',
-              Icons.auto_awesome_outlined,
-              ChatQuickChip.aiCreate,
-              bg: c.muted,
-              fg: c.foreground,
-              key: const Key('ai-chat-chip-ai-create'),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final naturalTotal =
+              [for (final spec in _chips) naturalWidth(spec.label)]
+                  .reduce((a, b) => a + b) +
+              LfDimens.spaceSmall * (_chips.length - 1);
+          // 放得下 ⇒ 按内容宽居中排（用户要的「按文字长度调整」）。
+          if (naturalTotal <= constraints.maxWidth) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < _chips.length; i++) ...[
+                  if (i > 0) const SizedBox(width: LfDimens.spaceSmall),
+                  buildChipAt(i),
+                ],
+              ],
+            );
+          }
+          // 放不下 ⇒ 回落等分（经过验证不溢出的形态；320dp × 2.0× 走这里）。
+          return Row(
+            children: [
+              for (var i = 0; i < _chips.length; i++) ...[
+                if (i > 0) const SizedBox(width: LfDimens.spaceSmall),
+                Expanded(child: buildChipAt(i)),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -254,25 +339,36 @@ class ChatQuickChips extends StatelessWidget {
 /// 而且会让人以为「确认应用」还能用（行级应用已经在编辑卡每一行上）。
 enum ChatQuickChip { remainingToday, logMeal, aiCreate }
 
-/// 已选图片预览条（docs/21 §3.4 / AI 工作.html）：56×56 缩略（12 圆角 +
-/// 2px mint-200 描边）+ 右上角移除圆钮（error 底）+ 文件名 + 「已添加 1 张
-/// 图片」+「添加」虚线圈按钮。
+/// 已选图片预览条（2026-10-29 R-10 重做）。
 ///
-/// **一个槽位一张图**（§5.7 的图片消息形态是单图 + 说明文字），再点「添加」
-/// 是替换而不是追加，因此文案固定为 1 张。
+/// 用户原话：「图片添加后，我希望就显示一个很好看的图片缩略图，像我的图片
+/// 里的那样，而不是显示很详细的图片信息，另外，图片右边不要出现添加按钮，
+/// 功能重复了，而且，我希望能多加图片，而不是只能加一张，然后新加入的会
+/// 替换上一个」。
+///
+/// 形态（2026-10-31 用户二轮）：**悬浮卡**——卡片底色 + 16 圆角 + 阴影，
+/// 浮在输入栏上方独立呈现；一排 56×56 缩略图，**点缩略图全屏放大**；右上角
+/// 移除圆钮不变；**文字说明整行退役**（「一条消息发 1 张…」随多图一次发送
+/// 的批量通道一并作废，不静默丢弃任何一张）。
 class ImagePreviewStrip extends StatelessWidget {
   const ImagePreviewStrip({
     super.key,
-    required this.fileName,
-    required this.thumbnail,
+    required this.images,
     required this.onRemove,
-    required this.onAdd,
+    this.onInspect,
+    this.thumbnailBuilder,
   });
 
-  final String fileName;
-  final Widget thumbnail;
-  final VoidCallback onRemove;
-  final VoidCallback onAdd;
+  final List<ChatImage> images;
+
+  /// 按下标移除（第 0 张起）。
+  final ValueChanged<int> onRemove;
+
+  /// 点缩略图全屏放大（null = 不可点）。
+  final ValueChanged<ChatImage>? onInspect;
+
+  /// 缩略图构建（默认按 `ChatImage.path` 渲染文件图）。
+  final Widget Function(ChatImage image, int index)? thumbnailBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -286,161 +382,96 @@ class ImagePreviewStrip extends StatelessWidget {
         LfDimens.spaceMedium,
         4,
       ),
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
+      child: Container(
+        padding: const EdgeInsets.all(LfDimens.spaceSmall),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(LfDimens.radiusLg),
+          // 浮层阴影走设计稿公式（docs/21 §2.4 `--lf-shadow-float`），
+          // 不在业务件里自造 Color 字面量（ui_literal_budget 门禁）。
+          boxShadow: LfShadows.float(
+            Theme.of(context).brightness == Brightness.light,
+          ),
+        ),
+        // 【2026-11-07 多选 9 张】`Wrap` 会折成三行把输入区顶高；改横向滚动
+        // ——预览条固定一行高度，左右滑看全部（预览是辅助，不该占主输入区）。
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            spacing: LfDimens.spaceSmall,
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(LfDimens.radiusMd),
-                  border: Border.all(color: mint.tone(200), width: 2),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(LfDimens.radiusMd - 2),
-                  child: thumbnail,
-                ),
-              ),
-              Positioned(
-                right: -6,
-                top: -6,
-                child: GestureDetector(
-                  key: const Key('btn-remove-image'),
-                  onTap: onRemove,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: c.error,
-                      shape: BoxShape.circle,
-                      boxShadow: LfShadows.removeImage,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      size: 12,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: LfDimens.spaceSmallPlus),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fileName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: LfText.captionStrong.copyWith(color: c.foreground),
-                ),
-                Text(
-                  '已添加 1 张图片',
-                  style: LfText.micro.copyWith(color: c.mutedForeground),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: LfDimens.spaceSmall),
-          InkWell(
-            key: const Key('add-image'),
-            onTap: onAdd,
-            borderRadius: BorderRadius.circular(LfDimens.radiusFull),
-            child: CustomPaint(
-              foregroundPainter: _DashedPillPainter(color: mint.tone(300)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              for (var i = 0; i < images.length; i++)
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Icon(Icons.add, size: 12, color: c.primary),
-                    const SizedBox(width: 4),
-                    Text(
-                      '添加',
-                      style: LfText.microStrong.copyWith(color: c.primary),
+                    GestureDetector(
+                      key: Key('image-preview-thumb-$i'),
+                      onTap: onInspect == null
+                          ? null
+                          : () => onInspect!(images[i]),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            LfDimens.radiusMd,
+                          ),
+                          border: Border.all(color: mint.tone(200), width: 2),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            LfDimens.radiusMd - 2,
+                          ),
+                          child: thumbnailBuilder?.call(images[i], i),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      // 【2026-11-09 审查修复】视觉圆仍是 20dp（不挤压缩略图），
+                      // 但命中盒扩到 40dp 并居中覆盖：原来 20dp 的
+                      // GestureDetector 还被 Positioned 裁掉溢出部分，
+                      // 有效热区约 14dp，小屏/大字下很难点中。
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Center(
+                          child: Semantics(
+                            button: true,
+                            label: '移除第 ${i + 1} 张图片',
+                            child: GestureDetector(
+                              key: i == 0
+                                  ? const Key('btn-remove-image')
+                                  : Key('btn-remove-image-$i'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => onRemove(i),
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: c.error,
+                                  shape: BoxShape.circle,
+                                  boxShadow: LfShadows.removeImage,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 12,
+                                  color: Color(0xFFFFFFFF),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
-}
-
-/// 带图时的一行**发送披露**（2026-10-16，S1）：图会随这条消息真的发出去，
-/// 目的地是用户自己配置的供应商——把这句话常驻在输入区，而不是等发送前弹
-/// 二次确认（与拍照识别页 `scan-disclosure` 同一条产品口径）。
-class ImageSendDisclosure extends StatelessWidget {
-  const ImageSendDisclosure({super.key, this.count = 1});
-
-  /// 本次会发送的图片张数（当前输入区一个槽位一张）。
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.lf;
-    return Padding(
-      key: const Key('image-send-disclosure'),
-      padding: const EdgeInsets.fromLTRB(
-        LfDimens.spaceMedium,
-        0,
-        LfDimens.spaceMedium,
-        6,
-      ),
-      child: Text(
-        '发送时这 $count 张图片会随这条消息一起发给你配置的 AI 服务'
-        '（供应商与模型见「我的 · AI 服务」）。',
-        style: LfText.micro.copyWith(color: c.mutedForeground),
-      ),
-    );
-  }
-}
-
-/// 预览条虚线药丸（4/4，对齐 DesignCard.dashed 的虚线口径）。
-class _DashedPillPainter extends CustomPainter {
-  _DashedPillPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(LfDimens.radiusFull),
-    );
-    final path = Path()..addRRect(rrect);
-    final dashed = Path();
-    for (final metric in path.computeMetrics()) {
-      var draw = true;
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final next = (distance + 4).clamp(0.0, metric.length);
-        if (draw) {
-          dashed.addPath(metric.extractPath(distance, next), Offset.zero);
-        }
-        draw = !draw;
-        distance = next + 4;
-      }
-    }
-    canvas.drawPath(dashed, paint);
-  }
-
-  @override
-  bool shouldRepaint(_DashedPillPainter oldDelegate) =>
-      oldDelegate.color != color;
 }

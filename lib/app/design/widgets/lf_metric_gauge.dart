@@ -565,7 +565,9 @@ class _ValueRow extends StatelessWidget {
               maxLines: 1,
               softWrap: false,
               style: LfText.headline.copyWith(
-                color: c.primary,
+                // 值字压在卡片底上：`primary`(#2FBE8F) 对白卡只有 2.4:1，
+                // 与「绿底深字」同一类看不清；文字级品牌绿取 mintText。
+                color: LfColors.mintText(Theme.of(context).brightness),
                 fontWeight: FontWeight.w800,
               ),
             ),

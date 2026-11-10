@@ -40,7 +40,7 @@ def check(label: str, condition: bool, detail: str = "") -> None:
 
 def test_outputs_exist_and_are_fresh() -> None:
     print("产物存在且新鲜")
-    for path in (ar.OUT_SEED, ar.OUT_REVIEWED, ar.OUT_COUNT, ar.OUT_REPORT):
+    for path in (ar.OUT_SEED, ar.OUT_REVIEWED, ar.OUT_REPORT):
         check(f"{path.name} 在", path.is_file(), str(path))
     check("--check 通过（三份产物均最新）", ar.main(["--check"]) == 0)
 
@@ -49,11 +49,10 @@ def test_idempotent() -> None:
     print("幂等：连跑两次逐字节相同")
     texts_a = ar.build(100.0)
     texts_b = ar.build(100.0)
-    seed_a, reviewed_a, count_a, report_a = texts_a[:4]
-    seed_b, reviewed_b, count_b, report_b = texts_b[:4]
+    seed_a, reviewed_a, report_a = texts_a[:3]
+    seed_b, reviewed_b, report_b = texts_b[:3]
     check("seed 幂等", seed_a == seed_b)
     check("reviewed 幂等", reviewed_a == reviewed_b)
-    check("count 幂等", count_a == count_b)
     check("report 幂等", report_a == report_b)
     # 再核对盘上文件与重建结果一致（防「生成后又被手改」）。
     check("盘上 seed 与重建一致", ar.OUT_SEED.read_text(encoding="utf-8") == seed_a)
@@ -144,9 +143,6 @@ def test_v5_every_id_traces_to_a_decision() -> None:
     check("v5 里没有无裁决的 id", not untraced, str(untraced[:5]))
     # v5 与 version 字段。
     check("v5 version == 5", v5["version"] == 5)
-    # 生成常量与 v5 实际条数一致。
-    count_src = ar.OUT_COUNT.read_text(encoding="utf-8")
-    check("生成常量条数 == v5 实际条数", f"kFoodSeedV5RowCount = {len(v5_ids)};" in count_src)
 
 
 def main() -> int:

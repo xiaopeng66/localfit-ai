@@ -133,7 +133,7 @@ Future<void> showFoodDataSheet(
               actionKey: const Key('food-data-sheet-manual'),
               icon: Icons.add,
               title: '手动添加一种食物',
-              subtitle: '填名称 / 品牌 / 种类 / 四大指标，逐条入库',
+              subtitle: '填名称、品牌与营养，逐条入库',
               onTap: () async {
                 Navigator.pop(sheetContext);
                 await onAddCustomFood();
@@ -146,7 +146,7 @@ Future<void> showFoodDataSheet(
               actionKey: const Key('food-data-sheet-import'),
               icon: Icons.upload_file_outlined,
               title: '从 CSV 文件导入',
-              subtitle: '支持本库导出的格式；重复项会先提示再决定',
+              subtitle: '支持本库导出格式；重复项先提示',
               onTap: () async {
                 Navigator.pop(sheetContext);
                 await onImportFoodCsv();

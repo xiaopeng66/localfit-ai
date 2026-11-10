@@ -131,13 +131,17 @@ class LfBottomNav extends StatelessWidget {
                         height: LfDimens.navBumpSize,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: c.primary,
+                          color: LfColors.brandStrong(
+                            Theme.of(context).brightness,
+                          ),
                           border: Border.all(color: c.card, width: 5),
                         ),
                         child: Icon(
                           Icons.auto_awesome,
                           size: LfDimens.iconMd,
-                          color: c.primaryForeground,
+                          color: LfColors.onBrandStrong(
+                            Theme.of(context).brightness,
+                          ),
                         ),
                       ),
                     ),

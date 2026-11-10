@@ -55,6 +55,16 @@ abstract final class LfText {
     fontFeatures: _num,
   );
 
+  /// 11px w600 — 与 12sp 数字行做**光学对齐**的小号动作字（「回到今天」
+  /// 胶囊）。汉字占满字框（≈12px 高）而数字字形只有 ~9px，同名义字号下
+  /// 中文看着大一号——降 1sp 补偿（2026-10-31 用户：回到今天的文字跟
+  /// 日期不一样大）。
+  static const TextStyle captionOptical = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+  );
+
   /// 13px w400 — 少数说明文。
   static const TextStyle bodySmall = TextStyle(
     fontSize: 13,

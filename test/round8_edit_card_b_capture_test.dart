@@ -149,6 +149,61 @@ void main() {
     await captureRound7(tester, '04-card-b-food-row');
   });
 
+  testWidgets('编辑卡 B · 长名称 + 新建/状态竖排 + 组尾结果', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 680));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final breakfast =
+        ChatEditTurnItem(
+          index: 0,
+          raw: const {'action': 'meal.create'},
+          command: cmd('meal.create', {
+            'slot': 'breakfast',
+            'items': [
+              {'food': '蔬菜馒头（梅花形）', 'grams': 30.0},
+              {'food': '抹茶曲奇（梅花形）', 'grams': 30.0},
+            ],
+          }),
+        ).copyWith(
+          status: ChatEditRowStatus.applied,
+          resultMessage: '已记录早餐，共 2 样。',
+          // 2026-11-07 用户：结果说明挂到每样食物行下，不再堆在卡片末尾。
+          itemNotes: const {'蔬菜馒头（梅花形）': '已记入今天的早餐', '抹茶曲奇（梅花形）': '已记入今天的早餐'},
+        );
+    final lunch =
+        ChatEditTurnItem(
+          index: 1,
+          raw: const {'action': 'meal.create'},
+          command: cmd('meal.create', {
+            'slot': 'lunch',
+            'items': [
+              {'food': '鸡胸肉（香煎）', 'grams': 150.0},
+              {'food': '牛奶', 'grams': 200.0},
+            ],
+          }),
+        ).copyWith(
+          status: ChatEditRowStatus.applied,
+          resultMessage: '这餐记到了今天已有的午餐里：新记 1 样，1 样今天已记过。',
+          itemNotes: const {'鸡胸肉（香煎）': '今天已记过，没有重复算', '牛奶': '已记入今天的午餐'},
+        );
+    final food = ChatEditTurnItem(
+      index: 2,
+      raw: const {'action': 'food.create'},
+      command: cmd('food.create', {
+        'name': '抹茶曲奇（梅花形）',
+        'kcalPer100g': 480.0,
+        'proteinPer100g': 5.0,
+        'carbsPer100g': 60.0,
+        'fatPer100g': 25.0,
+      }),
+    ).copyWith(status: ChatEditRowStatus.applied, resultMessage: '食材已创建。');
+    await render(
+      tester,
+      ChatEditTurn(reply: '两餐都记好了。', rows: [breakfast, lunch, food]),
+      Brightness.light,
+    );
+    await captureRound7(tester, '05-card-b-long-name-result');
+  });
+
   testWidgets('编辑卡 B · 记一餐（深色）', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 520));
     addTearDown(() => tester.binding.setSurfaceSize(null));

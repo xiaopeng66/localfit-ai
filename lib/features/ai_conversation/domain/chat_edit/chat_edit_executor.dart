@@ -3,11 +3,17 @@ import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_
 
 /// 单条命令的执行结果；`message` 无论成败都要是能直接给用户看的人话。
 final class ChatEditApplyResult {
-  const ChatEditApplyResult.ok([this.message = '已完成'])
-    : ok = true,
-      repair = null;
+  const ChatEditApplyResult.ok([
+    this.message = '已完成',
+    this.itemNotes = const {},
+  ]) : ok = true,
+       repair = null;
 
-  const ChatEditApplyResult.failure(this.message, {this.repair}) : ok = false;
+  const ChatEditApplyResult.failure(
+    this.message, {
+    this.repair,
+    this.itemNotes = const {},
+  }) : ok = false;
 
   final bool ok;
   final String message;
@@ -18,6 +24,13 @@ final class ChatEditApplyResult {
 
   /// [repair] 为「缺食材」时的名字（按钮文案与测试用）。
   String? get missingFoodName => repair?.name;
+
+  /// **按食物**的结果说明（2026-11-07 用户：结果别堆在卡片末尾，要挂在
+  /// 每样食物下面）。key = 食物名（与命令 `items[].food` 一致，卡片按
+  /// 子条目标题对位）；value = 一句人话（「已记入今天的午餐」/
+  /// 「今天已记过，没有重复算」）。只有记餐类命令会填；其它命令为空，
+  /// 结果仍由卡片挂在自己那一行下面。
+  final Map<String, String> itemNotes;
 }
 
 /// chat-edit 命令的落库出口（docs/23 §4）。

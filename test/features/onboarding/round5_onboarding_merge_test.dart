@@ -300,7 +300,7 @@ void main() {
     expect(saved!.activityLevel, ActivityLevel.lightlyActive, reason: '默认档位不变');
     expect(saved!.biologicalSex, BiologicalSex.female, reason: '默认档位不变');
     await tester.pumpAndSettle();
-    expect(find.text('热量、营养目标和今日训练将在这里汇总。'), findsOneWidget);
+    expect(find.text('热量、营养与训练汇总。'), findsOneWidget);
   });
 }
 

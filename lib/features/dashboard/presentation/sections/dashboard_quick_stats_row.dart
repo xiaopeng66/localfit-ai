@@ -11,6 +11,7 @@ import 'package:localfit_ai/app/design/widgets/lf_progress_bar.dart';
 import 'package:localfit_ai/app/design/widgets/text_fit.dart';
 import 'package:localfit_ai/features/hydration/domain/water_intake.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
+import 'package:localfit_ai/features/settings/presentation/steps_permission_sheet.dart';
 
 /// 今日页饮水 / 步数两格（docs/21 §5.1 QuickStatsRow → Round7 A
 /// `.water-steps-row` + `.metric-card`）。
@@ -31,6 +32,7 @@ class DashboardQuickStatsRow extends StatelessWidget {
     super.key,
     required this.water,
     this.onTapWater,
+    this.onLongPressWater,
     this.stepsRepository,
     this.localDate,
     this.stepGoal,
@@ -38,6 +40,10 @@ class DashboardQuickStatsRow extends StatelessWidget {
 
   final WaterSummary water;
   final VoidCallback? onTapWater;
+
+  /// 长按饮水卡 = 看当天记录 / 删错记（docs/64 A-1）。与短按「加水」
+  /// 并存：同一个 `InkWell` 上两个独立识别器，互不吞掉。
+  final VoidCallback? onLongPressWater;
 
   /// 步数仓储；未接线时步数卡停在既有诚实空态（与 `waterRepository == null`
   /// 时饮水卡走 `WaterSummary.empty` 是同一个路子）。
@@ -69,7 +75,11 @@ class DashboardQuickStatsRow extends StatelessWidget {
         )) {
           return Column(
             children: [
-              WaterStatCard(water: water, onTap: onTapWater),
+              WaterStatCard(
+                water: water,
+                onTap: onTapWater,
+                onLongPress: onLongPressWater,
+              ),
               const SizedBox(height: LfDimens.spaceMedium),
               StepsStatCard(
                 repository: stepsRepository,
@@ -84,7 +94,11 @@ class DashboardQuickStatsRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: WaterStatCard(water: water, onTap: onTapWater),
+                child: WaterStatCard(
+                  water: water,
+                  onTap: onTapWater,
+                  onLongPress: onLongPressWater,
+                ),
               ),
               const SizedBox(width: LfDimens.spaceMedium),
               Expanded(
@@ -110,12 +124,14 @@ class _MetricCardShell extends StatelessWidget {
   const _MetricCardShell({
     required this.cardKey,
     required this.onTap,
+    this.onLongPress,
     required this.semanticLabel,
     required this.children,
   });
 
   final Key cardKey;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final String semanticLabel;
   final List<Widget> children;
 
@@ -130,6 +146,7 @@ class _MetricCardShell extends StatelessWidget {
   Widget build(BuildContext context) => DesignCard(
     key: cardKey,
     onTap: onTap,
+    onLongPress: onLongPress,
     semanticLabel: semanticLabel,
     padding: const EdgeInsets.all(padding),
     child: Column(
@@ -152,9 +169,9 @@ const double _metricGap = 6;
 /// 见 `_StepsCardShell` 里那行注释与需求 48 的断言。
 const double stepsTitleRowHeight = 23;
 
-/// A `.metric-card .data-track{margin:5px 0 0}`：进度轨在 6dp 间隔之外
-/// **再**上移 5dp（轨与说明行之间的呼吸留白）。
-const double _metricTrackMarginTop = 5;
+// 【退役常量（需求 10，2026-10-25）】A 的 `.data-track{margin:5px 0 0}`
+// 曾在这里固化成 `_metricTrackMarginTop = 5`，与步数卡的 `_metricGap`(6)
+// 差 1dp ⇒ 两卡进度条错位。现在两卡共用 `_metricGap`，该常量整体退役。
 
 /// 卡标题（A `.metric-top .section-title{font-size:14px}`）。
 class _MetricTitle extends StatelessWidget {
@@ -261,10 +278,18 @@ class _MetricValue extends StatelessWidget {
 }
 
 class WaterStatCard extends StatelessWidget {
-  const WaterStatCard({super.key, required this.water, this.onTap});
+  const WaterStatCard({
+    super.key,
+    required this.water,
+    this.onTap,
+    this.onLongPress,
+  });
 
   final WaterSummary water;
   final VoidCallback? onTap;
+
+  /// 长按看记录（A-1）；与 [onTap]（加水）并存。
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +299,8 @@ class WaterStatCard extends StatelessWidget {
     return _MetricCardShell(
       cardKey: const Key('dashboard-stat-water'),
       onTap: onTap,
-      semanticLabel: '饮水，点击添加',
+      onLongPress: onLongPress,
+      semanticLabel: '饮水，点击添加，长按查看记录',
       children: [
         // 标题行：`Expanded(标题)` + 状态徽标 + 水滴图标。
         //
@@ -283,32 +309,46 @@ class WaterStatCard extends StatelessWidget {
         // 标题 + 徽标 + 间隔 + 图标会**溢出 4.5dp**（`RenderFlex overflowed`）。
         // 修法：徽标用 `Flexible` 包住（超宽时省略而不是画到卡外），
         // 图标保持固定尺寸（它是识别符，不能省）。
-        Row(
-          children: [
-            Expanded(child: const _MetricTitle('饮水')),
-            Flexible(
-              child: percent == null
-                  ? const LfBadge.neutral(
-                      '未设目标',
-                      key: Key('dashboard-water-status'),
-                    )
-                  : LfBadge.mint(
-                      '达标 $percent%',
-                      key: const Key('dashboard-water-status'),
-                    ),
-            ),
-            const SizedBox(width: LfDimens.spaceXSmall),
-            // A `refinement.css:7 .water-icon{color:#54839F}`：图标是固定蓝
-            // 字面量，与进度轨的 `--water`（[LfSemanticColors.water]）不同值。
-            Icon(
-              Icons.water_drop_outlined,
-              size: 18,
-              color: context.lfc.waterIcon,
-            ),
-          ],
+        //
+        // 【2026-10-29（R-1，用户：达标 n% 显示不全）】两层修复：
+        // ① `LfBadge` 文本内套 `FittedBox(scaleDown)`——被挤时**等比缩小**
+        //    而不是打省略号（「达标 …」比完整数字更误导）；
+        // ② 标题行套与步数卡同一个恒高 `stepsTitleRowHeight`（需求 48 的
+        //    契约常量）：badge 缩放只发生在行内，行高不跟着缩——两卡数值行 /
+        //    进度条仍在同一水平线（`quick_stats_content_alignment_test`）。
+        SizedBox(
+          height: stepsTitleRowHeight,
+          child: Row(
+            children: [
+              Expanded(child: const _MetricTitle('饮水')),
+              Flexible(
+                child: percent == null
+                    ? const LfBadge.neutral(
+                        '未设目标',
+                        key: Key('dashboard-water-status'),
+                      )
+                    : LfBadge.mint(
+                        '达标 $percent%',
+                        key: const Key('dashboard-water-status'),
+                      ),
+              ),
+              const SizedBox(width: LfDimens.spaceXSmall),
+              // A `refinement.css:7 .water-icon{color:#54839F}`：图标是固定蓝
+              // 字面量，与进度轨的 `--water`（[LfSemanticColors.water]）不同值。
+              Icon(
+                Icons.water_drop_outlined,
+                size: 18,
+                color: context.lfc.waterIcon,
+              ),
+            ],
+          ),
         ),
-        // A `.metric-value{margin-top:3px}`（在统一 7 间隔上再补 3）。
-        const SizedBox(height: 3),
+        // 【需求 10（2026-10-25：两卡内容逐行对齐）】标题行之后**统一**切
+        // `_metricGap`(6)。这里原先写死 3（抄 A 的
+        // `.metric-value{margin-top:3px}`），而步数卡用的是 `_metricGap` ⇒
+        // 两卡数值行差 **3dp**、进度条差 **4dp**；并排时肉眼可见「数字不在
+        // 一条线上、进度条一高一低」。行距现在只有一个真相（同一个常量）。
+        const SizedBox(height: _metricGap),
         // 一条记录都没有时**不写「0 ml」**：没记录 ≠ 喝了 0 毫升（既有
         // 诚实口径；A 的原型有内存示例数据，不适用）。
         //
@@ -334,7 +374,9 @@ class WaterStatCard extends StatelessWidget {
             suffixKey: const Key('dashboard-water-target-inline'),
             valueKey: const Key('dashboard-water-value'),
           ),
-        const SizedBox(height: _metricTrackMarginTop),
+        // 【需求 10】数值行与进度条之间也用 `_metricGap`（同上：原来水卡多
+        // 一个 `_metricTrackMarginTop`(5)，比步数卡少 1dp ⇒ 进度条错位）。
+        const SizedBox(height: _metricGap),
         LfProgressBar(value: water.progress, color: c.water),
       ],
     );
@@ -426,12 +468,17 @@ class _StepsStatCardState extends State<StepsStatCard>
     if (repository == null) return;
     // 订阅会**立刻**推一次当前值：那一次不当作「变化」，否则每次建卡都多
     // 读一次传感器（既有「授权后重读」用例会数到多余的一次 read）。
-    var first = true;
-    _enabledSub = repository.watchEnabled().listen((_) {
-      if (first) {
-        first = false;
-        return;
-      }
+    //
+    // 【2026-10-26 真因（复核时抓到）】这个流监听的是 **`app_settings` 整张表**，
+    // 而步数**基线**也写在 `app_settings` 里（`steps_baseline`）⇒ 当天第一次
+    // 同步写完基线，这里会再收到一次事件、又同步一次——第二次差值恰好是
+    // 0，于是照样落一行「0 步」，把「首读不写 0」的修正当场抵消（实测：
+    // 卡上还是 0，库里有一行 0）。改成**只在开关值真的变化时**才重读。
+    bool? lastEnabled;
+    _enabledSub = repository.watchEnabled().listen((enabled) {
+      final previous = lastEnabled;
+      lastEnabled = enabled;
+      if (previous == null || previous == enabled) return;
       if (mounted) unawaited(_sync());
     });
   }
@@ -454,6 +501,13 @@ class _StepsStatCardState extends State<StepsStatCard>
   /// 两次重读之间的等待（原生 read 的窗口是 2s，留一点余量）。
   static const Duration syncRetryDelay = Duration(seconds: 3);
 
+  /// 「正在同步一次读数」（2026-10-31 用户：「点击重新读取要显示动画或读取状态」）。
+  ///
+  /// **只在卡面还没有数据时驱动空态文案**：从 noReading 点一下重读，卡上
+  /// 立刻从「这次没读到步数」变成「正在读取…」；已有数字时**不动数值**，
+  /// 免得一次刷新把用户的今日步数先抹成占位再刷回来。
+  bool _syncing = false;
+
   /// 采一次步数并落库。**不 await 出结果给界面**：界面订阅
   /// [StepsRepository.watchDate]，写库自然会推上来。
   Future<void> _sync() async {
@@ -467,9 +521,14 @@ class _StepsStatCardState extends State<StepsStatCard>
     // `localDate ?? ''` 传下去，会往步数表写一行 `local_date = ''`（回头
     // 真同步那天还会撞 UNIQUE）。没有日期时一个字都不写。
     if (localDate == null) return;
-    final result = await repository.syncToday(localDate);
-    if (!mounted) return;
-    setState(() => _kind = result.availability.toReadKind());
+    setState(() => _syncing = true);
+    try {
+      final result = await repository.syncToday(localDate);
+      if (!mounted) return;
+      setState(() => _kind = result.availability.toReadKind());
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
   }
 
   /// 授权成功后**就地有界重读**（2026-10-16 用户：「授权后仍识别不了」）。
@@ -531,12 +590,13 @@ class _StepsStatCardState extends State<StepsStatCard>
       );
     }
 
-    return StreamBuilder<int?>(
-      stream: repository.watchDate(localDate),
+    return StreamBuilder<StepsDayValue?>(
+      stream: repository.watchDay(localDate),
       builder: (context, snapshot) {
-        final steps = snapshot.data;
+        final day = snapshot.data;
+        final steps = day?.steps ?? 0;
         // 有数据优先；没有数据才看本次读数给了哪种「没有」。
-        if (steps != null) {
+        if (day != null) {
           return _StepsCardShell(
             // 2026-10-16 用户：「步数也加『达标 n%』标签」＋「右上角的图标
             // 没有了」——状态位＝**达标徽标 + 步行图标**（图标在徽标右侧、
@@ -549,14 +609,28 @@ class _StepsStatCardState extends State<StepsStatCard>
                   key: const Key('dashboard-steps-status'),
                 ),
                 const SizedBox(width: LfDimens.spaceSmall),
-                Icon(Icons.directions_walk, size: 18, color: mint.tone(600)),
+                // 手动记录的步数不是传感器读的——如实标一枚「手动」，
+                // 否则用户看到「达标 65%」会以为那是设备自己数出来的。
+                if (day.isManual)
+                  LfBadge.neutral(
+                    '手动',
+                    key: const Key('dashboard-steps-manual'),
+                  )
+                else
+                  Icon(Icons.directions_walk, size: 18, color: mint.tone(600)),
               ],
             ),
             body: _StepsValue(steps: steps, goal: goal),
             // 目标由注入方/设置给出，理论上不会 ≤ 0；真给了也不画成「无限」。
             progress: goal <= 0 ? 0 : steps / goal,
-            onTap: null,
-            semanticLabel: '步数，今天 $steps 步',
+            // 2026-10-26：有数据时点卡不再是死路——打开步数弹层，
+            // 里面能「重新读取」也能「手动记录」（用户：「也不能自己输入」）。
+            onTap: () => showStepsPermissionSheet(
+              context,
+              repository,
+              localDate: localDate,
+            ),
+            semanticLabel: '步数，今天 $steps 步${day.isManual ? '（手动记录）' : ''}，点击管理',
             mint: mint,
           );
         }
@@ -586,14 +660,42 @@ class _StepsStatCardState extends State<StepsStatCard>
             mint: mint,
           );
         }
+        // 已授权、但当天还没有可信读数（第一次读只立了基线）：
+        // **不显示 0**，如实说「刚开始读」，点一下再读一次。
+        if (_kind == StepsReadingKind.available) {
+          return _StepsCardShell(
+            badge: const LfBadge.mint(
+              '已授权',
+              key: Key('dashboard-steps-authorized'),
+            ),
+            body: const _StepsPlaceholder(kind: StepsReadingKind.starting),
+            progress: 0,
+            // 点卡进弹层：那里既能「重新读取」，也能**手动记录**（这条路
+            // 恰恰是给「传感器读不到」的用户准备的，不能只给一个重复读）。
+            onTap: () => showStepsPermissionSheet(
+              context,
+              repository,
+              localDate: localDate,
+            ),
+            semanticLabel: '步数，暂无记录，点击重新读取',
+            mint: mint,
+          );
+        }
         return _StepsCardShell(
           badge: null,
-          body: _StepsPlaceholder(kind: _kind),
+          // 点卡重读期间：正文切成明确的状态句（而不是让「这次没读到」一直
+          // 挂着、看不出点没点动）。
+          body: _syncing
+              ? const _StepsPlaceholder(kind: StepsReadingKind.loading)
+              : _StepsPlaceholder(kind: _kind),
           progress: 0,
           // 「这次没读到」是可以自己救回来的：点一下重读一次（不是死路）。
-          onTap: _kind == StepsReadingKind.noReading ? _sync : null,
+          // 读的时候禁止再点——两次传感器读争同一个基线会算出错误的差值。
+          onTap: _kind == StepsReadingKind.noReading && !_syncing
+              ? _sync
+              : null,
           semanticLabel: _kind == StepsReadingKind.noReading
-              ? '步数，这次没读到，点击重试'
+              ? (_syncing ? '步数，正在重新读取' : '步数，这次没读到，点击重试')
               : '步数，暂无记录',
           mint: mint,
         );
@@ -602,11 +704,15 @@ class _StepsStatCardState extends State<StepsStatCard>
   }
 }
 
-/// 一次读数在界面上的分类（与 [StepsAvailability] 一一对应，但**多一个
-/// loading**：首帧还没读到之前不能先说「没有传感器」）。
+/// 一次读数在界面上的分类（与 [StepsAvailability] 一一对应，但**多两个**：
+/// `loading` = 首帧还没读到之前不能先说「没有传感器」；`starting` = 已授权但
+/// 当天还没有可信读数——第一次读只立基线、**不写 0**（2026-10-26））。
 enum StepsReadingKind {
   loading,
   available,
+
+  /// 已授权、但当天还没有可信读数（第一次读只立基线）。
+  starting,
   noSensor,
   denied,
   noReading,
@@ -735,8 +841,11 @@ class _StepsPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.lf;
     final hint = switch (kind) {
-      // 首帧：还不能断言任何事，用与文字同色的占位，不说「没有」。
+      // 首帧 / 点卡重读：还不能断言任何事，用与文字同色的占位，不说「没有」。
       StepsReadingKind.loading => '正在读取…',
+      // 【2026-10-31 用户：没有数据就显示暂无记录】首读只立基线不落行是
+      // 仓储语义；界面上不再解释这件事，正文直接写「暂无记录」。
+      StepsReadingKind.starting => '',
       StepsReadingKind.noSensor => '这台设备没有计步传感器',
       StepsReadingKind.noReading => '这次没读到步数',
       StepsReadingKind.denied => '未授权',
@@ -745,9 +854,17 @@ class _StepsPlaceholder extends StatelessWidget {
     };
     return _StepsHint(
       key: const Key('dashboard-steps-empty'),
-      headline: kind == StepsReadingKind.disabled ? '已关闭' : '暂无记录',
+      headline: switch (kind) {
+        StepsReadingKind.disabled => '已关闭',
+        StepsReadingKind.loading => '正在读取',
+        _ => '暂无记录',
+      },
       hint: hint,
-      style: kind == StepsReadingKind.available ? null : c.mutedForeground,
+      style:
+          kind == StepsReadingKind.available ||
+              kind == StepsReadingKind.starting
+          ? null
+          : c.mutedForeground,
     );
   }
 }

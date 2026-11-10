@@ -17,6 +17,7 @@ import 'package:localfit_ai/features/hydration/data/water_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
 import 'package:localfit_ai/features/settings/data/profile_identity_repository.dart';
@@ -168,7 +169,7 @@ void main() {
     expect(protocol, contains('nutritionFrom'));
   });
 
-  test('canteen.dish.create + nutritionFrom=food 命中 → origin=food_library、grade 沿用、链接 confirmed', () async {
+  test('canteen.dish.create + nutritionFrom=food 命中 → 建立权威链接，不再复制证据', () async {
     final out = await executor.apply(
       cmd('canteen.dish.create', {
         'window': windowId,
@@ -178,15 +179,21 @@ void main() {
     );
     expect(out.ok, isTrue, reason: out.message);
     final dish = (await db.select(db.menuItems).get()).single;
-    final evidence =
-        (await db.select(db.menuItemNutritionEvidence).get()).single;
-    expect(evidence.origin, 'food_library');
-    expect(evidence.grade, 'A', reason: 'verified 食物沿用 A');
-    expect(evidence.kcalPer100g, closeTo(140, 0.001));
+    // docs/67 §3.3：唯一权威链接是供应的主引用；营养从主修订派生，
+    // 不再往证据表写一份"当前值"。
+    expect(dish.foodId, 'food-fanqie');
+    expect(
+      await db.select(db.menuItemNutritionEvidence).get(),
+      isEmpty,
+      reason: '引用 = 链接，不是复制一份每 100g',
+    );
     final link = (await db.select(db.menuItemFoodMatches).get()).single;
     expect(link.matchStatus, 'confirmed');
     expect(link.foodId, 'food-fanqie');
-    expect(dish.id, isNotEmpty);
+    final supply = (await SupplyCatalogRepository(database: db)
+        .getById(dish.id))!;
+    expect(supply.kcalPer100g, closeTo(140, 0.001));
+    expect(supply.hasCompleteNutrition, isTrue);
   });
 
   test('canteen.dish.create + nutritionFrom=food 未命中 → 菜已建，如实说营养未填', () async {
@@ -231,10 +238,16 @@ void main() {
       }),
     );
     expect(out.ok, isTrue, reason: out.message);
-    final evidence =
-        (await db.select(db.menuItemNutritionEvidence).get()).single;
-    expect(evidence.origin, 'food_library');
-    expect(evidence.kcalPer100g, closeTo(140, 0.001));
+    final dish = (await db.select(db.menuItems).get()).single;
+    expect(dish.foodId, 'food-fanqie', reason: '改引食物库 = 改链接');
+    expect(
+      await db.select(db.menuItemNutritionEvidence).get(),
+      isEmpty,
+      reason: '命令里自带的 880 千卡被忽略，也不复制进证据表',
+    );
+    final supply = (await SupplyCatalogRepository(database: db)
+        .getById(dish.id))!;
+    expect(supply.kcalPer100g, closeTo(140, 0.001), reason: '值来自主库');
   });
 
   test('canteen.dish.nutrition + nutritionFrom=none → 不写', () async {

@@ -59,19 +59,20 @@ final class OpenAiCompatibleEndpoint {
 
     final uri = Uri.tryParse(source);
     if (uri == null ||
-        uri.scheme != 'https' ||
+        !_isAllowedScheme(uri) ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
-        (uri.hasPort && uri.port != 443) ||
+        // 非回环仍只认 443：外部端点用非标端口没有产品需求，保持收窄。
+        (uri.hasPort && uri.port != 443 && !isLoopbackHost(uri.host)) ||
         !_isSafePath(uri.path)) {
       return null;
     }
 
     final path = _normalizedPath(_stripProtocolTail(uri.path));
     final baseUri = Uri(
-      scheme: 'https',
+      scheme: uri.scheme.toLowerCase(),
       host: uri.host.toLowerCase(),
       port: uri.hasPort ? uri.port : null,
       path: path,
@@ -99,6 +100,32 @@ final class OpenAiCompatibleEndpoint {
       }
     }
     return result;
+  }
+
+  /// 允许的 scheme：https（沿用 443 端口限制）；
+  /// **明文只放行回环地址**（127.0.0.0/8、localhost、[::1]）——本机模型网关
+  /// 的流量不出设备，不构成出网面。远程明文一律拒绝。
+  ///
+  /// 注意：Android 侧 `usesCleartextTraffic="false"` 仍然会拦回环明文，
+  /// 这条放宽只对桌面/测试构建生效（见 docs/09 发布清单）。
+  static bool _isAllowedScheme(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == 'https') return true;
+    return scheme == 'http' && isLoopbackHost(uri.host);
+  }
+
+  /// 是否本机回环主机（不含 `0.0.0.0` 这类"监听所有网卡"的写法）。
+  static bool isLoopbackHost(String host) {
+    final value = host.toLowerCase();
+    if (value == 'localhost') return true;
+    if (value == '::1' || value == '[::1]') return true;
+    final parts = value.split('.');
+    if (parts.length != 4) return false;
+    if (parts.first != '127') return false;
+    return parts.every((part) {
+      final octet = int.tryParse(part);
+      return octet != null && octet >= 0 && octet <= 255;
+    });
   }
 
   static bool _hasUnsafeCharacters(String value) =>

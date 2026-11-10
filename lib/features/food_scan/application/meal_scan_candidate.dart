@@ -59,6 +59,12 @@ final class MealScanCandidate {
         carbsGrams: nutrition.carbsGrams * factor,
         fatGrams: nutrition.fatGrams * factor,
       ),
+      // 扫码记餐的来源是「拍照识别」，不是手动；否则餐条目里永远追不到
+      // 这张照片估出来的那条。
+      sourceType: 'scan',
+      cookingMethod: estimate.cookingMethod,
+      estimateMinGrams: estimate.gramsRange.min,
+      estimateMaxGrams: estimate.gramsRange.max,
     );
   }
 
@@ -67,7 +73,18 @@ final class MealScanCandidate {
     final food = selectedFood;
     if (food != null) {
       if (!grams.isFinite || grams <= 0) return null;
-      return MealItemDraft.fromFood(food, grams);
+      final draft = MealItemDraft.fromFood(food, grams);
+      return MealItemDraft(
+        foodId: draft.foodId,
+        foodName: draft.foodName,
+        grams: draft.grams,
+        nutrition: draft.nutrition,
+        sourceType: 'scan',
+        sourceId: draft.sourceId,
+        cookingMethod: estimate.cookingMethod,
+        estimateMinGrams: estimate.gramsRange.min,
+        estimateMaxGrams: estimate.gramsRange.max,
+      );
     }
     return aiNutrition;
   }

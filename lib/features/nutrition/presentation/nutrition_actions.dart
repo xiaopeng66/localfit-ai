@@ -8,12 +8,15 @@ import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/food_data_flows.dart';
+import 'package:localfit_ai/features/nutrition/presentation/custom_meal_sheet.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_editor_dialog.dart';
+import 'package:localfit_ai/features/nutrition/presentation/nutrition_target_sheet.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_entry_chooser_sheet.dart';
-import 'package:localfit_ai/features/nutrition/presentation/meal_history_dialog.dart';
+import 'package:localfit_ai/features/nutrition/presentation/dish_meal_editor_sheet.dart';
 import 'package:localfit_ai/features/nutrition/presentation/new_food_dialog.dart';
 
 /// 饮食页的动作层（2.0-6i-3b，docs/07 §9.3「页面只负责布局和用户事件」）：
@@ -36,6 +39,7 @@ final class NutritionActions {
     this.onAddDishToMeal,
     this.canteenRepository,
     this.onAnalyzeDishes,
+    this.supplyCatalog,
   });
 
   final BuildContext context;
@@ -60,6 +64,10 @@ final class NutritionActions {
   /// 能搜到它们。未接线时该分组不出现。
   final CanteenRepository? canteenRepository;
 
+  /// 食堂供应的统一读取口（docs/67 §6.4）：记餐编辑器用它把"某窗口的一份"
+  /// 作为可记录候选，明确窗口与份量，而不是当成无来源的重复行。
+  final SupplyCatalogRepository? supplyCatalog;
+
   /// 去给选中的菜做 AI 分析（与食堂目录页同一个回调，不新造写路径）。
   /// 未接线时只如实说明「还没有营养数据」，不给点了没反应的按钮。
   final Future<void> Function(List<CanteenDish> dishes)? onAnalyzeDishes;
@@ -80,10 +88,80 @@ final class NutritionActions {
         await editMeal(foods, meals, initialSlot: initialSlot);
       case MealRecordEntry.byDish:
         await recordByDish(initialSlot: initialSlot);
+      case MealRecordEntry.byCustom:
+        await recordCustomMeal(meals, initialSlot: initialSlot);
     }
   }
 
-  /// 「按菜品记录」：菜品库（我的菜）选一道 → 确认 → 记一笔（整份口径）。
+  /// 手动指定每日营养目标（2026-10-26 用户：「营养摄入自己不能改」）。
+  ///
+  /// 从**今天**起生效；保存后卡上的「依据」写「手动设定」，「恢复按身体数据
+  /// 计算」清掉手动值、回到公式那套（`DailyTargets` 行一个字都没动）。
+  Future<void> editNutritionTarget(MealRepository meals) async {
+    final localDate = formatLocalDate(selectedDate());
+    final current = await meals.readManualTargetForDate(localDate);
+    final formula = await meals.watchNutritionForDate(localDate).first;
+    if (!context.mounted) return;
+    await NutritionTargetSheet.show(
+      context,
+      effectiveDate: localDate,
+      // 预填：手动值优先；没有手动值就用当前生效的（公式）目标。
+      current: current?.toTarget() ?? formula.target,
+      onSave: (value) async {
+        try {
+          await meals.saveManualTarget(value);
+          _showMessage('营养目标已按你填的区间生效。', icon: AppSnackBar.successIcon);
+          return null;
+        } on FormatException catch (error) {
+          return error.message;
+        } catch (_) {
+          return '保存失败，请重试。';
+        }
+      },
+      onRestore: () {
+        unawaited(meals.clearManualTarget());
+        _showMessage('已恢复按身体数据计算。', icon: AppSnackBar.successIcon);
+      },
+    );
+  }
+
+  /// 「自定义一顿」：不依赖食物库，直接填这一顿的热量与三宏量。
+  ///
+  /// 为什么需要（2026-10-26 用户：「营养摄入自己不能改」）：外卖、家里做的、
+  /// 聚餐这些食物库里没有的东西，原来只能先建一个食物、或拍照让 AI 估。
+  /// 落库仍走 `MealRepository.create`（`foodId = null` + `sourceType =
+  /// 'manual'`），不新增写路径。
+  Future<void> recordCustomMeal(
+    MealRepository meals, {
+    MealSlot? initialSlot,
+  }) async {
+    await CustomMealSheet.show(
+      context,
+      localDate: formatLocalDate(selectedDate()),
+      initialSlot: initialSlot,
+      onSubmit: (draft) async {
+        try {
+          await meals.create(draft);
+          _showMessage('已记下这一顿（自定义热量）。', icon: AppSnackBar.successIcon);
+          return null;
+        } on FormatException catch (error) {
+          return error.message;
+        } catch (_) {
+          return '餐食保存失败，请重试。';
+        }
+      },
+    );
+  }
+
+  /// 「按菜品记录」：**表单弹层**（2026-10-28 用户：「按菜品记录为什么弹窗
+  /// 还是这样，我要的是按食材记录这样，自定义一顿也是一样」）——与按食材
+  /// 同构：餐次胶囊 + 搜索加菜 + 已添加 + 合计 + 保存；保存逐条走
+  /// [onAddDishToMeal]（`AddDishToMeal.run`），不新增写路径。
+  ///
+  /// 未分析的食堂菜**不进表单**（没有营养，加进来就是 0 kcal）：那 条
+  /// 「搜得到但不能记、点了给『去分析』」的支路留在 `DishMealPickerDialog`
+  /// （`_offerUnanalyzedEntry`），只在菜品库为空且食堂有未分析菜时作为
+  /// **补位入口**出现（弹层空态不能只是一句「还是空的」）。
   ///
   /// [initialSlot] 是页面给的预选餐次（今日页「记录晚餐」）：它优先于菜品
   /// 库里记的餐次——用户刚说的是哪一餐，比菜库里存档的餐次更可信。
@@ -93,48 +171,36 @@ final class NutritionActions {
     if (library == null || addDish == null) return;
     try {
       final dishes = await library.watchAll().first;
-      // 食堂目录里**还没分析**的菜也一并给弹层（D-1 选项 2，2026-10-25
-      // 用户裁决）：它们不进菜品库（没有营养），但用户要能**搜得到**
-      // ——「那边有，这边没有」正是他抱怨的点。
-      final unanalyzed = await _unanalyzedCanteenDishes();
       if (!context.mounted) return;
-      final picked = await AppSheet.showCustom<DishPick>(
+      final result = await DishMealEditorSheet.show(
         context,
-        builder: (_) => DishMealPickerDialog(
-          dishes: dishes,
-          unanalyzedCanteenDishes: unanalyzed,
-          mealSlotLabel: defaultMealSlotLabel,
-        ),
+        dishes: dishes,
+        localDate: formatLocalDate(selectedDate()),
+        onAddDish: addDish,
+        initialSlot: initialSlot,
       );
-      if (picked == null || !context.mounted) return;
-      switch (picked) {
-        case PickedUnanalyzedCanteenDish(:final dish):
-          // 没有营养 ⇒ **不能记**（记下去就是 0 kcal，污染当天热量）。
-          // 给明确的下一步：去菜单页给它做 AI 分析，分析完它就会进菜品库、
-          // 也能在「按食用记录」里正常记。
-          await _offerAnalyzeUnanalyzed(dish);
-          return;
-        case PickedLibraryDish(:final dish):
-          // `RV4-P1-06`：确认层**返回用户选定的餐次**（null = 取消），
-          // 用户在弹层里点的餐次优先于菜品库存档（D9 同一口径）。
-          final chosenSlot = await DishMealConfirmSheet.show(
-            context,
-            dish: dish,
-            mealSlotLabel: defaultMealSlotLabel,
-            initialSlot: initialSlot,
-          );
-          if (chosenSlot == null || !context.mounted) return;
-          await addDish(dish, slotOverride: chosenSlot);
-          _showMessage(
-            '已记一份「${dish.name}」到${chosenSlot.label}（记为已吃）',
-            icon: AppSnackBar.successIcon,
-          );
-      }
+      if (result == null || result.saved <= 0 || !context.mounted) return;
+      _showMessage(
+        result.saved == 1
+            ? '已记一份菜到${result.slot.label}（记为已吃）'
+            : '已记 ${result.saved} 份菜到${result.slot.label}（记为已吃）',
+        icon: AppSnackBar.successIcon,
+      );
+      // 表单关闭后，若菜品库为空且食堂有未分析菜，补一条「去分析」出路
+      // （原 D-1 支路收窄版：空菜库不能只是一句「还是空的」）。
+      if (dishes.isEmpty) unawaited(_offerFirstUnanalyzed());
     } on FormatException catch (error) {
       _showMessage(error.message, icon: AppSnackBar.errorIcon);
     } catch (_) {
       _showMessage('记录失败，请重试。', icon: AppSnackBar.errorIcon);
     }
+  }
+
+  Future<void> _offerFirstUnanalyzed() async {
+    final unanalyzed = await _unanalyzedCanteenDishes();
+    if (unanalyzed.isEmpty) return;
+    if (!context.mounted) return;
+    _offerAnalyzeUnanalyzed(unanalyzed.first);
   }
 
   /// 收集「食堂目录里还没分析」的菜（跨全部地点/窗口）。
@@ -186,16 +252,24 @@ final class NutritionActions {
   /// [initialSlot] 是「点哪一餐就记哪一餐」的预选槽位（Round7 阶段 2 决策
   /// D9）：今日页「记录晚餐」、记录页槽位卡头「+」用它；编辑既有餐食时
   /// [initial] 的槽位优先。不传 = 既有默认（午餐），旧调用点行为不变。
-  Future<void> editMeal(
+  /// 返回弹层产出的草稿（null = 用户取消）。【2026-10-31】从 void 改为
+  /// 返回草稿：合并编辑（[editSlotMeals]）要靠它分辨「保存成功」与「取消」
+  /// ——取消时绝不能删掉被合并的其余记录。
+  Future<MealDraft?> editMeal(
     FoodRepository foods,
     MealRepository meals, {
     MealRecord? initial,
     MealSlot? initialSlot,
   }) async {
-    await AppSheet.showCustom<MealDraft>(
+    return AppSheet.showCustom<MealDraft>(
       context,
       builder: (context) => MealEditorDialog(
         foodRepository: foods,
+        // 【N-2（2026-10-29 用户：三个添加入口合并成一个界面）】统一弹层
+        // 直连菜品库：一个搜索框同时搜食物库与菜品库、支持手动添加食材
+        // （可存入食物库）——三入口 chooser 退役。
+        dishRepository: dishLibraryRepository,
+        supplyCatalog: supplyCatalog,
         localDate: formatLocalDate(selectedDate()),
         initialMeal: initial,
         initialSlot: initialSlot,
@@ -221,6 +295,46 @@ final class NutritionActions {
         },
       ),
     );
+  }
+
+  /// 【2026-10-31 用户：「整卡点击后显示所有已添加的食物，然后可以编辑」】
+  /// 合并编辑：打开的弹层列出该槽位**全部记录**的食物（多条记录合成一个
+  /// 视图），保存 = 更新第一条记录为整份草稿、**删除其余记录**（同槽位
+  /// 同餐次，用户的意图就是「这一餐吃的是这堆」），不引入新表。
+  Future<void> editSlotMeals(
+    FoodRepository foods,
+    MealRepository meals, {
+    required List<MealRecord> records,
+  }) async {
+    if (records.isEmpty) return;
+    final first = records.first;
+    final latest = records.reduce(
+      (a, b) => a.eatenAt.isAfter(b.eatenAt) ? a : b,
+    );
+    final mergedNotes = [
+      for (final meal in records)
+        if ((meal.notes ?? '').trim().isNotEmpty) meal.notes!.trim(),
+    ].join(' · ');
+    final merged = MealRecord(
+      id: first.id,
+      localDate: first.localDate,
+      slot: first.slot,
+      eatenAt: latest.eatenAt,
+      source: first.source,
+      createdAt: first.createdAt,
+      updatedAt: latest.updatedAt,
+      items: [for (final meal in records) ...meal.items],
+      notes: mergedNotes.isEmpty ? null : mergedNotes,
+    );
+    final draft = await editMeal(foods, meals, initial: merged);
+    // 【取消护栏】弹层返回 null = 用户取消——此时**绝不能**删掉被合并的
+    // 其余记录，否则用户什么都没改反而丢了数据。
+    if (draft == null) return;
+    // 保存成功：第一条记录已更新为整份草稿，其余记录的内容已并入它，
+    // 原样留着会双份 —— 删除（同槽位同餐次）。
+    for (var i = 1; i < records.length; i++) {
+      await meals.delete(records[i].id);
+    }
   }
 
   Future<void> deleteMeal(MealRecord meal, MealRepository repository) async {
@@ -277,7 +391,7 @@ final class NutritionActions {
         },
       );
     } catch (_) {
-      _showMessage('餐食删除失败，请重试。', icon: AppSnackBar.errorIcon);
+      _showMessage('删除失败，请重试。', icon: AppSnackBar.errorIcon);
     }
   }
 
@@ -293,7 +407,7 @@ final class NutritionActions {
     final messenger = ScaffoldMessenger.of(context);
     AppSnackBar.showOn(
       messenger,
-      '已删除 ${deletedRecords.length} 项餐食。',
+      '已删除所选食物。',
       icon: AppSnackBar.deleteIcon,
       actionLabel: '撤销',
       duration: AppSnackBar.undoDuration,
@@ -309,25 +423,6 @@ final class NutritionActions {
         }
       },
     );
-  }
-
-  Future<void> reuseMeal(MealRepository repository) async {
-    try {
-      final history = await repository.listRecent();
-      if (!context.mounted) return;
-      final chosen = await AppSheet.showCustom<MealRecord>(
-        context,
-        builder: (context) => MealHistoryDialog(meals: history),
-      );
-      if (chosen == null || !context.mounted) return;
-      await repository.reuse(
-        chosen.id,
-        localDate: formatLocalDate(selectedDate()),
-      );
-      _showMessage('历史餐食已复用到所选日期。', icon: AppSnackBar.successIcon);
-    } catch (_) {
-      _showMessage('历史餐食复用失败，请重试。', icon: AppSnackBar.errorIcon);
-    }
   }
 
   Future<void> createFood(FoodRepository repository) async {

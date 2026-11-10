@@ -180,7 +180,7 @@ enum LfCircleIconButtonVariant {
   /// `muted` 底 + `foreground` 图标：顶栏返回、输入栏添加图片/麦克风。
   muted,
 
-  /// 品牌实心底 + `primaryForeground` 图标：输入栏发送、录音发送。
+  /// 实心品牌底（brandStrong）+ 反色图标（onBrandStrong）：输入栏发送、录音发送。
   /// **无阴影**——设计稿的 `btn-voice-send` 明确不带 shadow。
   primary,
 
@@ -217,7 +217,7 @@ class LfCircleIconButton extends StatelessWidget {
 
   /// 图标色；缺省按 [variant] 取（禁用时一律 `mutedForeground`）。主按钮
   /// （输入栏发送/录音发送）可用 `variant: primary`，或显式传
-  /// `primaryForeground`。
+  /// `lfSolidButtonForeground`（= onBrandStrong，压在实心品牌绿上的反色）。
   final Color? iconColor;
 
   @override
@@ -227,7 +227,7 @@ class LfCircleIconButton extends StatelessWidget {
       LfCircleIconButtonVariant.muted => (c.muted, c.foreground),
       LfCircleIconButtonVariant.primary => (
         lfSolidButtonFill(context),
-        c.primaryForeground,
+        lfSolidButtonForeground(context),
       ),
       LfCircleIconButtonVariant.overlay => (
         // 压在照片上的「重拍」类按钮（`bg-[var(--lf-card)]/90`）。

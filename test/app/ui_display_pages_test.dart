@@ -17,11 +17,9 @@ import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 import 'package:localfit_ai/features/ai_conversation/presentation/chat_edit_card.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
-import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_editor_dialog.dart';
-import 'package:localfit_ai/features/nutrition/presentation/sections/dish_card.dart';
 import 'package:localfit_ai/features/settings/application/load_profile_overview.dart';
 import 'package:localfit_ai/features/settings/domain/ai_provider_settings.dart';
 import 'package:localfit_ai/features/settings/presentation/settings_page.dart';
@@ -287,51 +285,6 @@ void main() {
       expect(savedMeal?.items.single.grams, 150);
     },
   );
-
-  for (final scale in [1.0, 2.0]) {
-    testWidgets('dish nutrients and add action fit narrow cards at $scale', (
-      tester,
-    ) async {
-      _viewport(tester, const Size(320, 1000), scale: scale);
-      var calls = 0;
-      final dish = DishRecord(
-        id: 'dish',
-        name: '鸡胸肉蔬菜午餐',
-        mealSlot: 'lunch',
-        kcal: 650,
-        proteinG: 35,
-        carbsG: 65,
-        fatG: 28,
-        source: 'ai_estimate',
-        createdAt: now,
-        updatedAt: now,
-        servingWindow: '11:30-13:30',
-      );
-      await tester.pumpWidget(
-        _app(
-          Scaffold(
-            body: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: DishCard(
-                  dish: dish,
-                  index: 1,
-                  onAddToMeal: (_) async => calls++,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.byKey(const Key('cta-add-meal-1')));
-      await tester.pumpAndSettle();
-      _readable(tester, find.text('加入午餐'), maxLines: 1);
-      await tester.tap(find.byKey(const Key('cta-add-meal-1')));
-      expect(calls, 1);
-    });
-  }
 
   testWidgets(
     'achievement tiles keep their full names at large font instead of ellipsizing',

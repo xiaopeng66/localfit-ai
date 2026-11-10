@@ -60,6 +60,12 @@ final class StepsRepository {
   /// 写入来源标记（`StepsDaily.source`）。
   static const sourceDeviceCounter = 'device_counter';
 
+  /// 用户手动录入（2026-10-26）：当天按「用户说的是事实」处理，传感器不再覆盖。
+  static const sourceManual = 'manual';
+
+  /// 手动步数的上限（一天 20 万步已经远超任何真实活动量；再大就是打错了）。
+  static const maxManualSteps = 200000;
+
   /// 读当前步数目标。**缺键 / 坏值 / 越界都返回默认值**（[defaultDailyGoal]）
   /// 而不抛：步数卡随时可能在读，为一个设置值把整张卡打死（与
   /// [readBaseline] 的「坏值当作没有」同一取舍）代价远大于收益。
@@ -133,6 +139,15 @@ final class StepsRepository {
   ///
   /// **不可用时一个字都不写**：没有传感器 / 没授权 / 没读到值都不该在
   /// 步数表里留下一行——留下 `steps: 0` 就是把「没读成」记成「没走过」。
+  ///
+  /// **当天第一次读只立基线，不写行**（2026-10-26，用户：「步数它读不到系统
+  /// 数据」）：此刻累计值就是基线，「今日步数」还不存在——原来会落一行 0，
+  /// 卡上显示「0 / 10,000 步」，用户以为读数坏了。现在把基线落好、先不出数，
+  /// 第二次同步才有可信差值。
+  ///
+  /// **手动记录优先**：某天是用户自己填的（`source = manual`）⇒ 传感器不覆盖
+  /// 它（用户原话：「也不能自己输入」，填了就该算数）。要交还给传感器就用
+  /// [clearManualSteps]。
   Future<StepsSyncResult> syncToday(String localDate) async {
     // 应用内开关关闭 = 不读、不写（2026-10-23 用户：「授权取消不掉」）。
     if (!await readEnabled()) {
@@ -152,16 +167,23 @@ final class StepsRepository {
       localDate: localDate,
       baseline: previous,
     );
+    final baselineIsNew = previous == null || previous.localDate != localDate;
+    final existing = await _readRow(localDate);
     final now = clock.nowUtc();
     await database.transaction(() async {
+      // 手动记录优先：不写步数行，但基线照常跟进（清掉手动后能立刻算差值）。
+      if (existing?.source == sourceManual) {
+        await _writeBaselineIfChanged(previous, today.baseline);
+        return;
+      }
+      // 当天第一次读 = 只立基线：不落 0（0 不是「还没读到」的事实）。
+      if (baselineIsNew) {
+        await _writeBaselineIfChanged(previous, today.baseline);
+        return;
+      }
       // 一天一行：冲突目标必须是 `localDate` 的 UNIQUE（不是 id——id 每次都
       // 是新生成的，按 id upsert 等于没有 upsert，第二次同步当天就会撞
       // `UNIQUE constraint failed: steps_daily.local_date`）。
-      final existing =
-          await (database.select(database.stepsDaily)
-                ..where((row) => row.localDate.equals(localDate))
-                ..limit(1))
-              .getSingleOrNull();
       if (existing == null) {
         await database
             .into(database.stepsDaily)
@@ -188,28 +210,105 @@ final class StepsRepository {
           ),
         );
       }
-      // 基线只在「跨天 / 重启」时才需要重写；同一天同一基线反复写是白写。
-      final baselineChanged =
-          previous == null ||
-          previous.localDate != today.baseline.localDate ||
-          previous.counter != today.baseline.counter;
-      if (baselineChanged) {
-        await database
-            .into(database.appSettings)
-            .insertOnConflictUpdate(
-              AppSettingsCompanion.insert(
-                key: baselineKey,
-                value: _encodeBaseline(today.baseline),
-              ),
-            );
-      }
+      await _writeBaselineIfChanged(previous, today.baseline);
     });
+    if (existing?.source == sourceManual) {
+      return StepsSyncResult(
+        reading: reading,
+        saved: false,
+        steps: null,
+        manualKept: true,
+      );
+    }
+    if (baselineIsNew) {
+      return StepsSyncResult(
+        reading: reading,
+        saved: false,
+        steps: null,
+        baselineEstablished: true,
+      );
+    }
     return StepsSyncResult(
       reading: reading,
       saved: true,
       steps: today.steps,
       resetBaseline: today.resetBaseline,
     );
+  }
+
+  /// 基线只在「跨天 / 重启」时才需要重写；同一天同一基线反复写是白写。
+  Future<void> _writeBaselineIfChanged(
+    StepsBaseline? previous,
+    StepsBaseline next,
+  ) async {
+    if (previous != null &&
+        previous.localDate == next.localDate &&
+        previous.counter == next.counter) {
+      return;
+    }
+    await database
+        .into(database.appSettings)
+        .insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+            key: baselineKey,
+            value: _encodeBaseline(next),
+          ),
+        );
+  }
+
+  /// 手动记录某天的步数（覆盖当天行，`source = manual`）。
+  ///
+  /// 为什么允许：没有计步传感器、或系统权限/读数一直拿不到的设备上，用户
+  /// 仍然知道自己走了多少——「读不到」不该等于「记不了」（用户 2026-10-26
+  /// 原话：「也不能自己输入」）。
+  Future<void> saveManualSteps({
+    required String localDate,
+    required int steps,
+  }) async {
+    if (steps < 0 || steps > maxManualSteps) {
+      throw const FormatException('步数需在 0–200,000 之间。');
+    }
+    final now = clock.nowUtc();
+    await database.transaction(() async {
+      final existing = await _readRow(localDate);
+      if (existing == null) {
+        await database
+            .into(database.stepsDaily)
+            .insert(
+              StepsDailyCompanion.insert(
+                id: idGenerator.next(),
+                localDate: localDate,
+                steps: steps,
+                source: sourceManual,
+                recordedAt: now,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      } else {
+        await (database.update(
+          database.stepsDaily,
+        )..where((row) => row.localDate.equals(localDate))).write(
+          StepsDailyCompanion(
+            steps: Value(steps),
+            source: Value(sourceManual),
+            recordedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+    });
+  }
+
+  /// 清掉某天的手动记录（让传感器重新接管）。
+  ///
+  /// **只删手动行**：传感器写的行不是用户的手动记录，删了就是抹掉真实数据。
+  Future<void> clearManualSteps(String localDate) async {
+    final existing = await _readRow(localDate);
+    if (existing?.source != sourceManual) return;
+    await (database.delete(
+      database.stepsDaily,
+    )..where((row) => row.localDate.equals(localDate))).go();
   }
 
   /// 读取基线；没有 / 坏值都返回 null（当作首次）。
@@ -223,22 +322,37 @@ final class StepsRepository {
   }
 
   /// 某一天已落库的步数（null = 那天没有行）。
-  Future<int?> stepsForDate(String localDate) async {
-    final row =
-        await (database.select(database.stepsDaily)
-              ..where((row) => row.localDate.equals(localDate))
-              ..limit(1))
-            .getSingleOrNull();
-    return row?.steps;
+  Future<int?> stepsForDate(String localDate) async =>
+      (await readDay(localDate))?.steps;
+
+  /// 某一天的步数 + 来源（界面据此标「手动」；null = 那天没有行）。
+  Future<StepsDayValue?> readDay(String localDate) async {
+    final row = await _readRow(localDate);
+    if (row == null) return null;
+    return StepsDayValue(steps: row.steps, source: row.source);
   }
 
   /// 监听某一天的步数（首页步数卡用；写入即推送）。
-  Stream<int?> watchDate(String localDate) {
+  Stream<int?> watchDate(String localDate) =>
+      watchDay(localDate).map((value) => value?.steps);
+
+  /// 监听某一天的步数 + 来源（步数卡要能标出「手动」这一事实）。
+  Stream<StepsDayValue?> watchDay(String localDate) {
     final query = database.select(database.stepsDaily)
       ..where((row) => row.localDate.equals(localDate))
       ..limit(1);
-    return query.watchSingleOrNull().map((row) => row?.steps);
+    return query.watchSingleOrNull().map(
+      (row) => row == null
+          ? null
+          : StepsDayValue(steps: row.steps, source: row.source),
+    );
   }
+
+  Future<StepsDailyEntry?> _readRow(String localDate) =>
+      (database.select(database.stepsDaily)
+            ..where((row) => row.localDate.equals(localDate))
+            ..limit(1))
+          .getSingleOrNull();
 
   /// 删除某一天的步数行（用户清空当日数据时用）。
   Future<void> clearDate(String localDate) async {
@@ -288,6 +402,8 @@ final class StepsSyncResult {
     required this.saved,
     required this.steps,
     this.resetBaseline = false,
+    this.baselineEstablished = false,
+    this.manualKept = false,
   });
 
   final StepsReading reading;
@@ -301,5 +417,25 @@ final class StepsSyncResult {
   /// 本次检测到计数值回退（设备重启），基线已重设。
   final bool resetBaseline;
 
+  /// 当天第一次读：**只立了基线、没有落步数**（2026-10-26）。
+  ///
+  /// 界面据此说「刚开始读，走几步后再看」，而不是拿一个 0 当「今天没走」。
+  final bool baselineEstablished;
+
+  /// 当天是手动记录：传感器这次**没有覆盖**它（用户填的数优先）。
+  final bool manualKept;
+
   StepsAvailability get availability => reading.availability;
+}
+
+/// 某一天的步数 + 来源（步数卡要能如实标出「手动」）。
+final class StepsDayValue {
+  const StepsDayValue({required this.steps, required this.source});
+
+  final int steps;
+
+  /// [StepsRepository.sourceDeviceCounter] | [StepsRepository.sourceManual]
+  final String source;
+
+  bool get isManual => source == StepsRepository.sourceManual;
 }

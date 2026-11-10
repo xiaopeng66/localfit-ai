@@ -20,6 +20,7 @@ class MacroBar extends StatelessWidget {
     required this.color,
     required this.current,
     required this.target,
+    this.targetMin,
     this.unit = 'g',
   });
 
@@ -34,13 +35,43 @@ class MacroBar extends StatelessWidget {
   /// 数据色（蛋白=珊瑚 / 碳水=蜜黄 / 脂肪=雾紫，编码永不调换）。
   final Color color;
   final num current;
-  final num target;
+
+  /// 目标**上限**；**null = 没有目标**，右端只写当前值。
+  ///
+  /// 【2026-10-26 看图复核缺陷 6】未设目标时调用点曾退成 `?? 0`，右端于是写出
+  /// 「60 / 0 g」——那会被读成「目标是 0 克」，是一个**编出来的目标**。用户
+  /// 反复强调「算不出来就说数据不足，不许给假数字」，所以这里改成可空：
+  /// 没有目标就只写当前值，进度条也不填（没有分母可比）。
+  final num? target;
+
+  /// 目标**下限**（需求 1，2026-10-25）：非 null 且 ≥ 0 时右端写**区间**
+  /// `min–max g`（用户点名：「三宏量块显示区间：90–130 g」）。
+  ///
+  /// 进度条分母仍取 [target]（上限）：进度条必须有单一确定分母，取上限是
+  /// 保守做法且与「不超上限」一致——这是**有意的取舍**，不是漏改。
+  ///
+  /// 【2026-10-29 用户：「区间要在进度条上显示出来，不然我怎么知道区间在哪」】
+  /// 下限不再只写在文字里：轨道上画一段 `min/max → 1.0` 的**区间带**
+  /// （同色 35% 透明度），实心填充仍是当前值——「带在哪 = 目标区间在哪、
+  /// 填充到哪 = 现在到哪」一眼可读。
+  final num? targetMin;
+
   final String unit;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    final ratio = target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
+    final goal = target;
+    final ratio = goal != null && goal > 0
+        ? (current / goal).clamp(0.0, 1.0)
+        : 0.0;
+    // 区间带：上下限都有、上限 > 0、下限 ≥ 0 且严格小于上限时才画
+    // （min == max 是单值目标，没有「带」可言）。
+    final min = targetMin;
+    final bandWidth = goal != null && goal > 0 && min != null && min >= 0
+        ? (1 - min / goal).clamp(0.0, 1.0).toDouble()
+        : null;
+    final hasBand = bandWidth != null && bandWidth > 0 && bandWidth < 1;
     // key 不外传：`key: key ?? ValueKey(...)` 会让同一个 key 在树里出现两次
     // （组件自身 + 内层 Column），`find.byKey` 命中 2 个，语义树也重复。
     return Column(
@@ -75,7 +106,14 @@ class MacroBar extends StatelessWidget {
                         style: LfText.title.copyWith(color: c.cardForeground),
                       ),
                       TextSpan(
-                        text: ' / $target $unit',
+                        // 有区间 ⇒ 写区间（`90–130 g`）；只有上限 ⇒ 单值；
+                        // 都没有（未设目标）⇒ **不写右端**，只留当前值。
+                        text: switch ((targetMin, target)) {
+                          (final num min, final num max) =>
+                            ' / $min–$max $unit',
+                          (_, final num max) => ' / $max $unit',
+                          _ => '',
+                        },
                         style: LfText.label.copyWith(color: c.mutedForeground),
                       ),
                     ],
@@ -95,6 +133,22 @@ class MacroBar extends StatelessWidget {
             child: Stack(
               children: [
                 ColoredBox(color: c.muted, child: const SizedBox.expand()),
+                // 区间带（右对齐到上限端）：只在「有下限且小于上限」时出现。
+                if (hasBand)
+                  Positioned.fill(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FractionallySizedBox(
+                        widthFactor: bandWidth,
+                        heightFactor: 1,
+                        child: ColoredBox(
+                          key: const Key('macro-bar-range-band'),
+                          color: color.withValues(alpha: 0.35),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+                  ),
                 FractionallySizedBox(
                   widthFactor: ratio,
                   child: ColoredBox(

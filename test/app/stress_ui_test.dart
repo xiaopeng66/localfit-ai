@@ -67,16 +67,16 @@ void main() {
       ),
     );
     const ids = UuidV7Generator();
-    const clock = SystemAppClock();
+    final mealClock = FixedAppClock(DateTime(2026, 9, 13, 12));
     foodRepository = FoodRepository(
       database: database,
       idGenerator: ids,
-      clock: clock,
+      clock: mealClock,
     );
     mealRepository = MealRepository(
       database: database,
       idGenerator: ids,
-      clock: clock,
+      clock: mealClock,
     );
   });
 
@@ -324,6 +324,16 @@ void main() {
     // 2026-10-08 R2：建档已落一条体重，柱图支持单柱 ⇒「1 条记录」不再走空态，
     // 空态那颗 `dashboard-weight-record` 不存在了。改用卡头那颗
     // `dashboard-weight-add`（同一个 `WeightEntryDialog`）。
+    // 【2026-10-25（需求 1）】热量卡多了「目标区间 + 依据」两行，今日页在
+    // 320×640 这个夹具下更高了 ⇒ 体重卡（热量卡**之后**）的加号滑出懒构建
+    // 窗口。先把它滚进视口再取回调——与本用例要断言的行为（双击只落一次库）
+    // 无关的夹具前提变了，改夹具不改判据。
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('dashboard-weight-add')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await settle(tester);
     final entry = tester
         .widget<InkWell>(
           find
@@ -372,8 +382,7 @@ void main() {
 
     await tester.tap(find.byTooltip('记录一餐'));
     await settle(tester);
-    await tester.tap(find.byKey(const Key('meal-entry-by-food')));
-    await settle(tester);
+    // 【N-2】chooser 退役：统一记录弹层直接开。
     await tester.enterText(find.byKey(const Key('meal-food-search')), '米饭');
     await settle(tester);
     await tester.tap(find.text('米饭').last);

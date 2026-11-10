@@ -8,6 +8,7 @@ import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
+import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/menu_dish_list.dart';
 
 /// RV-P1-05：「加入餐」双击只能产生一次写入。
@@ -55,7 +56,7 @@ void main() {
             repository: dishes,
             now: now,
             addClock: () => clock,
-            onAddToMeal: (DishRecord dish) async {
+            onAddToMeal: (DishRecord dish, {MealSlot? slotOverride}) async {
               calls++;
               await gate.future;
             },

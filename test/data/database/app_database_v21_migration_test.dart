@@ -86,7 +86,13 @@ void main() {
               updatedAt: DateTime.utc(2026, 10, 6, 9),
             ),
           ),
-      throwsA(anything),
+      throwsA(
+        isA<sqlite.SqliteException>().having(
+          (error) => error.message,
+          'message',
+          contains('UNIQUE constraint failed: steps_daily.local_date'),
+        ),
+      ),
       reason: '同一天重复写入必须撞唯一约束（一天一行的口径钉在 schema 上）',
     );
 
@@ -106,6 +112,27 @@ void main() {
       reason: 'v26 减法迁移要把价格列删掉',
     );
     expect(row.imagePath, isNull);
+    expect(row.serviceId, 'svc-v20');
+    expect(row.evidenceGrade, 'C');
+    expect(row.itemStatus, 'unresolved');
+    expect(row.foodId, isNull, reason: '旧无营养供应不能凭空链接主食物');
+    expect(row.servingGrams, isNull);
+    expect(row.servingGramsStatus, 'unknown');
+    expect(row.servingGramsSource, 'legacy_unknown');
+    final legacyValues =
+        (await database
+                .customSelect('SELECT created_at, updated_at FROM menu_items')
+                .getSingle())
+            .data;
+    expect(legacyValues, {
+      'created_at': 1780000000000,
+      'updated_at': 1780000000000,
+    });
+    expect(
+      (await database.customSelect('PRAGMA foreign_keys').getSingle())
+          .read<int>('foreign_keys'),
+      1,
+    );
 
     // ⑤ 新写入走完整语义：照片路径原样落库、按菜品删除后随行消失。
     await database
@@ -124,6 +151,53 @@ void main() {
       database.menuItems,
     )..where((item) => item.id.equals('item-new'))).getSingle();
     expect(inserted.imagePath, '/data/dish_images/dish_1.jpg');
+    expect(inserted.foodId, isNull, reason: '待分析供应仍可在外键开启时保存');
+
+    // schema 31 的主引用必须真受外键保护，不能靠关外键掩盖漏父表夹具。
+    final foreignKeyFailure = throwsA(
+      isA<sqlite.SqliteException>().having(
+        (error) => error.message,
+        'message',
+        contains('FOREIGN KEY constraint failed'),
+      ),
+    );
+    await expectLater(
+      (database.update(database.menuItems)
+            ..where((item) => item.id.equals('item-new')))
+          .write(const MenuItemsCompanion(foodId: Value('missing-food'))),
+      foreignKeyFailure,
+    );
+    await (database.update(database.menuItems)
+          ..where((item) => item.id.equals('item-new')))
+        .write(const MenuItemsCompanion(foodId: Value('food-v20')));
+    final linked = await (database.select(
+      database.menuItems,
+    )..where((item) => item.id.equals('item-new'))).getSingle();
+    expect(linked.foodId, 'food-v20');
+    expect(linked.imagePath, '/data/dish_images/dish_1.jpg');
+    await expectLater(
+      (database.delete(
+        database.foods,
+      )..where((food) => food.id.equals('food-v20'))).go(),
+      foreignKeyFailure,
+      reason: '被供应引用的主食物不许硬删（docs/68 §2.6）',
+    );
+
+    await (database.delete(
+      database.menuItems,
+    )..where((item) => item.id.equals('item-new'))).go();
+    expect(
+      (await database.select(database.menuItems).get()).single.id,
+      'item-v20',
+    );
+    expect((await database.select(database.foods).get()).single.id, 'food-v20');
+    await database.delete(database.menuServices).go();
+    expect(await database.select(database.menuItems).get(), isEmpty);
+    expect((await database.select(database.foods).get()).single.id, 'food-v20');
+    expect(
+      await database.customSelect('PRAGMA foreign_key_check').get(),
+      isEmpty,
+    );
   });
 
   test(
@@ -201,11 +275,42 @@ void main() {
   );
 }
 
+/// v20 的 foods 父表在真实库中自 v1 就存在。这里只裁剪掉未用到的
+/// catalog 表；不建修订表，因此本 fixture 不声称覆盖 schema 31 归一流程。
+void _createV20Foods(sqlite.Database database) {
+  database.execute('''
+    CREATE TABLE foods (
+      id TEXT NOT NULL PRIMARY KEY,
+      name TEXT NOT NULL,
+      brand TEXT,
+      default_serving_grams REAL,
+      kcal_per100g REAL NOT NULL,
+      protein_per100g REAL NOT NULL,
+      carbs_per100g REAL NOT NULL,
+      fat_per100g REAL NOT NULL,
+      source TEXT NOT NULL,
+      is_user_created INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      state TEXT NOT NULL DEFAULT 'verified',
+      locale TEXT,
+      category TEXT,
+      source_version INTEGER,
+      license_status TEXT NOT NULL DEFAULT 'unknown'
+    );
+    INSERT INTO foods
+      (id, name, kcal_per100g, protein_per100g, carbs_per100g, fat_per100g,
+       source, created_at, updated_at)
+      VALUES ('food-v20', '米饭', 116, 2.6, 25.9, 0.3, 'seed', 1, 1);
+  ''');
+}
+
 /// 与 `_createV20Database` 同形，但 `menu_items` **已带** image_path
 /// （开发中途构建的真实形态：user_version=20 且列已在）。
 void _createV20DatabaseWithImagePath(String path) {
   final database = sqlite.sqlite3.open(path);
   try {
+    _createV20Foods(database);
     database.execute('''
       CREATE TABLE menu_services (
         id TEXT NOT NULL PRIMARY KEY,
@@ -217,7 +322,7 @@ void _createV20DatabaseWithImagePath(String path) {
       );
       CREATE TABLE menu_items (
         id TEXT NOT NULL PRIMARY KEY,
-        service_id TEXT NOT NULL,
+        service_id TEXT NOT NULL REFERENCES menu_services(id) ON DELETE CASCADE,
         display_name TEXT NOT NULL,
         station_name TEXT NULL,
         price_minor INTEGER NULL,
@@ -246,6 +351,7 @@ void _createV20DatabaseWithImagePath(String path) {
 void _createV20Database(String path) {
   final database = sqlite.sqlite3.open(path);
   try {
+    _createV20Foods(database);
     database.execute('''
       CREATE TABLE menu_services (
         id TEXT NOT NULL PRIMARY KEY,
@@ -257,7 +363,7 @@ void _createV20Database(String path) {
       );
       CREATE TABLE menu_items (
         id TEXT NOT NULL PRIMARY KEY,
-        service_id TEXT NOT NULL,
+        service_id TEXT NOT NULL REFERENCES menu_services(id) ON DELETE CASCADE,
         display_name TEXT NOT NULL,
         station_name TEXT NULL,
         price_minor INTEGER NULL,

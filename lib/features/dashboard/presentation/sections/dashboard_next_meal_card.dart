@@ -7,31 +7,38 @@ import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/app/design/widgets/lf_progress_bar.dart';
 import 'package:localfit_ai/app/design/widgets/text_fit.dart';
+import 'package:localfit_ai/features/nutrition/domain/meal_record.dart'
+    show MealSlot;
+import 'package:localfit_ai/features/nutrition/presentation/meal_slot_icons.dart';
 
 /// 今日页「下一餐」预算卡（Round7 A `.next-meal`，`app.js:142-144` +
 /// `refinement.css:7`）。
 ///
-/// A 的结构：`card-row`（标题「下一餐，留给晚餐」+ 月亮图标块）→
-/// `budget-line`（剩余额度 22 + 「kcal」小字 / 一句状态）→ 品牌轨（今日摄入
-/// 进度）→ `budget-facts`（N 笔已记 / 目标 N）→ 块级软底按钮「记录晚餐」。
+/// A 的结构：`card-row`（标题 + 餐次图标块）→ `budget-line`（剩余额度 22 +
+/// 「kcal」小字 / 一句状态）→ 品牌轨（今日摄入进度）→ 块级软底按钮。
+///
+/// 【2026-10-31 用户两条改动】
+/// 1. **下一餐按系统时间动态判断**（原话：「下一餐不能永远显示晚餐」）：
+///    槽位由 [DashboardPage] 用 `nextMealSlotFor(now)` 算好传进来——标题、
+///    图标、按钮文案都跟着变（0–9 早餐 / 9–14 午餐 / 14–20 晚餐 / 20–24 加餐）。
+///    卡片自己不读系统时间：时刻只有一个来源，边界才能被穷举测试。
+/// 2. **删掉「N 笔已记」「目标 N」两行**（原话：「删除下方 N 笔已记和目标 N」）：
+///    `budget-facts` 整块退役。目标是剩余额度的分母、笔数是产物，两条都不再
+///    重复上屏；剩余额度与进度轨保持不变。
 ///
 /// 【数据只读既有事实】剩余额度 = `目标上限 − 今日已摄入`（不足记 0，
-/// 与 A `Math.max(0,total.remaining)` 同口径）；笔数 = 当天餐食条数；
-/// 目标 = 当天的热量目标上限（`DailyNutritionTarget.calorieMaxKcal`）。
-/// 未设目标时 A 写 `—` + 「尚未设定热量目标」，轨道画 0——本卡照此，
-/// **不编一个目标**。
+/// 与 A `Math.max(0,total.remaining)` 同口径）。未设目标时写 `—` +
+/// 「尚未设定热量目标」，轨道画 0——**不编一个目标**。
 ///
-/// 【不接管「下一餐是哪一餐」的判断】A 的标题是固定文案；真正的槽位决策
-/// 仍在记录页的 `NextMealEntryCard`（读本地时刻与已记餐次），本卡只回答
-/// 「今天还剩多少额度、记了几笔」。按钮打开的是既有餐食编辑弹层并预选晚餐
-/// （一次性意向通道，见 `nutrition_intents.dart`），不是新的写入路径。
+/// 【写路径不变】按钮仍走既有餐食编辑弹层并预选 [slot]（一次性意向通道，
+/// 见 `nutrition_intents.dart`），不是新的写入路径。
 class DashboardNextMealCard extends StatelessWidget {
   const DashboardNextMealCard({
     super.key,
     required this.consumedKcal,
     required this.targetKcal,
-    required this.mealCount,
-    this.onLogDinner,
+    required this.slot,
+    this.onLogMeal,
   });
 
   /// 今日已摄入热量（kcal）。
@@ -40,11 +47,11 @@ class DashboardNextMealCard extends StatelessWidget {
   /// 今日热量目标上限；null = 未设目标。
   final double? targetKcal;
 
-  /// 今日已记录的餐食条数。
-  final int mealCount;
+  /// 下一餐是哪一餐（由 `nextMealSlotFor(now)` 算好传入）。
+  final MealSlot slot;
 
-  /// 「记录晚餐」：打开餐食编辑（预选晚餐槽位）。
-  final VoidCallback? onLogDinner;
+  /// 「记录<餐次>」：打开餐食编辑并预选 [slot]。
+  final VoidCallback? onLogMeal;
 
   /// A `.next-meal{padding-top:10px}`。
   static const EdgeInsets cardPadding = EdgeInsets.fromLTRB(
@@ -56,9 +63,6 @@ class DashboardNextMealCard extends StatelessWidget {
 
   /// A `.budget-line{margin:12px 0}`。
   static const double lineMargin = 12;
-
-  /// A `.budget-facts{gap:18px}`。
-  static const double factsGap = 18;
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +78,8 @@ class DashboardNextMealCard extends StatelessWidget {
       key: const Key('dashboard-next-meal'),
       padding: cardPadding,
       semanticLabel: hasTarget
-          ? '下一餐预算，今日剩余 ${remaining.round()} 千卡，已记 $mealCount 笔'
-          : '下一餐预算，尚未设定热量目标，已记 $mealCount 笔',
+          ? '下一餐 · ${slot.label}，今日剩余 ${remaining.round()} 千卡'
+          : '下一餐 · ${slot.label}，尚未设定热量目标',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -83,12 +87,15 @@ class DashboardNextMealCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '下一餐，留给晚餐',
+                  '下一餐 · ${slot.label}',
+                  key: const Key('dashboard-next-meal-title'),
                   style: LfText.title.copyWith(color: c.cardForeground),
                 ),
               ),
               // A `chip('moon','mint')`：28dp 圆角图标块（brand-soft 底 +
-              // brand-strong 图标）。与记录页槽位卡头同一形态。
+              // brand-strong 图标）。图标随餐次走（早太阳 / 午碗 / 晚月亮 /
+              // 加餐杯），与记录页槽位卡头同一套 [MealSlotIcons]——同一餐在
+              // 两个页面上不长两个样。
               Container(
                 key: const Key('dashboard-next-meal-chip'),
                 width: 28,
@@ -98,7 +105,7 @@ class DashboardNextMealCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(LfDimens.radiusMd),
                 ),
                 child: Icon(
-                  Icons.nightlight_outlined,
+                  slot.icon,
                   size: 18,
                   color: LfColors.mintText(Theme.of(context).brightness),
                 ),
@@ -167,68 +174,19 @@ class DashboardNextMealCard extends StatelessWidget {
           const SizedBox(height: LfDimens.spaceMedium),
           LfProgressBar(value: progress),
           const SizedBox(height: lineMargin),
-          // A `.budget-facts{display:flex;gap:18px}`（不换行）。DOM 无断点，
-          // 本仓硬约束是 320dp × 2.0× 也不许溢出：那时两格合计比卡片内容宽
-          // 多 4.3px（`large_font_layout_audit_test` 实测抓到，报的就是这里）。
-          // 与其让尾字被裁（`Flexible`+ellipsis 会吃掉「笔已记 / 目标」），
-          // 大字下换行——两条事实都还在；1.0× 仍是 A 的一行、gap 18。
-          Wrap(
-            spacing: factsGap,
-            runSpacing: LfDimens.spaceXSmall,
-            children: [
-              _Fact(
-                key: const Key('dashboard-next-meal-count'),
-                icon: Icons.rice_bowl_outlined,
-                label: '$mealCount 笔已记',
-              ),
-              _Fact(
-                key: const Key('dashboard-next-meal-goal'),
-                icon: Icons.my_location_outlined,
-                label: hasTarget
-                    ? '目标 ${withThousandsSeparator(target.round())}'
-                    : '目标 —',
-              ),
-            ],
-          ),
-          const SizedBox(height: lineMargin),
-          if (onLogDinner != null)
+          // 【2026-10-31 用户】「N 笔已记」「目标 N」两行整块退役（`budget-facts`
+          // 与 [_Fact] 一起删）：目标是剩余额度的分母、笔数是产物，两条都在
+          // 重复上屏。卡上留给用户的是「还剩多少」与「去记录」两件事。
+          if (onLogMeal != null)
             LfSoftButton(
-              key: const Key('cta-log-dinner'),
-              label: '记录晚餐',
+              key: const Key('cta-log-next-meal'),
+              label: '记录${slot.label}',
               icon: Icons.add,
               expand: true,
-              onPressed: onLogDinner,
+              onPressed: onLogMeal,
             ),
         ],
       ),
-    );
-  }
-}
-
-/// `budget-facts` 里的一条（A `icon('bowl'|'target',16)` + 文案）。
-class _Fact extends StatelessWidget {
-  const _Fact({super.key, required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.lf;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: LfDimens.iconSm, color: c.mutedForeground),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: LfText.label.copyWith(color: c.mutedForeground),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -174,7 +174,9 @@ class _SearchHitRow extends StatelessWidget {
                 style: LfText.bodyStrong.copyWith(color: c.cardForeground),
               ),
               Text(
-                '${hit.kcal.round()} kcal/份',
+                dish?.energyLabel ??
+                    '${hit.kcal.round()} kcal/'
+                        '${hit.kind == 'menuItem' ? '100g' : '份'}',
                 style: LfText.caption.copyWith(color: c.mutedForeground),
               ),
             ],

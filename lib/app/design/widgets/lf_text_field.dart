@@ -156,6 +156,8 @@ class LfFieldError extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) =>
-      Text(message, style: LfText.bodySmall.copyWith(color: context.lf.error));
+  Widget build(BuildContext context) => Text(
+    message,
+    style: LfText.bodySmall.copyWith(color: context.lf.errorText),
+  );
 }

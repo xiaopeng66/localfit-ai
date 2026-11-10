@@ -67,7 +67,7 @@ void main() {
       path.join(sandbox.path, 'support'),
     ),
     apiKeyStore: AiApiKeyStore(store: _MemorySecureStore()),
-    chatImageStore: const FileChatImageStore(idGenerator: UuidV7Generator()),
+    chatImageStore: FileChatImageStore(idGenerator: UuidV7Generator()),
     dishImageStore: const DishImageStore(idGenerator: UuidV7Generator()),
   );
 

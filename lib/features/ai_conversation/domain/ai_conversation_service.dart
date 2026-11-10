@@ -22,3 +22,17 @@ abstract interface class AiConversationService {
     String? systemContext,
   });
 }
+
+/// 支持首轮就强制 JSON 模式的会话服务（可选能力，不强制所有测试桩实现）。
+///
+/// 修改请求如果只在“补信封重跑”时才强制 JSON，首轮会先吐一段散文，用户会
+/// 看到两条几乎相同的回复。实现方把同一套流式装配复用到 `forceJson=true`，
+/// 控制器可在首轮直接走强约束，减少补跑。
+abstract interface class JsonForcedConversationService {
+  Stream<String> sendMessageForcedJson({
+    required List<ConversationMessage> messages,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String? systemContext,
+  });
+}

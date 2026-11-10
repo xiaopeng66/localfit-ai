@@ -380,7 +380,7 @@ class _SubmitSheetBodyState<T> extends State<_SubmitSheetBody<T>> {
           Text(
             _error!,
             key: widget.errorKey,
-            style: LfText.bodySmall.copyWith(color: context.lf.error),
+            style: LfText.bodySmall.copyWith(color: context.lf.errorText),
           ),
         ],
         const SizedBox(height: 16),

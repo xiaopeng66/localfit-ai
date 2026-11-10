@@ -15,7 +15,9 @@ void main() {
   late AppDatabase database;
   late FoodRepository foods;
   late MealRepository meals;
-  final now = DateTime.utc(2026, 9, 9, 12);
+  // B-2（docs/64）：仓储现在拒绝写未来日期，所以夹具时钟取 09-10，
+  // 让「改到 09-10」仍然是「改到更晚的一天」（判据不变，只是不再越界）。
+  final now = DateTime.utc(2026, 9, 10, 12);
 
   setUp(() async {
     database = AppDatabase(NativeDatabase.memory());
@@ -194,16 +196,110 @@ void main() {
     expect(updated.slot, MealSlot.dinner);
     expect(updated.items.single.grams, 200);
     expect(updated.nutrition.kcal, closeTo(created.nutrition.kcal * 2, .001));
+    await database
+        .into(database.recognitionResults)
+        .insert(
+          RecognitionResultsCompanion.insert(
+            id: 'recognition-1',
+            mealId: Value(id),
+            capturedAt: now,
+            dishName: '扫描餐',
+            confidence: 0.8,
+            imagePath: 'meal_images/one.jpg',
+            estimatedKcal: 400,
+            ingredientsJson: '[]',
+            macroJson: '{}',
+          ),
+        );
 
     final deleted = await meals.delete(id);
     expect(deleted == null, isFalse);
     expect(await meals.watchForDate('2026-09-10').first, isEmpty);
+    expect(await database.select(database.recognitionResults).get(), isEmpty);
     await meals.restore(deleted!);
     final restored = (await meals.watchForDate('2026-09-10').first).single;
     expect(restored.id, id);
     expect(restored.items.single.id, deleted.items.single.id);
     expect(restored.nutrition.kcal, deleted.nutrition.kcal);
   });
+
+  test(
+    'meal item scan metadata survives update, partial delete, and restore',
+    () async {
+      final id = await meals.create(
+        const MealDraft(
+          localDate: '2026-09-09',
+          slot: MealSlot.lunch,
+          items: [
+            MealItemDraft(
+              foodName: '扫描菜',
+              grams: 180,
+              nutrition: NutritionValues(
+                kcal: 360,
+                proteinGrams: 18,
+                carbsGrams: 30,
+                fatGrams: 12,
+              ),
+              sourceType: 'scan',
+              cookingMethod: '蒸',
+              estimateMinGrams: 140,
+              estimateMaxGrams: 220,
+            ),
+          ],
+        ),
+      );
+      final created = (await meals.watchForDate('2026-09-09').first).single;
+      expect(created.items.single.cookingMethod, '蒸');
+      expect(created.items.single.estimateMinGrams, 140);
+      expect(created.items.single.estimateMaxGrams, 220);
+
+      await meals.update(
+        id,
+        MealDraft(
+          localDate: created.localDate,
+          slot: created.slot,
+          items: [created.items.single.scaledTo(200)],
+        ),
+      );
+      final updated = (await meals.watchForDate('2026-09-09').first).single;
+      expect(updated.items.single.cookingMethod, '蒸');
+      expect(updated.items.single.estimateMinGrams, 140);
+      expect(updated.items.single.estimateMaxGrams, 220);
+
+      final deleted = await meals.deleteItems(id, {updated.items.single.id});
+      expect(deleted != null, isTrue);
+      await meals.restore(deleted!);
+      final restored = (await meals.watchForDate('2026-09-09').first).single;
+      expect(restored.items.single.cookingMethod, '蒸');
+      expect(restored.items.single.estimateMinGrams, 140);
+      expect(restored.items.single.estimateMaxGrams, 220);
+    },
+  );
+
+  test(
+    'restore keeps meal snapshot when its source food was deleted',
+    () async {
+      final rice = (await foods.search('米饭'))
+          .firstWhere((food) => food.name == '米饭');
+      final id = await meals.create(
+        MealDraft(
+          localDate: '2026-09-09',
+          slot: MealSlot.lunch,
+          items: [MealItemDraft.fromFood(rice, 100)],
+        ),
+      );
+      final deleted = await meals.delete(id);
+      expect(deleted != null, isTrue);
+      await (database.delete(
+        database.foods,
+      )..where((row) => row.id.equals(rice.id))).go();
+      await meals.restore(deleted!);
+      final restored = (await meals.watchForDate('2026-09-09').first).single;
+      expect(restored.items.single.foodId == null, isTrue);
+      expect(restored.items.single.foodName, rice.name);
+      expect(restored.items.single.nutrition.kcal, rice.kcalPer100g);
+    },
+  );
 
   test('reuses snapshots with fresh ids after the food changes', () async {
     final rice = (await foods.search('米饭'))
@@ -227,6 +323,21 @@ void main() {
     expect(reused.items.single.id, isNot(source.items.single.id));
     expect(reused.nutrition.kcal, source.nutrition.kcal);
     expect(reused.source, 'history_reuse');
+  });
+
+  test('allows the 30-day backfill boundary but rejects older meals', () async {
+    final rice = (await foods.search('米饭'))
+        .firstWhere((food) => food.name == '米饭');
+    final item = [MealItemDraft.fromFood(rice, 100)];
+    await meals.create(
+      MealDraft(localDate: '2026-08-11', slot: MealSlot.lunch, items: item),
+    );
+    await expectLater(
+      meals.create(
+        MealDraft(localDate: '2026-08-10', slot: MealSlot.lunch, items: item),
+      ),
+      throwsFormatException,
+    );
   });
 
   test('rejects impossible calendar dates', () async {

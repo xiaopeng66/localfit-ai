@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/app/app_theme.dart';
+import 'package:localfit_ai/app/design/widgets/lf_buttons.dart';
 import 'package:localfit_ai/features/campus_menus/application/food_reference_service.dart';
 import 'package:localfit_ai/features/campus_menus/presentation/food_reference_sheet.dart';
 
@@ -80,18 +81,25 @@ void main() {
   });
 
   group('底部动作与徽标（R7）', () {
-    testWidgets('「让 AI 重新分析」与「先不填」同一行', (tester) async {
+    /// 【2026-10-25 断言语义反转（需求 7；强度不降）】原断言是「『让 AI 重新
+    /// 分析』与『先不填』**同一行**（并排）」——那是 R7 的方案。
+    ///
+    /// 用户 2026-10-25 给了逐字要求（docs/60 §8）：「让 AI 分析」**升格**为与
+    /// 「引用食物库营养」并排的**主按钮**，「先不填」**挪到右下角**。R7 的
+    /// 「这两枚并排」因此不再成立；但 R7 要解决的问题（**不要上下堆叠占两行**）
+    /// 仍被保住：现在是「两枚主按钮一行 + 出口单独一行」，竖向占位与原来相同。
+    /// 断言随之改写为反向判据：**「先不填」必须落在主按钮行之下**。
+    testWidgets('「先不填」在主按钮行之下（需求 7 反转 R7 的并排）', (tester) async {
       await pump(tester);
       final analyze = tester.getRect(
         find.byKey(const Key('food-reference-analyze')),
       );
       final skip = tester.getRect(find.byKey(const Key('food-reference-skip')));
       expect(
-        analyze.center.dy,
-        closeTo(skip.center.dy, 1.0),
-        reason: '两枚次级动作要并排（R7：上下堆叠占两行）',
+        skip.top,
+        greaterThanOrEqualTo(analyze.bottom),
+        reason: '需求 7：出口挪到右下角，不再与主按钮挤同一行',
       );
-      expect(skip.left, greaterThan(analyze.left));
     });
 
     testWidgets('来源/证据双徽标已退役（建菜语境无信息量）', (tester) async {
@@ -112,6 +120,97 @@ void main() {
       expect(find.byKey(const Key('food-reference-adopt')), findsOneWidget);
       expect(find.byKey(const Key('food-reference-analyze')), findsOneWidget);
       expect(find.byKey(const Key('food-reference-skip')), findsOneWidget);
+    });
+  });
+
+  group('需求 7（2026-10-25）：排版按用户逐字要求改', () {
+    // 用户给了明确要求（docs/60 §8 的表）：
+    //   1. 标题与卡片之间那句「本地匹配到食物库条目…」**删掉**；
+    //   2. 两个主按钮（引用食物库营养 / 让 AI 分析）**同一行、样式一致**；
+    //   3. 「先不填」挪到**右下角**。
+    testWidgets('删掉「本地匹配到…」那句长文案', (tester) async {
+      await pump(tester);
+      expect(
+        find.textContaining('本地匹配到'),
+        findsNothing,
+        reason: '用户点名要删的那句话不许换一种说法又回来',
+      );
+    });
+
+    testWidgets('两个主按钮同一行、样式同档（都是 LfPrimaryButton）', (tester) async {
+      await pump(tester);
+      final adopt = tester.getRect(
+        find.byKey(const Key('food-reference-adopt')),
+      );
+      final analyze = tester.getRect(
+        find.byKey(const Key('food-reference-analyze')),
+      );
+      expect(
+        adopt.center.dy,
+        closeTo(analyze.center.dy, 1.0),
+        reason: '两个主按钮必须同一行（原来一主一次、上下堆叠）',
+      );
+      expect(
+        find.byType(LfPrimaryButton),
+        findsNWidgets(2),
+        reason: '两枚同档（都是 B1 主按钮），不许一个实心一个文字',
+      );
+      // 左右并排、不重叠。
+      expect(adopt.right, lessThanOrEqualTo(analyze.left + 0.01));
+    });
+
+    testWidgets('「先不填」在右下角（不是与主按钮混在一行）', (tester) async {
+      await pump(tester);
+      final skip = tester.getRect(find.byKey(const Key('food-reference-skip')));
+      final analyze = tester.getRect(
+        find.byKey(const Key('food-reference-analyze')),
+      );
+      expect(
+        skip.top,
+        greaterThan(analyze.bottom - 0.01),
+        reason: '「先不填」要在主按钮**下面**（右下角），不能混进主按钮行',
+      );
+      // 右对齐：右缘贴近可用区右边（容差 4dp：文字按钮自带内边距）。
+      final sheet = tester.getRect(
+        find.byKey(const Key('food-reference-sheet')),
+      );
+      expect(
+        sheet.right - skip.right,
+        lessThanOrEqualTo(24.0),
+        reason: '「先不填」要贴右下角（离右缘 ${sheet.right - skip.right}dp）',
+      );
+    });
+
+    testWidgets('三个 Key 仍在 + 320dp × 2.0 不溢出', (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 900),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: Scaffold(
+              body: FoodReferenceSheet(
+                dishName: '番茄牛腩饭',
+                candidates: [candidate('f1', '番茄牛腩饭')],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      for (final key in const [
+        'food-reference-adopt',
+        'food-reference-analyze',
+        'food-reference-skip',
+      ]) {
+        expect(find.byKey(Key(key)), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
     });
   });
 }

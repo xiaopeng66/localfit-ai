@@ -29,6 +29,17 @@ final class PlanningConstraints {
 
   bool get isEmpty => dietaryLabels.isEmpty && allergenAvoidances.isEmpty;
 
+  /// 「设置 · 饮食约束」行上的摘要（C-2）：「素食 · 忌口 2 项」；
+  /// 什么都没设时如实写「未设置」——不编一个 0 计数列表。
+  String get summaryLabel {
+    if (isEmpty) return '未设置';
+    return [
+      if (dietaryLabels.isNotEmpty)
+        dietaryLabels.map((item) => item.label).join('、'),
+      if (allergenAvoidances.isNotEmpty) '忌口 ${allergenAvoidances.length} 项',
+    ].join(' · ');
+  }
+
   void validate() {
     if (dietaryLabels.length > maxDietaryLabels ||
         allergenAvoidances.length > maxAllergenAvoidances ||

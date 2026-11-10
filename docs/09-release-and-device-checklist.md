@@ -127,7 +127,10 @@ C:/ProgramData/miniconda3/python.exe build_catalog.py \
   构造期判据已固化成测试：`test/release/apk_launch_contract_test.dart`
   （plugins 里有 Kotlin 插件 + launcher activity 解析后在 Kotlin 源码里真有这个类）。
   门禁跑不到设备，所以「安装并启动一次」仍必须人工/脚本做一次并留帧。
-- `android/app/build.gradle.kts` 的签名配置 TODO：换 release 签名（当前 release 包仍用 debug 签名，2.0-6i-5 已记录）。
+- `android/app/build.gradle.kts` 已配置 release 签名：`android/key.properties` + keystore（两者都不入版本库，
+  keystore 备份见 `E:/AI/Zcode/backups/localfit/`）。**缺 `key.properties` 时会静默回退 debug 签名**，
+  所以发布前必须用 `apksigner verify --print-certs` 核对证书 SHA-256 与上一版一致（本地自用证书
+  `87d0c6b0…7ca744c9`，v4109 / v4110 / v4111 已逐版核对）。
 - 签名包上重跑一遍本机静态审计（`test/privacy` 只扫 `lib/`+`assets/`+`android/`；包内 Key/明文 URL/权限需要另行检查）。
 - 包内第三方许可文本：应用内「开源组件许可」页（`LicenseRegistry`）可查阅；若渠道要求独立文本，从该页导出。
 - Android 封闭测试（`docs/05` §7 第 5 步）。
@@ -209,3 +212,31 @@ arm64 分片的 N+2000**。所以：
    **2026-10-23 本轮**：`--build-number 2054` ⇒ arm64 4054 / arm32 3054 / x86_64 6054；
    sha256 记在 `dist/SHA256SUMS.txt`（arm64 `09670ded…687b` / arm32 `52f4a9d6…4b45` /
    x86_64 `e3daa75f…ff14`）。**发的包必须比用户已装的大**：上一轮 arm64 是 4053。
+
+## 统一营养主库（schema 31）的发布前新增检查
+
+方案 [`docs/67`](67-unified-nutrition-master-canteen-catalog-feasibility-plan-2026-11-09.md)
+· 契约 [`docs/68`](68-unified-nutrition-data-contract.md)。
+
+1. **旧库升级实测**：拿一台装着 schema ≤30 的设备，升级后确认
+   `PRAGMA user_version = 31`、每条 `foods` 都有 `current_revision_id`、
+   `legacy_entity_mappings` 的键数 == 旧 `dish_library` 行数 + 未链接供应数。
+2. **升级与 `.lfb` 恢复等价**：同一台设备的旧库导出 `.lfb` → 清空 → 恢复，
+   业务结果（主食物数、台账结论、待补全原因、历史餐快照）必须与直接升级一致。
+3. **份量口径目视**：食堂目录、记餐搜索、AI 快照三处都必须把"每 100g"和"每份"
+   分开显示；份量未知的供应不得出现"一份多少千卡"。
+4. **缺图与待分析**：未分析供应显示"未分析营养"而不是 0 千卡；缺图可保存/关闭。
+5. **媒体边界**：`.lfb` 不含图片字节。跨设备恢复后照片缺失必须在界面上如实降级，
+   发布说明不得写"照片完整恢复"。
+6. **`test/privacy`**：2026-11-09 起为绿（17/17）。局域网更新地址已改为**只接受
+   https**（与 `usesCleartextTraffic="false"` 一致），明文 http 会被拒绝并给出
+   「系统拦截」的说明；发布说明不要再写"局域网可用 http 地址"。
+
+## AI 端点口径（2026-11-10 起）
+
+- 远程端点：**https + 443**（沿用旧限制）。
+- 本机端点：**回环地址允许明文、端口任意**（`127.0.0.0/8`、`localhost`、`[::1]`），用于
+  magpie / Ollama / LM Studio 这类本机网关。
+- **Android 仍是 `usesCleartextTraffic="false"`**：回环明文在 Android 上会被系统拦掉，
+  这条放宽实际只对桌面/测试构建生效。若要在 Android 上用本机模型，需要单独裁决
+  （加 network-security-config 的 localhost 例外，属于安全策略变更，不在自动化改动范围）。

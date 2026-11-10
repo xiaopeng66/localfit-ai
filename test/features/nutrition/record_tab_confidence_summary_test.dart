@@ -127,8 +127,6 @@ void main() {
             selectedDate: DateTime(2026, 9, 9),
             now: now,
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             // 生产装配（`nutrition_page._recordBody`）恒接这个回调；本夹具
             // 一并对齐，否则槽位加号（A 仅今天渲染）在测试里根本不存在，
             // §5.2 的 Key 覆盖会漏掉它。

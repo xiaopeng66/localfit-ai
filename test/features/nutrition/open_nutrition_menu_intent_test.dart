@@ -98,7 +98,7 @@ void main() {
     expect(
       find.byKey(const Key('cta-quick-log')),
       findsNothing,
-      reason: 'D4/D9：记录入口改成餐次卡的 cta-log-meal / cta-log-dinner',
+      reason: 'D4/D9：记录入口改成餐次卡的 cta-log-meal / cta-log-next-meal',
     );
 
     // 正向哨兵：退场的是**捷径**，不是「记录」这件事——今日页首屏的热量环

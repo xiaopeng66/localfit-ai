@@ -432,6 +432,71 @@ void main() {
   // ── 图片消息 ─────────────────────────────────────────────────────────
 
   group('AI 对话页 · 图片消息', () {
+    // 【2026-11-02 用户】三个按钮横排、名称在下、无说明行。
+    // 【2026-11-07 用户（附截图）】改成**三等分大方块铺满一行**，文字都两字。
+    testWidgets('加号弹层：三等分方块铺满一行、图标在上文字在下、文字两字', (tester) async {
+      await pumpPage(tester, AiConversationPage(service: service));
+      await tester.tap(find.byKey(const Key('btn-image-upload')));
+      await tester.pumpAndSettle();
+
+      final camera = find.byKey(const Key('attachment-pick-camera'));
+      final gallery = find.byKey(const Key('attachment-pick-gallery'));
+      final file = find.byKey(const Key('attachment-pick-file'));
+      for (final finder in [camera, gallery, file]) {
+        expect(finder, findsOneWidget);
+      }
+      // 横向排列：三者中心 y 相同，x 递增。
+      final centers = [
+        tester.getCenter(camera),
+        tester.getCenter(gallery),
+        tester.getCenter(file),
+      ];
+      expect((centers[0].dy - centers[1].dy).abs(), lessThan(0.5));
+      expect((centers[1].dy - centers[2].dy).abs(), lessThan(0.5));
+      expect(centers[0].dx, lessThan(centers[1].dx));
+      expect(centers[1].dx, lessThan(centers[2].dx));
+
+      // 名称在各自图标下方：文字中心 y 大于图标中心 y。
+      // 三个入口等宽、合起来铺满一行（截图样式）。
+      final widths = [
+        tester.getSize(camera).width,
+        tester.getSize(gallery).width,
+        tester.getSize(file).width,
+      ];
+      expect((widths[0] - widths[1]).abs(), lessThan(1), reason: '三家等宽');
+      expect((widths[1] - widths[2]).abs(), lessThan(1), reason: '三家等宽');
+      final sheetWidth = tester.getSize(find.byType(Row).last).width;
+      expect(
+        widths.fold<double>(0, (a, b) => a + b),
+        greaterThan(sheetWidth * 0.9),
+        reason: '三个方块要占满一行（不再被 Spacer 推得稀稀拉拉）',
+      );
+      for (final (finder, label) in [
+        (camera, '拍照'),
+        (gallery, '相册'),
+        // 用户要求两字：原「发送文件」→「文件」。
+        (file, '文件'),
+      ]) {
+        final text = find.descendant(of: finder, matching: find.text(label));
+        expect(text, findsOneWidget, reason: '「$label」必须显示');
+        final icon = find.descendant(of: finder, matching: find.byType(Icon));
+        expect(
+          tester.getCenter(text).dy,
+          greaterThan(tester.getCenter(icon).dy),
+          reason: '「$label」要在图标下方',
+        );
+      }
+      // 说明行整族退场。
+      for (final gone in const [
+        '调系统相机，拍完直接加入上方预览',
+        '可多选，选完一起发送',
+        '一期支持 txt / md / csv',
+      ]) {
+        expect(find.text(gone), findsNothing, reason: '说明行不许再出现：$gone');
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
     PickChatImage pickerFor({
       required _FakeMealImagePicker picker,
       required _MemoryChatImageStore store,
@@ -472,8 +537,60 @@ void main() {
       await drainIo(tester);
 
       expect(find.byKey(const Key('image-preview-bar')), findsOneWidget);
-      expect(find.text('dish.png'), findsOneWidget);
+      // 【R-10】预览条只显示缩略图（文件名等详细信息退役）。
+      expect(find.byKey(const Key('image-preview-thumb-0')), findsOneWidget);
+      expect(find.text('dish.png'), findsNothing);
       expect(starterImage.value, isNull, reason: '消费一次即清空');
+    });
+
+    // 需求 4（2026-10-25 用户）：「点击后只会发送文本，图片需要再点一次」——
+    // 食堂菜「AI 分析」把照片挂进待发区就不再动了，用户必须再按一次发送。
+    // 判据：**消息列表立刻出现带图用户消息**（不需要第二次点击）。
+    testWidgets('起手请求同时带文字与照片：一次发出（不许再点第二次发送）', (tester) async {
+      final file = File(
+        '${Directory.systemTemp.createTempSync('lf-starter-img2').path}/dish2.png',
+      );
+      await tester.runAsync(() async {
+        final recorder = ui.PictureRecorder();
+        Canvas(recorder).drawRect(
+          const Rect.fromLTWH(0, 0, 2, 2),
+          Paint()..color = const Color(0xFF112233),
+        );
+        final image = await recorder.endRecording().toImage(2, 2);
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        image.dispose();
+        file.writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+
+      final starterImage = ValueNotifier<String?>(file.path);
+      final starter = ValueNotifier<({String display, String send})?>((
+        display: '估算这 1 道菜每 100g 的营养：番茄炒蛋',
+        send: '[canteen-dish:d1] 番茄炒蛋',
+      ));
+      addTearDown(starterImage.dispose);
+      addTearDown(starter.dispose);
+      await pumpPage(
+        tester,
+        AiConversationPage(
+          service: service,
+          pendingStarter: starter,
+          pendingStarterImage: starterImage,
+        ),
+      );
+      await settle(tester);
+      await drainIo(tester);
+      await settle(tester);
+
+      expect(
+        find.byKey(const Key('ai-chat-image-0')),
+        findsOneWidget,
+        reason: '带图分析必须一次发出，不许等用户再点一次发送',
+      );
+      // 图片已随消息出去，输入区不该还挂着待发条。
+      expect(find.byKey(const Key('image-preview-bar')), findsNothing);
+      final turn = calls.single.messages.last;
+      expect(turn.imagePath, isNotNull, reason: '请求里要真的带图');
+      expect(turn.text, contains('番茄炒蛋'));
     });
 
     testWidgets('起手请求的图片读不到：只发文字并如实提示，不谎报「已添加」', (tester) async {
@@ -503,10 +620,13 @@ void main() {
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('image-preview-bar')), findsOneWidget);
-      expect(find.text('已添加 1 张图片'), findsOneWidget);
-      expect(find.text('chat_1.jpg'), findsOneWidget);
+      // 【R-10】缩略图墙：有第 0 张缩略图；不再显示文件名等详细信息。
+      expect(find.byKey(const Key('image-preview-thumb-0')), findsOneWidget);
+      expect(find.text('chat_1.jpg'), findsNothing);
       expect(imagePicker.sources.single, MealImageSource.gallery);
 
       await tester.tap(find.byKey(const Key('btn-remove-image')));
@@ -528,6 +648,8 @@ void main() {
       );
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('ai-chat-text-input')),
@@ -554,9 +676,121 @@ void main() {
       await settle(tester);
     });
 
-    // 2026-10-16（S1）：图会真的发出去，所以要**如实披露**（原本文案说
-    // 「只能接收文字」，现在不成立了）。
-    testWidgets('带图时如实披露「图片会随这条消息发送给你配置的 AI 服务」', (tester) async {
+    // 需求 6d（2026-10-25 用户）：点「记一餐」时若这一餐要用到同卡新建的食材，
+    // 先弹一次确认（Key `chat-edit-dependency-confirm`），确认后由协调器
+    // 先建食材再记餐。这里测**页面的那一层**：弹层真的弹、真的带 Key、
+    // 两个按钮都在（执行顺序的判据在
+    // `application/chat_edit_dependency_test.dart`）。
+    testWidgets('记餐依赖新食材：应用前弹一次确认（一次列全）', (tester) async {
+      final calls = <_ServiceCall>[];
+      final service = _ManualService(calls);
+      final executor = _RecordingExecutor();
+      await pumpPage(
+        tester,
+        AiConversationPage(
+          service: service,
+          chatEdit: ChatEditCoordinator(
+            contextBuilder: _FakeEditContext(),
+            executor: executor,
+            // 库里没有这个食材 ⇒ 预检把它算成依赖。
+            foodExists: (_) async => false,
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const Key('ai-chat-text-input')),
+        '把早餐记成米饭加鸡蛋水煮',
+      );
+      await tester.tap(find.byKey(const Key('btn-send')));
+      await settle(tester);
+      calls.single.emit(
+        '{"reply":"好","edits":['
+        '{"action":"meal.create","args":{"slot":"breakfast","items":'
+        '[{"food":"鸡蛋水煮","grams":100}]}},'
+        '{"action":"food.create","args":{"name":"鸡蛋水煮","kcalPer100g":155,'
+        '"proteinPer100g":13,"carbsPer100g":1.1,"fatPer100g":10.6}}]}',
+      );
+      await calls.single.finish();
+      await settle(tester);
+
+      await tester.tap(find.byKey(const Key('chat-edit-apply-1')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('chat-edit-dependency-confirm')),
+        findsOneWidget,
+        reason: '缺食材 + 同卡有创建 ⇒ 必须弹确认（需求 6d）',
+      );
+      expect(
+        find.textContaining('鸡蛋水煮'),
+        findsWidgets,
+        reason: '确认文案要说清缺的是哪一样',
+      );
+      expect(
+        find.byKey(const Key('chat-edit-dependency-confirm-ok')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('chat-edit-dependency-confirm-cancel')),
+        findsOneWidget,
+      );
+
+      // 点「先不记」：不许写任何东西（执行器一次都没被调用）。
+      await tester.tap(
+        find.byKey(const Key('chat-edit-dependency-confirm-cancel')),
+      );
+      await tester.pumpAndSettle();
+      expect(executor.received, isEmpty, reason: '拒绝后一条都不许写（不许留半条记录）');
+      expect(
+        find.byKey(const Key('chat-edit-dependency-confirm')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    // 需求 3（2026-10-25 用户：图片点击放大）：点缩略图 → 全屏可缩放层。
+    testWidgets('点聊天图片 → 全屏 InteractiveViewer，可关闭', (tester) async {
+      final imagePicker = _FakeMealImagePicker(selection: _selected());
+      final store = _MemoryChatImageStore();
+      await pumpPage(
+        tester,
+        AiConversationPage(
+          service: service,
+          chatImagePicker: pickerFor(picker: imagePicker, store: store),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('btn-image-upload')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('ai-chat-text-input')),
+        '这是今天的午饭',
+      );
+      await tester.tap(find.byKey(const Key('btn-send')));
+      await settle(tester);
+      calls.single.emit('收到');
+      await calls.single.finish();
+      await settle(tester);
+
+      expect(find.byKey(const Key('ai-chat-image-0')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('ai-chat-image-zoom-tap')));
+      await tester.pumpAndSettle();
+
+      // 全屏层：可缩放 + 有关闭键（用户实测原话：「图片点击没有放大」）。
+      expect(find.byKey(const Key('ai-chat-image-zoom-0')), findsOneWidget);
+      expect(find.byType(InteractiveViewer), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('ai-chat-image-zoom-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('ai-chat-image-zoom-0')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    // 【2026-10-31 用户：下边的文字提示删掉 + 预览条挪到最顶】S1 披露行
+    // 整件退役；输入区顺序改为 预览条 → chips → 输入行。
+    testWidgets('披露文字已删；预览条悬浮在快捷 chips 之上（输入区最顶）', (tester) async {
       final store = _MemoryChatImageStore();
       await pumpPage(
         tester,
@@ -571,16 +805,25 @@ void main() {
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
+      await tester.pumpAndSettle();
 
-      final disclosure = find.byKey(const Key('image-send-disclosure'));
-      expect(disclosure, findsOneWidget);
       expect(
-        tester
-            .widget<Text>(
-              find.descendant(of: disclosure, matching: find.byType(Text)),
-            )
-            .data,
-        contains('会随这条消息一起发给你配置的 AI 服务'),
+        find.byKey(const Key('image-send-disclosure')),
+        findsNothing,
+        reason: '披露文字整行退役',
+      );
+      expect(find.byKey(const Key('image-preview-bar')), findsOneWidget);
+      final previewTop = tester.getTopLeft(
+        find.byKey(const Key('image-preview-bar')),
+      );
+      final chipsTop = tester.getTopLeft(
+        find.byKey(const Key('chat-quick-chips')),
+      );
+      expect(
+        previewTop.dy,
+        lessThan(chipsTop.dy),
+        reason: '预览条在快捷 chips 之上（输入区最顶）',
       );
     });
 
@@ -598,6 +841,8 @@ void main() {
       );
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('image-preview-bar')), findsNothing);
@@ -622,6 +867,8 @@ void main() {
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
+      await tester.pumpAndSettle();
 
       expect(find.text('相册不可用'), findsOneWidget);
       expect(find.byKey(const Key('image-preview-bar')), findsNothing);
@@ -631,6 +878,8 @@ void main() {
       await pumpPage(tester, AiConversationPage(service: service));
 
       await tester.tap(find.byKey(const Key('btn-image-upload')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('attachment-pick-gallery')));
       await tester.pumpAndSettle();
 
       expect(find.text('图片选择尚未配置。'), findsOneWidget);
@@ -925,6 +1174,40 @@ void main() {
       await settle(tester);
     }
 
+    testWidgets('模型只回记餐散文：页面仍渲染应用卡（本地抢救）', (tester) async {
+      final calls = <_ServiceCall>[];
+      final service = _ManualService(calls);
+      await pumpPage(
+        tester,
+        AiConversationPage(
+          service: service,
+          chatEdit: ChatEditCoordinator(
+            contextBuilder: _FakeEditContext(),
+            executor: _RecordingExecutor(),
+          ),
+        ),
+      );
+      await sendAndReceive(
+        tester,
+        service,
+        '我准备把这份记为今天的午餐：红油豆腐粉（豆腐+金针菇+粉条）400g、'
+        '白米饭（熟）150g，份量按这一碗的常见大小估算。点「应用」后生效。',
+      );
+
+      expect(
+        find.byKey(const Key('chat-edit-card-1')),
+        findsOneWidget,
+        reason: '散文里已经是完整提案 ⇒ 必须出可应用卡，而不是兜底卡',
+      );
+      expect(
+        find.byKey(const Key('envelope-fallback-card-1')),
+        findsNothing,
+        reason: '已抢救成卡片，不该再弹「没有可应用的操作」',
+      );
+      expect(calls, hasLength(1), reason: '抢救成功就不该再自动催一次');
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('信封回复渲染成编辑卡：reply 上屏、原始 JSON 不上屏', (tester) async {
       final calls = <_ServiceCall>[];
       final service = _ManualService(calls);
@@ -1083,8 +1366,12 @@ void main() {
     });
 
     // 2026-10-16 用户：「涉及修改就必须正确识别指令，而不是空回文字」。
-    // 自动催过一次仍只拿到文字时，气泡下要给一枚手动催的入口。
-    testWidgets('修改请求只拿到文字：气泡下出「让 AI 给出可应用的修改」，点了真催', (tester) async {
+    // 【2026-10-27 升级（用户：AI 对话经常不弹应用卡片）】自动催从 1 次变
+    // 2 次：第二次自动催直接改用加强版提示（引用模型上一条回复原文）；
+    // 两次都失败才给手动词条。原「催一次就交还用户」的口径随之退役。
+    testWidgets('修改请求只拿到文字：两次自动催（第二次加强版）失败后，气泡下出「让 AI 给出可应用的修改」，点了真催', (
+      tester,
+    ) async {
       final calls = <_ServiceCall>[];
       final service = _ManualService(calls);
       await pumpPage(
@@ -1109,32 +1396,52 @@ void main() {
       await calls[0].finish();
       await settle(tester);
       expect(calls, hasLength(2), reason: '修改请求没出信封 ⇒ 自动催一次');
-      // 第二轮仍是文字 ⇒ 残留态：给手动词条。
+      // 第二轮仍是文字 ⇒ 第二次自动催（加强版提示，引用上一条回复）。
       calls[1].emit('我还是先说个建议。');
       await calls[1].finish();
       await settle(tester);
-
-      final chip = find.byKey(const Key('ai-chat-request-envelope-1'));
-      expect(chip, findsOneWidget);
+      expect(calls, hasLength(3), reason: '第一次自动催失败 ⇒ 自动升级到加强版再催一次');
       expect(
-        find.descendant(of: chip, matching: find.text('让 AI 给出可应用的修改')),
-        findsOneWidget,
+        calls[2].systemContext,
+        contains('让 AI 给出可应用的修改'),
+        reason: '加强版提示（引用上一条回复原文）要自动发出',
       );
+      expect(calls[2].systemContext, contains('我还是先说个建议。'));
 
-      await tester.tap(chip);
+      // 第三轮仍是文字 ⇒ 残留态：给手动词条。
+      calls[2].emit('还是不太确定。');
+      await calls[2].finish();
       await settle(tester);
-      expect(calls, hasLength(3), reason: '手动词条要真的再发一次请求');
 
-      calls[2].emit(
+      // 【2026-10-29（R-7 兜底卡）】词条升级为卡片：显眼 + 亮出模型原话。
+      final card = find.byKey(const Key('envelope-fallback-card-1'));
+      expect(card, findsOneWidget);
+      expect(
+        find.byKey(const Key('envelope-fallback-reply')),
+        findsOneWidget,
+        reason: '模型原话亮在卡里供核对',
+      );
+      // 两次补跑都不显示：只剩用户 + 首轮散文 2 条；兜底卡挂在首轮上。
+      final retry = find.byKey(const Key('envelope-fallback-retry'));
+      expect(retry, findsOneWidget);
+
+      await tester.tap(retry);
+      await settle(tester);
+      expect(calls, hasLength(4), reason: '兜底卡按钮要真的再发一次请求');
+
+      calls[3].emit(
         '{"reply":"帮你记一个鸡蛋。","edits":[{"action":"food.create",'
         '"args":{"name":"鸡蛋","kcalPer100g":144,"proteinPer100g":13.3,'
         '"carbsPer100g":2.8,"fatPer100g":8.8}}]}',
       );
-      await calls[2].finish();
+      await calls[3].finish();
       await settle(tester);
 
-      expect(find.byKey(const Key('chat-edit-card-1')), findsOneWidget);
-      expect(find.byKey(const Key('ai-chat-request-envelope-1')), findsNothing);
+      // 手动催的信封挂在新气泡上（index=2：用户 + 首轮 + 手动重跑）。
+      expect(find.byKey(const Key('chat-edit-card-2')), findsOneWidget);
+      expect(find.byKey(const Key('chat-edit-card-1')), findsNothing);
+      // 信封到了 ⇒ 兜底卡撤下（残留只标最新气泡，旧气泡定稿）。
+      expect(find.byKey(const Key('envelope-fallback-card-3')), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -1492,6 +1799,7 @@ class _FakeEditContext implements ChatEditContextBuilder {
   Future<String> build({
     String? userMessage,
     PendingProposal? pendingProposal,
+    String? foodQuery,
   }) async => '【当前可编辑数据快照】测试';
 }
 
@@ -1564,6 +1872,7 @@ final class _ManualService implements AiConversationService {
     final call = _ServiceCall(
       messages: messages,
       onProgress: onProgress,
+      systemContext: systemContext,
       cancelToken: cancelToken,
     );
     calls.add(call);
@@ -1575,6 +1884,7 @@ final class _ServiceCall {
   _ServiceCall({
     required this.messages,
     required this.onProgress,
+    this.systemContext,
     Stream<void>? cancelToken,
   }) {
     // 控制器取消时关闭 cancelToken —— 这就是「请求被取消」的契约。
@@ -1583,6 +1893,9 @@ final class _ServiceCall {
 
   final List<ConversationMessage> messages;
   final void Function(String chunk) onProgress;
+
+  /// 这一次请求收到的 systemContext（信封升级梯子要逐次对比提示档位）。
+  final String? systemContext;
   final StreamController<String> _controller = StreamController<String>();
   bool cancelled = false;
 

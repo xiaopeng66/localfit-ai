@@ -14,3 +14,17 @@ String formatGroupedInt(int value) {
   }
   return value < 0 ? '-$buffer' : buffer.toString();
 }
+
+/// 字节数 → `41.0 MB` 这样的一句话（更新包大小、下载进度用）。
+///
+/// 以 1024 为进；不到 1 MB 用 KB，负数归零。
+/// MB 与小于 10 KB 的数保留一位小数，其余 KB 显示整数。
+String formatMegabytes(int bytes) {
+  final safe = bytes < 0 ? 0 : bytes;
+  const unit = 1024 * 1024;
+  if (safe < unit) {
+    final kb = safe / 1024;
+    return '${kb.toStringAsFixed(kb >= 10 ? 0 : 1)} KB';
+  }
+  return '${(safe / unit).toStringAsFixed(1)} MB';
+}

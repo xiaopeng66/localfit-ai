@@ -255,14 +255,8 @@ void main() {
     );
 
     // 「训练统计」弹层（Round7 裁决 R2：容量口径说明句 + 肌群 kg 值）。
-    // 二级入口行在历史分段之上，切回计划分段再点。
-    await tester.tap(find.byKey(const Key('training-segment-plan')));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('training-stats')),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
+    // 【2026-11-02】统计圆钮收在上拉三角里：先展开，再点统计。
+    await tester.tap(find.byKey(const Key('training-actions-toggle')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('training-stats')));
     await tester.pumpAndSettle();

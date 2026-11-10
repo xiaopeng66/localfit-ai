@@ -2,24 +2,11 @@
 ///
 /// 每个任务一个版本化 prompt 模板 + 任务卡披露事实（发送什么、不发送
 /// 什么、目的地）。渲染时 `{key}` 占位符被替换；未注册的任务/版本拒绝。
+///
+/// 2026-11-09 全量审查：删掉了 `PromptDisclosure` 类与
+/// `PromptCatalog.disclosureFor()`——两者全仓零调用（`ai_workbench_task`
+/// 明说 T6c 之后画廊不再展示披露；披露文本本身仍随 `PromptTemplate` 保留）。
 library;
-
-/// 任务卡披露事实。
-class PromptDisclosure {
-  const PromptDisclosure({
-    required this.taskId,
-    required this.promptVersion,
-    required this.sendsWhat,
-    required this.neverSends,
-    required this.destinationHint,
-  });
-
-  final String taskId;
-  final String promptVersion;
-  final String sendsWhat;
-  final String neverSends;
-  final String destinationHint;
-}
 
 /// 版本化 prompt 模板。
 class PromptTemplate {
@@ -83,24 +70,6 @@ final class PromptCatalog {
     return template.template.replaceAllMapped(
       RegExp(r'\{([a-zA-Z_][a-zA-Z0-9_]*)\}'),
       (match) => resolved[match.group(1)] ?? match.group(0)!,
-    );
-  }
-
-  PromptDisclosure disclosureFor(String taskId) {
-    // 同任务取最新注册的版本（Map 保序，后注册覆盖）。
-    PromptTemplate? latest;
-    for (final template in _templates.values) {
-      if (template.taskId == taskId) latest = template;
-    }
-    if (latest == null) {
-      throw PromptCatalogException('no prompt template for task $taskId');
-    }
-    return PromptDisclosure(
-      taskId: latest.taskId,
-      promptVersion: latest.promptVersion,
-      sendsWhat: latest.sendsWhat,
-      neverSends: latest.neverSends,
-      destinationHint: latest.destinationHint,
     );
   }
 }

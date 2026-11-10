@@ -1,7 +1,7 @@
 /// 行级「修复建议」（App 侧兜底，2026-10-16）。
 ///
 /// 执行失败时给出的**可点动作**：不写库，只把用户带到能补齐前提的界面。
-/// 目前覆盖四类「库里没有这个实体」：
+/// 目前覆盖五类「执行卡住了」：
 ///
 /// | 种类 | 触发 | 按钮 | 点开 |
 /// |---|---|---|---|
@@ -9,6 +9,7 @@
 /// | [ChatEditRepairKind.createExercise] | 训练域按名字引用库里没有的动作 | 新建动作「X」 | 预填名称的**新建动作**弹层 |
 /// | [ChatEditRepairKind.createVenue] | 食堂域按名字引用库里没有的地点 | 新建地点「X」 | 预填名称的**添加地点**弹层 |
 /// | [ChatEditRepairKind.createWindow] | 食堂域按名字引用某地点下没有的窗口 | 新建窗口「X」 | 预填名称的**添加窗口**弹层（venueId 必带） |
+/// | [ChatEditRepairKind.chooseCatalog] | 名字在食物库和菜品库都命中 | 选一个「X」 | 食物/菜品候选**选择弹层**，选中后改写该行重放 |
 ///
 /// 营养值/时间/分类这些仍由用户在表单里填，App 绝不替用户编数据。
 ///
@@ -19,6 +20,7 @@ enum ChatEditRepairKind {
   createExercise,
   createVenue,
   createWindow,
+  chooseCatalog,
 }
 
 final class ChatEditRepair {
@@ -38,6 +40,11 @@ final class ChatEditRepair {
   const ChatEditRepair.createWindow({required this.name, required this.venueId})
     : kind = ChatEditRepairKind.createWindow;
 
+  /// 名字同时命中食物库与菜品库：让用户挑按哪边记（2026-11-05）。
+  const ChatEditRepair.chooseCatalog({required this.name})
+    : kind = ChatEditRepairKind.chooseCatalog,
+      venueId = null;
+
   final ChatEditRepairKind kind;
 
   /// 要新建的实体名（执行器从失败路径里带出来的原始引用）。
@@ -52,5 +59,6 @@ final class ChatEditRepair {
     ChatEditRepairKind.createExercise => '新建动作「$name」',
     ChatEditRepairKind.createVenue => '新建地点「$name」',
     ChatEditRepairKind.createWindow => '新建窗口「$name」',
+    ChatEditRepairKind.chooseCatalog => '选一个「$name」（食物/菜品）',
   };
 }

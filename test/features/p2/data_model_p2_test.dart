@@ -7,11 +7,12 @@ import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/campus_menus/domain/ingredients.dart';
 import 'package:localfit_ai/features/jobs/application/job_scheduler.dart';
 import 'package:localfit_ai/features/jobs/data/background_job_repository.dart';
-import 'package:localfit_ai/features/nutrition/application/add_canteen_dishes_to_library.dart';
 import 'package:localfit_ai/features/nutrition/application/add_dish_to_meal.dart';
-import 'package:localfit_ai/features/nutrition/application/dish_staleness.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 
 /// P2（schema 28）行为判据：份量口径、配料/过敏原三层来源、队列底座。
 void main() {
@@ -40,7 +41,7 @@ void main() {
   );
 
   group('份量口径（docs/40 §2.2 不变量）', () {
-    test('食堂菜 per100g=150、servingGrams=250 ⇒ 菜品库 375 kcal/份', () async {
+    test('食堂菜 per100g=150、servingGrams=250 ⇒ 供应按份派生 375 kcal/份', () async {
       final repo = canteen();
       final now2 = DateTime.utc(2026, 10, 18);
       await db
@@ -87,44 +88,90 @@ void main() {
         servingGrams: 250,
         setServingGrams: true,
       );
-      final dish = (await repo.listDishes(windowId)).single;
-      expect(dish.servingGrams, 250);
 
-      final library = dishes();
-      final result = await AddCanteenDishesToLibrary(
-        dishLibrary: library,
-        canteen: repo,
-      ).run(windowId: windowId, dishes: [dish]);
-      expect(result.written, 1);
-
-      final stored = (await library.watchAll().first).single;
-      expect(stored.kcal, closeTo(375, 0.001), reason: '150 × 250/100');
-      expect(stored.proteinG, closeTo(17.5, 0.001));
-      expect(stored.servingGrams, 250);
-      expect(stored.basisAssumed, isFalse);
-      expect(stored.sourceType, 'canteen');
-      expect(stored.sourceId, dishId);
-      expect(stored.kcalPer100g, closeTo(150, 0.001), reason: '每 100g 还原');
-      expect(stored.kcalForGrams(200), closeTo(300, 0.001));
+      // docs/67 P2-U23：食堂供应不再复制进菜品库；"一份多少"由供应自己的
+      // 每份克数 × 主食物每 100g 派生。
+      expect(
+        await db.select(db.dishLibrary).get(),
+        isEmpty,
+        reason: '自动复制链已退役',
+      );
+      final catalog = FoodCatalogService(
+        database: db,
+        idGenerator: const _SeqIds(),
+        clock: FixedAppClock(now),
+      );
+      final foodId = await catalog.createMasterFood(
+        name: '番茄牛腩饭',
+        kcalPer100g: 150,
+        proteinPer100g: 7,
+        carbsPer100g: 20,
+        fatPer100g: 5,
+      );
+      await repo.linkSupplyToFood(dishId: dishId, foodId: foodId);
+      final supply = (await SupplyCatalogRepository(database: db)
+          .getById(dishId))!;
+      expect(supply.servingGrams, 250);
+      expect(supply.servingGramsStatus, ServingGramsStatus.known);
+      expect(supply.kcalPer100g, closeTo(150, 0.001), reason: '每 100g 来自主库');
+      expect(
+        supply.kcalPerServing,
+        closeTo(375, 0.001),
+        reason: '150 × 250/100',
+      );
+      expect(supply.state, SupplyNutritionState.servingKnown);
     });
 
-    test('没有 servingGrams 的菜：每份=per100g 且 basisAssumed=1', () async {
-      final library = dishes();
-      await library.create(
-        DishDraft(
-          name: '历史菜',
-          mealSlot: '午餐',
-          kcal: 150,
-          proteinG: 7,
-          carbsG: 20,
-          fatG: 5,
-          source: 'ai_estimate',
-        ),
+    test('没有 servingGrams 的菜：份量未知，不派生"一份"数', () async {
+      final repo = canteen();
+      final now2 = DateTime.utc(2026, 10, 18);
+      await db
+          .into(db.campusProfiles)
+          .insert(
+            CampusProfilesCompanion.insert(
+              id: 'c1',
+              name: '示范大学',
+              createdAt: now2,
+              updatedAt: now2,
+            ),
+          );
+      await db
+          .into(db.venues)
+          .insert(
+            VenuesCompanion.insert(
+              id: 'v1',
+              campusId: 'c1',
+              name: '东区食堂',
+              createdAt: now2,
+              updatedAt: now2,
+            ),
+          );
+      final windowId = await repo.createWindow(
+        venueId: 'v1',
+        name: '一楼',
+        openTime: '11:00',
+        closeTime: '13:30',
       );
-      final stored = (await library.watchAll().first).single;
-      expect(stored.servingGrams, isNull);
-      expect(stored.basisAssumed, isTrue, reason: '份量未知必须标假设');
-      expect(stored.kcalPer100g, closeTo(150, 0.001));
+      final dishId = await repo.createDish(windowId: windowId, name: '历史菜');
+      await repo.recordNutrition(
+        dishId: dishId,
+        kcalPer100g: 150,
+        proteinPer100g: 7,
+        carbsPer100g: 20,
+        fatPer100g: 5,
+        grade: 'D',
+        confidence: 0.6,
+      );
+      final supply = (await SupplyCatalogRepository(database: db)
+          .getById(dishId))!;
+      expect(supply.servingGrams, isNull);
+      expect(supply.servingGramsStatus, ServingGramsStatus.unknown);
+      expect(
+        supply.state,
+        SupplyNutritionState.needsAnalysis,
+        reason: '没链接主食物时仍是「待分析」，不是 0 千卡',
+      );
+      expect(supply.kcalPerServing, isNull);
     });
 
     test('菜品加进餐：按 servingGrams 缩放，不固定 100g', () async {
@@ -272,120 +319,6 @@ void main() {
       expect(decoded.entries.single.name, '鸡肉');
       expect(decoded.entries.single.source, IngredientSource.ai);
       expect(CanteenIngredientInfo.decode('not json').isEmpty, isTrue);
-    });
-  });
-
-  group('来源陈旧（同步提示，docs/40 §6）', () {
-    test('来源有更新 ⇒ sourceUpdated；用户改过只提示不覆盖', () async {
-      final library = dishes();
-      final repo = canteen();
-      final now2 = DateTime.utc(2026, 10, 18);
-      await db
-          .into(db.campusProfiles)
-          .insert(
-            CampusProfilesCompanion.insert(
-              id: 'c1',
-              name: '示范大学',
-              createdAt: now2,
-              updatedAt: now2,
-            ),
-          );
-      await db
-          .into(db.venues)
-          .insert(
-            VenuesCompanion.insert(
-              id: 'v1',
-              campusId: 'c1',
-              name: '东区食堂',
-              createdAt: now2,
-              updatedAt: now2,
-            ),
-          );
-      final windowId = await repo.createWindow(
-        venueId: 'v1',
-        name: '一楼',
-        openTime: '11:00',
-        closeTime: '13:30',
-      );
-      final dishId = await repo.createDish(windowId: windowId, name: '番茄牛腩饭');
-      await repo.recordNutrition(
-        dishId: dishId,
-        kcalPer100g: 150,
-        proteinPer100g: 6,
-        carbsPer100g: 21,
-        fatPer100g: 5,
-        grade: 'D',
-        confidence: 0.5,
-      );
-      final dish = (await repo.listDishes(windowId)).single;
-      await AddCanteenDishesToLibrary(
-        dishLibrary: library,
-        canteen: repo,
-      ).run(windowId: windowId, dishes: [dish]);
-      final stored = (await library.watchAll().first).single;
-
-      final checker = DishStalenessChecker(database: db);
-      // 刚同步：已是最新。
-      expect((await checker.check(stored)).state, DishStalenessState.upToDate);
-
-      // 来源被重新分析（updatedAt 变新）⇒ 提示有更新。
-      await repo.recordNutrition(
-        dishId: dishId,
-        kcalPer100g: 160,
-        proteinPer100g: 7,
-        carbsPer100g: 22,
-        fatPer100g: 6,
-        grade: 'D',
-        confidence: 0.5,
-      );
-      final stale = await checker.check(stored);
-      expect(stale.state, DishStalenessState.sourceUpdated);
-      expect(stale.shouldPrompt, isTrue);
-      expect(stale.notice, '食堂营养有更新');
-    });
-
-    test('来源删除 ⇒ sourceMissing，不级联删菜品', () async {
-      final library = dishes();
-      await library.create(
-        DishDraft(
-          name: '悬空菜',
-          mealSlot: '午餐',
-          kcal: 200,
-          proteinG: 10,
-          carbsG: 20,
-          fatG: 8,
-          source: 'ai_estimate',
-          servingGrams: 100,
-          sourceType: 'canteen',
-          sourceId: 'menu-item-gone',
-        ),
-      );
-      final stored = (await library.watchAll().first).single;
-      final result = await DishStalenessChecker(database: db).check(stored);
-      expect(result.state, DishStalenessState.sourceMissing);
-      expect(result.notice, '来源已删除');
-      expect(await library.watchAll().first, hasLength(1), reason: '不级联删');
-    });
-
-    test('手工菜（无来源）⇒ unlinked，没有提示', () async {
-      final library = dishes();
-      await library.create(
-        DishDraft(
-          name: '自做饭',
-          mealSlot: '午餐',
-          kcal: 200,
-          proteinG: 10,
-          carbsG: 20,
-          fatG: 8,
-          source: 'manual',
-          servingGrams: 100,
-          sourceType: 'manual',
-        ),
-      );
-      final stored = (await library.watchAll().first).single;
-      final result = await DishStalenessChecker(database: db).check(stored);
-      expect(result.state, DishStalenessState.unlinked);
-      expect(result.notice, isNull);
     });
   });
 

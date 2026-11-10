@@ -117,7 +117,9 @@ void main() {
           (a > b ? (a + .05) / (b + .05) : (b + .05) / (a + .05)),
           greaterThanOrEqualTo(4.5),
         );
-        expect(label, const Color(0xFF10271D));
+        // 【2026-10-29 用户裁决】实心档字色从 #10271D 深墨绿改为
+        // onBrandStrong（亮白 / 暗 #171E1A）：亮绿底 + 深字实机看不清。
+        expect(label, dark ? const Color(0xFF171E1A) : const Color(0xFFFFFFFF));
         final disabled = Theme.of(context)
             .filledButtonTheme
             .style!
@@ -765,9 +767,10 @@ void main() {
                   .first,
             )
             .color!;
+        // 【2026-10-29】实心档底 = brandStrong（亮 #187653 / 暗 mint-400）。
         expect(
           fill('generate'),
-          dark ? const Color(0xFF4ED9A6) : const Color(0xFF2FBE8F),
+          dark ? const Color(0xFF4ED9A6) : const Color(0xFF187653),
         );
         expect(
           fill('unavailable'),

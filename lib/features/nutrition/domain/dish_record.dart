@@ -101,6 +101,37 @@ final class DishRecord {
   /// 按克数换算这一份的热量（docs/40 §2.2 的不变量）。
   double kcalForGrams(double grams) => kcalPer100g * grams / 100;
 
+  /// 按克数换算这一份的完整营养。
+  ///
+  /// 菜品库的四值是「一份」值，`servingGrams` 是这一份多少克。目标克数
+  /// [grams] 相对这份的倍率是 `grams / (servingGrams ?? 100)`；**只缩放
+  /// 一次**，不能再乘 `servingGrams/100`（那会把整份值重复放大）。
+  NutritionValues nutritionForGrams(double grams) {
+    final baseGrams = servingGrams ?? 100;
+    final factor = baseGrams <= 0 ? 1.0 : grams / baseGrams;
+    return NutritionValues(
+      kcal: kcal * factor,
+      proteinGrams: proteinG * factor,
+      carbsGrams: carbsG * factor,
+      fatGrams: fatG * factor,
+    );
+  }
+
+  /// 展示用能量口径：份量未知/按 100g 假设时不能写死「/份」。
+  ///
+  /// 食堂来源没有份量时，四值本来就是每 100g（同步时按 100g 兜底）；
+  /// 手工/AI 菜品没有份量时，值仍是「一份」但份量是假设的 100g，所以
+  /// 标「按100g估」而不是把假设说成事实。
+  String get energyLabel {
+    final grams = servingGrams;
+    if (grams == null || grams <= 0 || basisAssumed) {
+      return sourceType == kCanteenSourceType
+          ? '${kcal.round()} kcal/100g'
+          : '${kcal.round()} kcal/份（按100g估）';
+    }
+    return '${kcal.round()} kcal/份';
+  }
+
   final DateTime createdAt;
   final DateTime updatedAt;
 

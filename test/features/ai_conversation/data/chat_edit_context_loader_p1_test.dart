@@ -269,6 +269,64 @@ void main() {
     );
     expect(second.dynamicPart, isNot(first.dynamicPart), reason: '动态段必须反映新写入');
   });
+  // ── docs/66 §5.2：foodQuery 与 userMessage 拆分（手动编译的路由）────────
+  test('build({foodQuery})：食物库预览段只看 foodQuery；门控仍按 userMessage', () async {
+    final now = DateTime.utc(2026, 10, 18);
+    await db
+        .into(db.foods)
+        .insert(
+          FoodsCompanion.insert(
+            id: 'food-0',
+            name: '米饭',
+            kcalPer100g: 116,
+            proteinPer100g: 2.6,
+            carbsPer100g: 25.9,
+            fatPer100g: 0.3,
+            source: 'catalog',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    // foodQuery 驱动食物库预览：userMessage 是中性寒暄、foodQuery 是目标
+    // 回复（含食物名）⇒ 预览段能命中米饭。
+    final withFoodQuery = await deps.loader.build(
+      userMessage: '你好',
+      foodQuery: '你今天中午可以吃米饭 150g',
+    );
+    expect(withFoodQuery, contains('【食物库参考】'));
+    expect(withFoodQuery, contains('米饭'));
+    // 菜品推荐门控仍按真实 userMessage：「你好」没有吃/推荐意图 ⇒ 无候选菜品段。
+    expect(withFoodQuery, isNot(contains('【候选菜品（本地检索）】')));
+
+    // 不传 foodQuery（旧调用点）：预览退回 userMessage，行为不变。
+    final withoutFoodQuery = await deps.loader.build(userMessage: '我中午吃了米饭');
+    expect(withoutFoodQuery, contains('米饭'));
+  });
+
+  test('build({foodQuery})：foodQuery 为空串时退回 userMessage（不空段）', () async {
+    final now = DateTime.utc(2026, 10, 18);
+    await db
+        .into(db.foods)
+        .insert(
+          FoodsCompanion.insert(
+            id: 'food-0',
+            name: '米饭',
+            kcalPer100g: 116,
+            proteinPer100g: 2.6,
+            carbsPer100g: 25.9,
+            fatPer100g: 0.3,
+            source: 'catalog',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    final snapshot = await deps.loader.build(
+      userMessage: '我中午吃了米饭',
+      foodQuery: '   ',
+    );
+    expect(snapshot, contains('米饭'));
+  });
 }
 
 final IdGenerator idGen = _SeqIds();

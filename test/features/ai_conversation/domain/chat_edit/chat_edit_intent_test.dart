@@ -135,5 +135,84 @@ void main() {
       expect(looksLikeModificationRequest('今天已经记过了'), isFalse);
       expect(looksLikeModificationRequest('记录很正常'), isFalse);
     });
+
+    test('口语「加进去 / 加入 / 保存到」也算修改请求', () {
+      for (final text in const [
+        '帮我按每份100g加进去吧',
+        '把「君乐宝简醇0蔗糖酸奶」加入食物库',
+        '保存到今天的午餐里',
+        '补记昨天的晚餐',
+      ]) {
+        expect(
+          looksLikeModificationRequest(text),
+          isTrue,
+          reason: '「$text」是明确的修改请求，不能只回散文',
+        );
+      }
+    });
+  });
+
+  group('replyClaimsChanges（信封升级梯子的回复侧触发器）', () {
+    test('第一人称完成态声称改了数据：判真', () {
+      const claims = [
+        '已把芒果加入你的忌口清单。',
+        '已经记录你的饮水 250 毫升。',
+        '已记下今天的体重 72 公斤。',
+        '已添加食材「鸡胸肉」。',
+        '已删除那条加餐记录。',
+        '已更新步数目标为 12000。',
+        '帮你记下了午餐：两个鸡蛋。',
+        '已写入训练计划。',
+      ];
+      for (final reply in claims) {
+        expect(
+          replyClaimsChanges(reply),
+          isTrue,
+          reason: '「$reply」声称改了数据，必须判真（否则卡片不弹）',
+        );
+      }
+    });
+
+    test('建议/说明/提问不判真（不许为它们多发请求）', () {
+      const nonClaims = [
+        '可以，芒果的热量不高。',
+        '建议你每天记录饮水量。',
+        '芒果是热带水果，富含维生素 C。',
+        '要不要我帮你记一笔？',
+        '你可以在设置里更新目标。',
+        '你好！今天想聊点什么？',
+        '',
+      ];
+      for (final reply in nonClaims) {
+        expect(
+          replyClaimsChanges(reply),
+          isFalse,
+          reason: '「$reply」只是建议/说明，不许触发升级催',
+        );
+      }
+    });
+  });
+
+  group('replyMentionsApplyCard（幻影应用卡）', () {
+    test('回复在讲「点应用」：判真（是否失败由「有没有待应用卡」决定）', () {
+      for (final reply in const [
+        '点「应用」后才会保存。',
+        '应用后自动记到今天的摄入。',
+        '等你点了应用之后，我就正式保存。',
+        '这条会出现在应用卡片上。',
+      ]) {
+        expect(
+          replyMentionsApplyCard(reply),
+          isTrue,
+          reason: '「$reply」引用了应用卡，需要与真实卡片一起判断',
+        );
+      }
+    });
+
+    test('普通说明不判真（不误伤）', () {
+      for (final reply in const ['可以，芒果的热量不高。', '建议你每天记录饮水量。', '你好！今天想聊点什么？']) {
+        expect(replyMentionsApplyCard(reply), isFalse);
+      }
+    });
   });
 }

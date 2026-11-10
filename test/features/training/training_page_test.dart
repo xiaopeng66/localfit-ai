@@ -179,7 +179,23 @@ void main() {
 
     await tester.tap(find.byKey(const Key('training-personal-records')));
     await tester.pumpAndSettle();
-    expect(find.text('杠铃深蹲 60.0kg × 8 次'), findsOneWidget);
+    // 【2026-10-29（R-5 图形化）】旧断言是一整行文字（ListTile）；新形态 =
+    // 每条一张卡（名次 + 动作名 + 大数字 kg + ×次 + 比例条 + 日期），
+    // 数据口径不变（仍 TrainingStatsCalculator.personalRecords）。
+    final card = find.byKey(const Key('personal-record-card-ex-barbell-squat'));
+    expect(card, findsOneWidget, reason: '每条纪录一张卡（R-5 图形化）');
+    expect(
+      find.descendant(of: card, matching: find.text('60')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('× 8')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.textContaining('达成于')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('reports pain with safe options and can stop the session', (
@@ -485,7 +501,8 @@ void main() {
           .style
           ?.foregroundColor
           ?.resolve(<WidgetState>{}),
-      LfSemanticColors.light.error,
+      // 2026-11-09：破坏性文字按钮用文字档 errorText（AA 达标）。
+      LfSemanticColors.light.errorText,
     );
     await tester.tap(find.byKey(const Key('training-plan-delete-confirm')));
     await tester.pumpAndSettle();
@@ -864,8 +881,20 @@ void main() {
     // A `app.js:216` 的 tabs 是四字标签：我的计划 / 训练历史。
     expect(find.text('我的计划'), findsOneWidget);
     expect(find.text('训练历史'), findsOneWidget);
-    // A 的 list-link「动作库」带副题（先了解动作，再开始训练）。
-    expect(find.text('先了解动作，再开始训练'), findsOneWidget);
+    // 【2026-11-02 用户再次改版】动作库收进「上拉三角」：平时不渲染，
+    // 展开后才出现。断言先验证收起态没有，再展开验证它在右下。
+    final library = find.byKey(const Key('training-exercise-library'));
+    expect(library, findsNothing, reason: '平时不显示：动作库收在上拉三角里');
+    await tester.tap(find.byKey(const Key('training-actions-toggle')));
+    await tester.pumpAndSettle();
+    expect(library, findsOneWidget, reason: '动作库入口不能丢（Key 不变）');
+    final rect = tester.getRect(library);
+    final screen = tester.getSize(find.byType(Scaffold).first);
+    expect(
+      rect.bottom,
+      greaterThan(screen.height * 0.5),
+      reason: '动作库仍是右下浮钮，不是页面中部的 list-link 行',
+    );
   });
 
   testWidgets('Round7 逐页对账批次 3：计划卡补「一~日」日签行与今日行（A app.js:216）', (tester) async {
@@ -924,7 +953,9 @@ void main() {
     expect(chipColor(2), brandSoft);
     expect(chipColor(4), brandSoft);
     expect(chipColor(1), c.muted);
-    expect(chipColor(6), c.primary);
+    // 【2026-10-29】今天的实心档 = brandStrong（旧档 primary + 深墨字
+    // 属用户点名的「绿底深字看不清」）。
+    expect(chipColor(6), LfColors.brandStrong(Brightness.light));
 
     // 今日行说真话：周六不在计划里。
     expect(
@@ -958,14 +989,15 @@ void main() {
     await tester.pumpWidget(page(now: DateTime(2026, 9, 12)));
     await tester.pumpAndSettle();
 
-    final c = tester
-        .element(find.byKey(const Key('training-plan-weekdays-1')))
-        .lf;
     final box = tester.widget<Container>(
       find.byKey(const Key('training-plan-weekday-1-6')),
     );
-    // 今天 = 品牌实心底（A `.day-chip.today` 的填充档）。
-    expect((box.decoration! as BoxDecoration).color, c.primary);
+    // 今天 = 品牌实心底（A `.day-chip.today` 的填充档；【2026-10-29】
+    // 实心面带文字的档位统一 brandStrong + onBrandStrong）。
+    expect(
+      (box.decoration! as BoxDecoration).color,
+      LfColors.brandStrong(Brightness.light),
+    );
     expect(
       tester
           .widget<Text>(find.byKey(const Key('training-plan-today-note-1')))
@@ -1096,6 +1128,9 @@ void main() {
 
     await tester.pumpWidget(page(now: DateTime(2026, 9, 12)));
     await tester.pumpAndSettle();
+    // 2026-11-02：统计收在上拉三角里，先展开再点统计圆钮。
+    await tester.tap(find.byKey(const Key('training-actions-toggle')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('training-stats')));
     await tester.pumpAndSettle();
 
@@ -1170,8 +1205,14 @@ void main() {
     // kcal 无数据源（WorkoutSets 没有热量列）→ 渲染「—」而不是编 0。
     expect(_heroStatText(tester, 'training-hero-kcal'), '—');
     expect(_heroStatText(tester, 'training-hero-count'), '0');
-    // 「第N周」是演示值：无训练历史时整行不渲染。
-    expect(find.byKey(const Key('training-hero-week')), findsNothing);
+    // 【2026-10-29（R-6）】右上角是**本周真实日期区间**（如「9/7 – 9/13」），
+    // 恒渲染（统计窗口与历史无关）；「第 N 周」退役。
+    expect(find.byKey(const Key('training-hero-week')), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('training-hero-week'))).data,
+      '9/7 – 9/13',
+      reason: 'now=2026-09-12（周六）→ 本周一 9/7、周日 9/13',
+    );
     expect(find.text('还没有本地训练计划。'), findsOneWidget);
   });
 
@@ -1515,6 +1556,99 @@ void main() {
       if (!await _reveal(tester, vertical, key)) missing.add(key);
     }
     expect(missing, isEmpty, reason: '未在训练页找到：${missing.join('、')}');
+  });
+
+  // ── 自由训练（2026-10-26 用户：「运动记录也输入不了」）──────────────────
+  //
+  // 复核发现的阻断：界面上唯一的记录路径是「计划 → 当天的计划日且有动作 →
+  // 开始训练」。**没有计划就完全记不了训练**——而数据层
+  // （`sessionRepository.start(planId: 可为 null)`）、训练弹层（无计划时动作
+  // 下拉直接列整个动作库）、历史（显示「自由训练」）全都是通的，只差入口。
+
+  testWidgets('自由训练：没有计划也能开始（planId 为空），并直接进训练弹层', (tester) async {
+    _useTallViewport(tester);
+    await tester.pumpWidget(page(now: DateTime(2026, 9, 12, 9)));
+    await tester.pumpAndSettle();
+
+    final cta = find.byKey(const Key('training-start-free-empty'));
+    expect(cta, findsOneWidget, reason: '没有计划 ≠ 不能记录训练');
+    await tester.tap(cta);
+    await tester.pumpAndSettle();
+
+    final active = await sessions.getActive();
+    expect(active, isNotNull, reason: '点一下就要开出一个进行中的会话');
+    expect(active!.planId, isNull, reason: '自由训练不带计划');
+    expect(find.text('训练进行中'), findsOneWidget, reason: '开完直接进训练弹层');
+  });
+
+  testWidgets('自由训练：有「今天的计划日」时不出现休息日入口', (tester) async {
+    _useTallViewport(tester);
+    // 2026-09-12 是周六（weekday 6）——计划放在今天。
+    await plans.create(
+      const WorkoutPlanDraft(
+        name: '下肢日',
+        days: [
+          WorkoutPlanDayDraft(
+            weekday: 6,
+            entries: [
+              PlannedExerciseDraft(
+                exerciseId: 'ex-barbell-squat',
+                targetSets: 3,
+                targetReps: 8,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(page(now: DateTime(2026, 9, 12, 9)));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('training-free-session')),
+      findsNothing,
+      reason: '今天有计划日 ⇒ 用它自己的「开始训练」，不再多一条休息日提示',
+    );
+  });
+
+  testWidgets('自由训练：今天不是计划日时，页面中部给入口（不撞右下浮钮）', (tester) async {
+    _useTallViewport(tester);
+    // 计划只排周四（weekday 4），今天是周六 ⇒ 原来一个记录入口都没有。
+    await plans.create(
+      const WorkoutPlanDraft(
+        name: '推日',
+        days: [
+          WorkoutPlanDayDraft(
+            weekday: 4,
+            entries: [
+              PlannedExerciseDraft(
+                exerciseId: 'ex-barbell-squat',
+                targetSets: 3,
+                targetReps: 8,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(page(now: DateTime(2026, 9, 12, 9)));
+    await tester.pumpAndSettle();
+
+    final entry = find.byKey(const Key('training-free-session'));
+    expect(entry, findsOneWidget, reason: '休息日也要能记录训练');
+    // 不撞右下常驻浮钮：两者**矩形不相交**（取帧实测过页尾入口被旗标按钮
+    // 压住 chevron 的坑；现在这条在页面中部）。统计/达标/动作库默认收起，
+    // 不在屏幕上；展开态由 floating_actions_test 单独覆盖。
+    final entryRect = tester.getRect(entry);
+    for (final key in const ['training-actions-toggle', 'cta-new-plan']) {
+      final fabRect = tester.getRect(find.byKey(Key(key)));
+      expect(entryRect.overlaps(fabRect), isFalse, reason: '入口与浮钮 $key 不能重叠');
+    }
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+    final active = await sessions.getActive();
+    expect(active, isNotNull);
+    expect(active!.planId, isNull, reason: '自由训练不带计划');
   });
 }
 

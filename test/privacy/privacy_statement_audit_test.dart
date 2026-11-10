@@ -38,15 +38,26 @@ void main() {
   }
 
   group('出网面（商店隐私说明里的「网络」一栏）', () {
-    test('lib/ 里没有明文 http:// 出网字面量', () {
+    test('lib/ 里没有明文 http:// 出网字面量（LAN 更新文件是登记的例外）', () {
       final offenders = <String>[];
+      // 2026-10-30 登记的**唯一合法明文例外**：局域网更新（用户显式填本机
+      // 地址、同一 Wi-Fi、主动触发、非 AI/业务出口，docs/evidence/
+      // 2026-10-30-lan-update §六）。2026-11-10 用户依赖
+      // `http://10.26.8.28:8080/` 更新，v4137 曾改 https 导致通道失效，
+      // 回退并恢复此白名单。AI/业务出口仍全部 https。
+      const lanUpdateFiles = {
+        'lib/features/settings/application/app_update_service.dart',
+        'lib/features/settings/presentation/settings_page.dart',
+      };
       for (final path in filesUnder('lib', extensions: {'.dart'})) {
+        final normalized = path.replaceAll('\\', '/');
         final source = File('$root/$path').readAsStringSync();
         // 只放过整行注释（历史说明里可能提到 http）。按 `//` 截断是错的：
         // `'http://…'` 这个 URL 自身的 `//` 会把命中切掉，等于没查。
         for (final line in source.split('\n')) {
           final trimmed = line.trimLeft();
           if (trimmed.startsWith('//')) continue;
+          if (lanUpdateFiles.contains(normalized)) continue;
           if (line.contains('http://')) offenders.add('$path: ${line.trim()}');
         }
       }
@@ -54,8 +65,8 @@ void main() {
         offenders,
         isEmpty,
         reason:
-            'AI/路线出口必须 https（明文流量同时被 AndroidManifest 的 '
-            'usesCleartextTraffic=false 拒绝）：$offenders',
+            'AI/业务出口必须 https（LAN 更新是唯一登记的明文例外，'
+            '见 docs/evidence/2026-10-30-lan-update §六）：$offenders',
       );
     });
 
@@ -74,8 +85,13 @@ void main() {
       // 只用于前台扫描与连接标准体重秤服务（0x181D），SCAN 带 neverForLocation
       // ——扫描结果不用于推导位置；legacy BLUETOOTH/BLUETOOTH_ADMIN 仅
       // maxSdkVersion=30（那些版本上本应用不扫描）。
+      // 应用内更新（「我的」页检查更新 → 下载 APK → 交给系统安装器）需要
+      // REQUEST_INSTALL_PACKAGES：只在你主动发起更新时拉起系统安装器，
+      // 不后台自动安装、不读取已安装应用列表；隐私说明见
+      // assets/help/01-data-and-privacy.md「应用更新会请求什么？」。
       expect(permissions, [
         'android.permission.INTERNET',
+        'android.permission.REQUEST_INSTALL_PACKAGES',
         'android.permission.ACTIVITY_RECOGNITION',
         'android.permission.BLUETOOTH_SCAN',
         'android.permission.BLUETOOTH_CONNECT',
@@ -87,7 +103,16 @@ void main() {
         r'<uses-permission[^>]*android:name="android\.permission\.BLUETOOTH_SCAN"[^>]*>',
       ).firstMatch(manifest)!;
       expect(scanTag.group(0), contains('neverForLocation'));
-      expect(manifest, contains('android:usesCleartextTraffic="false"'));
+      // 2026-11-10（用户 LAN 更新依赖 http://10.26.8.28:8080）：全局
+      // cleartext=false 会把**局域网更新**也拦掉——用户明确使用这条通道，
+      // 改为 network_security_config：默认仍禁明文，仅放行用户 LAN 网段以外的
+      // **局域网明文不可行**（无法枚举），所以按 Google 官方建议放行 cleartext
+      // 到「局域网 IP 段」不可表达；实际做法 = 全局仍禁，仅对 LAN 更新域名
+      // 不做限制是无法实现的 ⇒ 采用「全局允许明文 + privacy 审计继续钉死
+      // lib/ 无明文 AI/业务出网字面量」的组合：明文风险被限制在「用户自己填的
+      // LAN 更新地址」这一条用户主动触发的通路上。
+      expect(manifest, contains('usesCleartextTraffic="true"'));
+      expect(manifest, isNot(contains('usesCleartextTraffic="false"')));
       // 位置/相机/存储权限一个都没有：手动地点优先、无后台定位（ADR-007），
       // 相机与文件走系统 Intent 而不是自己声明的权限。
       // D6 备注（2026-10-10）：体重秤扫描在 API ≤ 30 需要系统级定位权限，
@@ -282,6 +307,10 @@ void main() {
         filesUnder('assets')
             .where((path) => !path.startsWith('assets/catalog/'))
             .where((path) => !path.startsWith('assets/icons/'))
+            // `assets/help/` 是仓库内手写的帮助文案（pubspec 以**目录**声明），
+            // 不是数据集、无第三方内容：与图标同套路按目录排除，
+            // 目录本身在 `bundledAssetDirectories` 里登记。
+            .where((path) => !path.startsWith('assets/help/'))
             // `assets/models/` 是**模型权重**（BGE int8 ONNX + 词表），不是
             // 数据集：它不含用户数据、也不进「随包数据集」许可证白名单，
             // 许可证在 docs/THIRD_PARTY_LICENSES.md §6 单独登记（下一条测试
@@ -310,6 +339,10 @@ void main() {
 
     test('随包的非数据集资源目录已登记', () {
       expect(bundledAssetDirectories(), [
+        // 帮助文档（「我的 → 帮助」离线可读，由设置页 rootBundle 加载）。
+        // 它是什么：仓库内**手写**的 UI 文案（非第三方数据、非数据集）；
+        // 要不要过许可证审查：不要（无第三方内容）。
+        'assets/help/',
         'assets/icons/food_categories/',
         // 2026-10-19（S12 P0 稳态复测后启用向量）：端上嵌入模型与词表。
         // 它是什么：BAAI bge-small-zh-v1.5 int8 ONNX（512 维，MIT）+ WordPiece
@@ -393,6 +426,9 @@ void main() {
           (path) =>
               !path.startsWith('assets/catalog/') &&
               !path.startsWith('assets/icons/') &&
+              // 帮助文档与图标/模型同套路：pubspec 以**目录**声明
+              // （`assets/help/`），逐文件比对不适用；目录登记见上一条。
+              !path.startsWith('assets/help/') &&
               // 模型权重另算：它由上面那条「在盘上 / 声明了 / 许可证登记了」
               // 的测试单独钉住（与图标目录同一个套路）。
               !path.startsWith('assets/models/'),

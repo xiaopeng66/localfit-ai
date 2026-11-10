@@ -55,6 +55,46 @@ void main() {
       }
     });
 
+    test('本机模型网关：回环明文放行（端口任意），远程明文仍拒绝', () {
+      for (final input in const [
+        'http://127.0.0.1:3425/v1',
+        'http://localhost:8080/v1',
+        'http://[::1]:11434/v1',
+        'http://127.0.0.1/v1',
+      ]) {
+        expect(
+          OpenAiCompatibleEndpoint.tryParse(input),
+          isNotNull,
+          reason: '本机网关不该被 Base URL 校验挡住：$input',
+        );
+      }
+      for (final input in const [
+        'http://api.example.com/v1',
+        'http://192.168.1.10:8080/v1',
+        'http://0.0.0.0:3425/v1',
+        'http://127.0.0.1.example.com/v1',
+      ]) {
+        expect(
+          OpenAiCompatibleEndpoint.tryParse(input),
+          isNull,
+          reason: '非回环明文一律拒绝：$input',
+        );
+      }
+    });
+
+    test('回环地址保留端口与 scheme（不会被改写成 https）', () {
+      final endpoint = OpenAiCompatibleEndpoint.tryParse(
+        'http://127.0.0.1:3425/v1',
+      )!;
+      expect(endpoint.baseUri.scheme, 'http');
+      expect(endpoint.baseUri.host, '127.0.0.1');
+      expect(endpoint.baseUri.port, 3425);
+      expect(
+        endpoint.requestUri.toString(),
+        'http://127.0.0.1:3425/v1/chat/completions',
+      );
+    });
+
     test('请求路径按协议出（同一个 Base URL，不改配置就能换协议）', () {
       const base = 'https://api.example.com/v1';
 

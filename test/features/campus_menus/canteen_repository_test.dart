@@ -235,6 +235,58 @@ void main() {
     );
   });
 
+  test('仓储边界拒绝非有限/越界营养与反向热量区间', () async {
+    final venueId = await seedVenue();
+    final windowId = await repository.createWindow(
+      venueId: venueId,
+      name: '一楼快餐',
+      openTime: '08:00',
+      closeTime: '13:30',
+    );
+    final dishId = await repository.createDish(
+      windowId: windowId,
+      name: '番茄炒蛋',
+    );
+
+    for (final values in <List<double>>[
+      [-1, 5, 6, 5],
+      [901, 5, 6, 5],
+      [90, 101, 6, 5],
+      [90, 5, double.nan, 5],
+    ]) {
+      await expectLater(
+        repository.recordNutrition(
+          dishId: dishId,
+          kcalPer100g: values[0],
+          proteinPer100g: values[1],
+          carbsPer100g: values[2],
+          fatPer100g: values[3],
+          grade: 'D',
+          confidence: 0.5,
+        ),
+        throwsA(anyOf(isA<FormatException>(), isA<CanteenWriteException>())),
+      );
+    }
+    await expectLater(
+      repository.recordNutrition(
+        dishId: dishId,
+        kcalPer100g: 90,
+        proteinPer100g: 5,
+        carbsPer100g: 6,
+        fatPer100g: 5,
+        grade: 'D',
+        confidence: 0.5,
+        kcalMin: 110,
+        kcalMax: 100,
+      ),
+      throwsA(isA<CanteenWriteException>()),
+    );
+    expect(
+      (await repository.listDishes(windowId)).single.hasNutrition,
+      isFalse,
+    );
+  });
+
   test('重复分析：读取只认最新一条证据（同毫秒也单调）', () async {
     final venueId = await seedVenue();
     final windowId = await repository.createWindow(
@@ -309,6 +361,37 @@ void main() {
     final dish = (await repository.listDishes(windowId)).single;
     expect(dish.hasNutrition, isFalse, reason: '没有代表值就不算已分析');
     expect(dish.kcalPer100g, isNull);
+  });
+
+  test('只有热量、没有三宏量：也不算已分析（四值齐全才是事实）', () async {
+    final venueId = await seedVenue();
+    final windowId = await repository.createWindow(
+      venueId: venueId,
+      name: '一楼快餐',
+      openTime: '08:00',
+      closeTime: '13:30',
+    );
+    final dishId = await repository.createDish(
+      windowId: windowId,
+      name: '番茄炒蛋',
+    );
+    await database
+        .into(database.menuItemNutritionEvidence)
+        .insert(
+          MenuItemNutritionEvidenceCompanion.insert(
+            id: 'partial-evidence',
+            menuItemId: dishId,
+            grade: 'D',
+            origin: 'ai_estimate',
+            kcalPer100g: const Value(100),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+    final dish = (await repository.listDishes(windowId)).single;
+    expect(dish.hasNutrition, isFalse, reason: '目录显示「已分析」必须与同步条件一致：四值齐全');
+    expect(dish.kcalPer100g, 100, reason: '代表值本身仍在，只是不完整');
   });
 
   test('待分析列表只含无营养的菜品', () async {
@@ -611,6 +694,35 @@ void main() {
 
     expect(
       () => repository.renameVenue(venueId, '  '),
+      throwsA(isA<CanteenWriteException>()),
+    );
+  });
+
+  test('只改一份克数：写入 / 清空 / 越界拒绝', () async {
+    final venueId = await seedVenue();
+    final windowId = await repository.createWindow(
+      venueId: venueId,
+      name: '一楼快餐',
+      openTime: '08:00',
+      closeTime: '13:30',
+    );
+    final dishId = await repository.createDish(
+      windowId: windowId,
+      name: '番茄炒蛋',
+    );
+
+    await repository.updateDishServingGrams(dishId, 250);
+    expect((await repository.listDishes(windowId)).single.servingGrams, 250);
+
+    await repository.updateDishServingGrams(dishId, null);
+    expect((await repository.listDishes(windowId)).single.servingGrams, isNull);
+
+    await expectLater(
+      repository.updateDishServingGrams(dishId, 0),
+      throwsA(isA<CanteenWriteException>()),
+    );
+    await expectLater(
+      repository.updateDishServingGrams('ghost', 100),
       throwsA(isA<CanteenWriteException>()),
     );
   });

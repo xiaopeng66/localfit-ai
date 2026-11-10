@@ -17,6 +17,7 @@ class FoodLibraryItem {
     this.brand,
     this.category,
     this.isUserCreated = false,
+    this.updatedAt,
     required this.kcalPer100g,
     required this.proteinPer100g,
     required this.carbsPer100g,
@@ -25,6 +26,9 @@ class FoodLibraryItem {
 
   final String id;
   final String name;
+
+  /// 主库行的最后修改时间（乐观锁 token）；目录分片条目没有这一列。
+  final DateTime? updatedAt;
 
   /// 主库（用户自建/既有种子）= main；目录分片 = catalog。
   final String source;
@@ -102,9 +106,13 @@ class FoodLibraryController {
   /// 固定文案（内置条目 / 条目已消失）由
   /// [FoodWriteFailure] 承载；其它异常翻成一句通用话——不把 `SqliteException`
   /// 之类的内部措辞摆到用户面前。
-  Future<String?> updateFood(String id, NewFood food) async {
+  Future<String?> updateFood(
+    String id,
+    NewFood food, {
+    DateTime? expectedUpdatedAt,
+  }) async {
     try {
-      await repository.update(id, food);
+      await repository.update(id, food, expectedUpdatedAt: expectedUpdatedAt);
       return null;
     } on FoodWriteFailure catch (failure) {
       return failure.message;

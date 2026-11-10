@@ -25,6 +25,13 @@ final class MealItemDraft {
     this.foodId,
     this.sourceType = 'manual',
     this.sourceId,
+    this.cookingMethod,
+    this.estimateMinGrams,
+    this.estimateMaxGrams,
+    this.supplyId,
+    this.nutritionRevisionId,
+    this.servings,
+    this.servingGrams,
   });
 
   factory MealItemDraft.fromFood(FoodRecord food, double grams) {
@@ -38,6 +45,8 @@ final class MealItemDraft {
         carbsGrams: food.carbsPer100g * grams / 100,
         fatGrams: food.fatPer100g * grams / 100,
       ),
+      sourceType: 'food',
+      sourceId: food.id,
     );
   }
 
@@ -52,6 +61,23 @@ final class MealItemDraft {
 
   /// 来源实体 id（foods/dish_library/menu_items）；无来源时 null。
   final String? sourceId;
+
+  /// AI 扫描保留的烹饪方式与估算克数范围。
+  final String? cookingMethod;
+  final double? estimateMinGrams;
+  final double? estimateMaxGrams;
+
+  /// 本次记的是哪条食堂供应（`menu_items.id`，schema 31）。空 = 不是按供应记的。
+  final String? supplyId;
+
+  /// 当时使用的营养修订（`food_nutrition_revisions.id`）。之后主修订变化不重算。
+  final String? nutritionRevisionId;
+
+  /// 本次份数；按供应记餐时非空。`克数 = 份数 × 每份克数`。
+  final double? servings;
+
+  /// 当时的每份克数依据（按供应记餐时非空）。
+  final double? servingGrams;
 }
 
 final class MealDraft {
@@ -82,6 +108,13 @@ final class MealItemRecord {
     this.foodId,
     this.sourceType = 'manual',
     this.sourceId,
+    this.cookingMethod,
+    this.estimateMinGrams,
+    this.estimateMaxGrams,
+    this.supplyId,
+    this.nutritionRevisionId,
+    this.servings,
+    this.servingGrams,
   });
 
   final String id;
@@ -98,6 +131,21 @@ final class MealItemRecord {
   /// 来源实体 id（可空；来源删除后仍保留快照）。
   final String? sourceId;
 
+  /// AI 扫描保留的烹饪方式与估算克数范围。
+  final String? cookingMethod;
+  final double? estimateMinGrams;
+  final double? estimateMaxGrams;
+
+  /// 本次记的食堂供应（schema 31；来源删除后仍保留）。
+  final String? supplyId;
+
+  /// 当时使用的营养修订。
+  final String? nutritionRevisionId;
+
+  /// 本次份数与每份克数依据。
+  final double? servings;
+  final double? servingGrams;
+
   MealItemDraft scaledTo(double newGrams) {
     final factor = newGrams / grams;
     return MealItemDraft(
@@ -110,6 +158,18 @@ final class MealItemRecord {
         carbsGrams: nutrition.carbsGrams * factor,
         fatGrams: nutrition.fatGrams * factor,
       ),
+      // 改克数只是缩放快照，不是换来源：food/dish/scan 必须原样带走。
+      sourceType: sourceType,
+      sourceId: sourceId,
+      cookingMethod: cookingMethod,
+      estimateMinGrams: estimateMinGrams,
+      estimateMaxGrams: estimateMaxGrams,
+      supplyId: supplyId,
+      nutritionRevisionId: nutritionRevisionId,
+      // 改了克数就不再是原来的份数——份数只保留给"按供应记"的原始记录，
+      // 手改量后置空，避免"2 份 = 300g"这种自相矛盾的快照。
+      servings: null,
+      servingGrams: servingGrams,
     );
   }
 }
@@ -224,6 +284,7 @@ final class DailyNutritionTarget {
     required this.carbsMaxGrams,
     required this.fatMinGrams,
     required this.fatMaxGrams,
+    this.goalType,
   });
 
   final double calorieMinKcal;
@@ -234,6 +295,13 @@ final class DailyNutritionTarget {
   final double carbsMaxGrams;
   final double fatMinGrams;
   final double fatMaxGrams;
+
+  /// 这份目标对应的**健康目标档**（`goals.type`：`loseFat` / `maintain` /
+  /// `gainMuscle`）。需求 1（2026-10-25）要用它在卡上标出「依据」那一行
+  /// （减脂 −15% / 维持 / 增肌 +8%），所以投影里带上它。
+  ///
+  /// null = 读不到（老数据 / 测试构造）⇒ 卡上只说公式，不编档位。
+  final String? goalType;
 }
 
 final class DailyNutritionSummary {

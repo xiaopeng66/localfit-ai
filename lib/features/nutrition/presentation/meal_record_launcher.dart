@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/nutrition_actions.dart';
@@ -25,6 +26,7 @@ Future<void> openMealRecordSheet(
   required MealRepository meals,
   MealSlot? slot,
   DishLibraryRepository? dishes,
+  SupplyCatalogRepository? supplyCatalog,
   Future<void> Function(DishRecord dish, {MealSlot? slotOverride})? addDish,
 }) {
   // 记到「今天」：主页的记录入口是当场决策，不是翻历史日期时的补录
@@ -36,7 +38,9 @@ Future<void> openMealRecordSheet(
     selectedDate: () => date,
     onDateSelected: (_) {},
     dishLibraryRepository: dishes,
+    supplyCatalog: supplyCatalog,
     onAddDishToMeal: addDish,
   );
-  return actions.chooseRecordEntry(foods, meals, initialSlot: slot);
+  // 【N-2】三入口 chooser 退役：直接开统一记录弹层（双库搜索+手动添加）。
+  return actions.editMeal(foods, meals, initialSlot: slot);
 }

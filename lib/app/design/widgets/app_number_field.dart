@@ -32,6 +32,7 @@ class AppNumberField extends StatelessWidget {
     this.enabled = true,
     this.autofocus = false,
     this.hintText,
+    this.suffixText,
     this.focusNode,
     this.errorText,
     this.validator,
@@ -64,6 +65,10 @@ class AppNumberField extends StatelessWidget {
   final bool enabled;
   final bool autofocus;
   final String? hintText;
+
+  /// 【N-3（2026-10-29 用户：把 g 的单位写在输入框里靠右边框）】输入框内
+  /// 右缘的单位后缀——标签不再带括号注，卡片更矮。
+  final String? suffixText;
   final FocusNode? focusNode;
 
   /// 校验错误文案（沿用 Material 的错误描边 + 下方错误行）。
@@ -88,8 +93,12 @@ class AppNumberField extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppFieldLabel(label: label, unit: unit, optional: optional),
-          const SizedBox(height: LfDimens.spaceTiny),
+          // 【N-3】label 为空时不渲染标签行（单位以后缀进输入框）——
+          // 餐食条目卡的克数字段因此矮一行。
+          if (label.isNotEmpty) ...[
+            AppFieldLabel(label: label, unit: unit, optional: optional),
+            const SizedBox(height: LfDimens.spaceTiny),
+          ],
           TextFormField(
             key: fieldKey,
             controller: controller,
@@ -103,6 +112,7 @@ class AppNumberField extends StatelessWidget {
             ),
             decoration: InputDecoration(
               hintText: hintText,
+              suffixText: suffixText,
               errorText: errorText,
             ),
             validator: validator,

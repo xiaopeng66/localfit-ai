@@ -309,7 +309,6 @@ void main() {
             selectedDate: selected,
             now: now,
             onSelect: (_) {},
-            onReuseHistory: () {},
           ),
         ),
       ),
@@ -326,7 +325,9 @@ void main() {
       8,
       reason: 'A：16px 页间隙 − `margin-top:-8px` = 8dp',
     );
-    expect(find.byKey(const Key('meal-reuse-history')), findsOneWidget);
+    // 【2026-10-31 用户：「删除复用历史餐食按钮和功能」】周条右侧那枚历史
+    // 圆钮整枚退役——反向断言，防止它被顺手加回来。
+    expect(find.byKey(const Key('meal-reuse-history')), findsNothing);
     expect(
       find.text('2026 / 09 / 10 · 今天'),
       findsOneWidget,

@@ -11,9 +11,14 @@ import 'package:path_provider/path_provider.dart';
 /// 不用 `getTemporaryDirectory`（餐食扫描用那个）：临时目录可被系统随时
 /// 回收，而聊天里的图片是用户消息的一部分，不能自己消失。
 final class FileChatImageStore implements ChatImageStore {
-  const FileChatImageStore({required this.idGenerator});
+  FileChatImageStore({required this.idGenerator});
 
   final IdGenerator idGenerator;
+
+  /// 目录路径缓存：`getApplicationDocumentsDirectory()` 是平台通道调用
+  /// （每次几十毫秒）。同一进程里文档目录不会变，缓存一次即可——选图链路
+  /// 上这是白省的一段延迟。
+  String? _cachedDirectoryPath;
 
   @override
   Future<ChatImage> save(
@@ -29,7 +34,9 @@ final class FileChatImageStore implements ChatImageStore {
       final fileName = await _uniqueFileName(createdAt, directory);
       finalFile = File(path.join(directory.path, fileName));
       partial = File('${finalFile.path}.partial');
-      await partial.writeAsBytes(image.bytes, flush: true);
+      // 不强制 fsync：这张是相册原图的**副本**，进程崩了顶多丢一张刚选的
+      // 预览副本（不会丢原图），而 flush 是这条链路上最贵的一步。
+      await partial.writeAsBytes(image.bytes, flush: false);
       await partial.rename(finalFile.path);
       return ChatImage(
         path: finalFile.path,
@@ -135,8 +142,12 @@ final class FileChatImageStore implements ChatImageStore {
   }
 
   Future<String> _chatDirectoryPath() async {
+    final cached = _cachedDirectoryPath;
+    if (cached != null) return cached;
     final documents = await getApplicationDocumentsDirectory();
-    return path.join(documents.path, 'localfit_ai', 'chat_images');
+    final resolved = path.join(documents.path, 'localfit_ai', 'chat_images');
+    _cachedDirectoryPath = resolved;
+    return resolved;
   }
 
   Future<void> _deleteQuietly(File file) async {

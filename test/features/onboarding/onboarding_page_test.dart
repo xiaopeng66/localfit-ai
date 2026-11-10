@@ -186,7 +186,7 @@ void main() {
     // docs/21 §2.9：完成档案触发首次庆祝（每会话最多 1 次）。
     expect(find.byKey(const Key('app-celebration-painter')), findsOneWidget);
     await tester.pumpAndSettle();
-    expect(find.text('热量、营养目标和今日训练将在这里汇总。'), findsOneWidget);
+    expect(find.text('热量、营养与训练汇总。'), findsOneWidget);
     expect(haptics, contains('HapticFeedbackType.mediumImpact'));
   });
 

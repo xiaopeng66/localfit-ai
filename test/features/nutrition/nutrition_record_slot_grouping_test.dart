@@ -9,6 +9,7 @@ import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
+import 'package:localfit_ai/features/nutrition/presentation/sections/meal_record_card.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/nutrition_record_slot_grouping.dart';
 import 'package:localfit_ai/features/nutrition/presentation/sections/record_tab.dart';
 
@@ -117,7 +118,7 @@ void main() {
     required String localDate,
     required DateTime selectedDate,
     ValueChanged<MealSlot>? onAddToSlot,
-    ValueChanged<MealRecord>? onEdit,
+    void Function(List<MealRecord> records)? onEditSlot,
     Size size = const Size(900, 1600),
   }) async {
     tester.view.physicalSize = size;
@@ -132,8 +133,7 @@ void main() {
               repository: meals,
               localDate: localDate,
               now: now,
-              onEdit: onEdit ?? (_) {},
-              onDelete: (_) {},
+              onEditSlot: onEditSlot,
               onAddToSlot: onAddToSlot,
             ),
           ),
@@ -223,31 +223,58 @@ void main() {
         Key('nutrition-record-slot-${slot.storedValue}-total'),
       ),
     );
-    // 槽位合计走自己的锚点:槽位合计与卡内餐食合计会写出同值文本(单餐时
-    // 两者恒等),按整卡查文本会撞上「两个 116 kcal」——它们是**两个不同的
-    // 事实**(槽位小计 / 该餐总计),各自都要在屏上。
+    // 【2026-10-31 断言语义变更（用户：热量行直接放标题后边，强度不降）】
+    // 2026-10-25 曾把槽位汇总改成「只说条数」——因为当时合计 kcal 在卡内
+    // 另起一行（「晚餐」下面还有一行「晚餐 N kcal」）。用户 2026-10-31：
+    // 「标题晚餐下边还有一行显示晚餐和热量，不需要，直接放在标题晚餐后边」
+    // ⇒ 卡内热量行整行退役（embedded 不画卡头），合计 kcal 挪到槽位头标题
+    // 后面；多条记录时同时说清条数。合计数字一个没少，只是换了位置。
     expect(tester.widget<Text>(total(MealSlot.breakfast)).data, '116 kcal');
-    expect(tester.widget<Text>(total(MealSlot.lunch)).data, '348 kcal');
+    expect(tester.widget<Text>(total(MealSlot.lunch)).data, '348 kcal · 2 条记录');
     // 无记录的两个槽位:A 写 `尚未记录`(不是 `0 kcal`——「无记录 ≠ 零值记录」)。
     expect(tester.widget<Text>(total(MealSlot.dinner)).data, '尚未记录');
     expect(tester.widget<Text>(total(MealSlot.snack)).data, '尚未记录');
-    // 每餐自己的合计仍在(内嵌形态不吞内容):午餐两条餐卡各写自己的 116 /
-    // 232 kcal,与槽位合计 348 kcal 三者并存。
-    // 2026-10-16（用户选定第一案）：餐卡热量改成「大数字 + 小单位」两段，
-    // 于是按「116」+「kcal」两个文本各查一次（槽位合计那处仍是一整串）。
-    Finder cardKcal(String amount) => find.descendant(
-      of: slotCard(MealSlot.lunch),
-      matching: find.text(amount),
+    // 【2026-10-25 断言语义变更（需求 20b，强度不降）】原断言是「午餐两条
+    // 记录各是一张卡，各写自己的 116 / 232 kcal」。用户 2026-10-25：
+    // 「午餐就都放一起，不要因为我后边记的就分开显示」——同一餐次的多条记录
+    // **合并成一张卡**，卡上写的是**两条之和**（348），而槽位小计同样是 348。
+    //
+    // 【2026-10-31 再改（用户：热量行直接放标题后边）】卡内热量行退役后，
+    // 「348」这个合计数字的唯一落点是槽位头（`348 kcal · 2 条记录`）——
+    // 判据改写为：槽位头完整写全合计（含条数），且两条记录的食物行都还在。
+    expect(
+      find.descendant(of: slotCard(MealSlot.lunch), matching: find.text('116')),
+      findsNothing,
+      reason: '合并后不再有「各自一张卡」的 116',
     );
-    expect(cardKcal('116'), findsWidgets);
-    expect(cardKcal('232'), findsWidgets);
+    expect(
+      find.descendant(of: slotCard(MealSlot.lunch), matching: find.text('232')),
+      findsNothing,
+      reason: '同上：232 不再单独成卡',
+    );
     expect(
       find.descendant(
         of: slotCard(MealSlot.lunch),
-        matching: find.text('kcal'),
+        matching: find.text('348 kcal · 2 条记录'),
       ),
-      findsWidgets,
-      reason: '单位小字仍在餐卡里',
+      findsOneWidget,
+      reason: '槽位头完整写全合计（= 两条之和）与条数',
+    );
+    expect(
+      find.descendant(
+        of: slotCard(MealSlot.lunch),
+        matching: find.text('午餐饭 100g'),
+      ),
+      findsOneWidget,
+      reason: '合并卡的**第一组**菜品行仍在',
+    );
+    expect(
+      find.descendant(
+        of: slotCard(MealSlot.lunch),
+        matching: find.text('午餐加饭 200g'),
+      ),
+      findsOneWidget,
+      reason: '合并卡的**第二组**菜品行仍在（食物都在一起）',
     );
     await drainStream(tester);
   });
@@ -273,10 +300,13 @@ void main() {
     await drainStream(tester);
   });
 
-  testWidgets('历史日期:不加号;空槽位文案换成「当天没有这餐记录」', (tester) async {
+  // 【语义变更，2026-10-27（docs/64 阶段 4 B-3，用户裁决「30 天，继续」）】
+  // 这条原钉「历史日期一律不加号（历史只读）」。裁决后改成可补记近 30 天，
+  // 于是拆成两条**更强**的边界断言：窗口内可补记（且有「补记」徽标、
+  // 点了真的触发回调），窗口外仍不可补记（且如实说窗口）。
+  testWidgets('历史日期（窗口内）:可补记 + 「补记」徽标;空槽位文案仍是历史句', (tester) async {
     // **必须传 onAddToSlot**:传 null 时「没有加号」可能只是因为调用方没接线
-    // (那是另一条契约,由下一个用例的 null 分支钉),钉不住 A 的
-    // `ui.date === state.today` 判定。传了回调而加号仍不出现,才是本条。
+    // (那是另一条契约,由下一个用例的 null 分支钉)。
     final tapped = <MealSlot>[];
     await pumpGrouping(
       tester,
@@ -288,8 +318,8 @@ void main() {
     for (final slot in MealSlot.values) {
       expect(
         find.byKey(Key('nutrition-record-slot-${slot.storedValue}-add')),
-        findsNothing,
-        reason: 'A 的加号只在 `ui.date === state.today` 时渲染',
+        findsOneWidget,
+        reason: '${slot.label}:昨天在 30 天补记窗口内，必须能补记',
       );
       expect(
         find.descendant(
@@ -300,9 +330,43 @@ void main() {
         reason: '${slot.label} 的历史空态',
       );
     }
+    expect(
+      find.byKey(const Key('nutrition-record-backfill-badge')),
+      findsNWidgets(MealSlot.values.length),
+      reason: '非今天每张槽位卡都要有「补记」徽标（免得看成今天）',
+    );
     // 今天用的是另一句(`还没记录这一餐`),与历史分开。
     expect(find.text('还没记录这一餐'), findsNothing);
-    expect(tapped, isEmpty, reason: '历史日不该有任何写入入口被触发');
+    // 补记徽章在场时空槽**不再写「尚未记录」**:徽章 + 空态行已把状态说完,
+    // 再挤一个「尚未记录」在 2.0× 窄屏会把槽位名截成「尚…」。
+    expect(find.text('尚未记录'), findsNothing);
+    await tester.tap(find.byKey(const Key('nutrition-record-slot-lunch-add')));
+    expect(tapped, [MealSlot.lunch], reason: '补记入口必须真的触发写入入口');
+    await drainStream(tester);
+  });
+
+  testWidgets('历史日期（窗口外，31 天前）:不加号 + 如实说「只支持补记近 30 天」', (tester) async {
+    final tapped = <MealSlot>[];
+    await pumpGrouping(
+      tester,
+      localDate: '2026-08-09', // now(2026-09-09) − 31 天
+      selectedDate: DateTime(2026, 8, 9),
+      onAddToSlot: tapped.add,
+    );
+
+    for (final slot in MealSlot.values) {
+      expect(
+        find.byKey(Key('nutrition-record-slot-${slot.storedValue}-add')),
+        findsNothing,
+        reason: '${slot.label}:超过 30 天不给补记入口',
+      );
+    }
+    expect(
+      find.byKey(const Key('nutrition-record-backfill-window-note')),
+      findsOneWidget,
+      reason: '窗口外要如实说窗口，不能默默少一个按钮',
+    );
+    expect(tapped, isEmpty);
     await drainStream(tester);
   });
 
@@ -347,6 +411,38 @@ void main() {
     await drainStream(tester);
   });
 
+  testWidgets('整卡编辑只传被点击槽位的记录，不会把其它餐次合并', (tester) async {
+    final breakfastId = await addMeal(
+      date: today,
+      slot: MealSlot.breakfast,
+      hour: 8,
+      grams: 80,
+      foodName: '鸡蛋',
+    );
+    final lunchId = await addMeal(
+      date: today,
+      slot: MealSlot.lunch,
+      hour: 12,
+      grams: 150,
+      foodName: '番茄牛腩煲',
+    );
+    List<MealRecord>? edited;
+    await pumpGrouping(
+      tester,
+      localDate: today,
+      selectedDate: DateTime(2026, 9, 9),
+      onEditSlot: (records) => edited = records,
+    );
+
+    await tester.tap(find.byKey(Key('meal-$lunchId')));
+    await tester.pump();
+
+    expect(edited, isNotNull);
+    expect(edited!.map((meal) => meal.id), [lunchId]);
+    expect(edited!.map((meal) => meal.id), isNot(contains(breakfastId)));
+    await drainStream(tester);
+  });
+
   testWidgets('槽位内的餐卡走内嵌形态(D16):无卡中卡,但 Key 与内容零删除', (tester) async {
     final lunchId = await addMeal(
       date: today,
@@ -356,33 +452,73 @@ void main() {
       foodName: '番茄牛腩煲',
       source: 'ai_scan',
     );
+    // 槽位头合计按同一份食物数据手算（不硬编码，防目录改值后假红/假绿）。
+    final stew = (await foods.search('番茄牛腩煲')).first;
+    final expectedKcal = ((stew.kcalPer100g * 150) / 100).round();
     await pumpGrouping(
       tester,
       localDate: today,
       selectedDate: DateTime(2026, 9, 9),
+      onEditSlot: (_) {},
     );
 
     final lunchCard = find.byKey(const Key('nutrition-record-slot-lunch'));
     expect(lunchCard, findsOneWidget);
-    // 既有稳定 Key 一个不少(多选/编辑/来源/管理菜单都按这些键定位)。
+    // 既有稳定 Key 一个不少(多选/编辑/来源都按这些键定位)。
     expect(find.byKey(Key('meal-$lunchId')), findsOneWidget);
-    expect(find.byKey(Key('meal-manage-$lunchId')), findsOneWidget);
-    expect(find.byKey(Key('meal-source-$lunchId')), findsOneWidget);
-    // 完整事实仍在，但**一条一行**：2026-10-16 用户实测「餐食卡食物多了很乱、
-    // 很多标签文字」——三枚合计宏量 chip 合成一行 muted 小字（`meal-totals`），
-    // 项行只留「名称 + 克数」。
-    expect(find.text('番茄牛腩煲 150g'), findsOneWidget);
-    final totalsText = tester.widget<Text>(
-      find.byKey(Key('meal-totals-$lunchId')),
+    // 【2026-10-31 断言改写（用户：右下角三个点直接删掉，强度不降）】原断言
+    // 钉住 `meal-manage-<id>`（⋮ 管理菜单圆钮）。菜单整件退役后其全部职责由
+    // **整卡点击**承接（整卡开「该槽位全部已添加食物」编辑），长按多选不变；
+    // 换成对这一新契约的更强断言：卡本体可点（onTapCard 已接），⋮ 键不再出现。
+    expect(find.byKey(Key('meal-manage-$lunchId')), findsNothing);
+    // 卡本体可点（onTapCard 已接）= ⋮ 菜单退役后的合并编辑入口。
+    final cardWidget = tester.widget<MealRecordCard>(
+      find.byType(MealRecordCard),
     );
     expect(
-      totalsText.data,
-      matches(r'^蛋白质 [\d.]+g · 碳水 [\d.]+g · 脂肪 [\d.]+g$'),
+      cardWidget.onTapCard,
+      isNotNull,
+      reason: '⋮ 菜单退役后，整卡点击 = 编辑该槽位全部已添加食物',
     );
-    // 旧形态的三枚独立 chip 文案不再各自成件。
+    // 【N-1 改写】来源徽标撤下（用户原话见 run-log）。
+    expect(find.byKey(Key('meal-source-$lunchId')), findsNothing);
+    // 项行仍是「名称 + 克数」（每条事实一行）。
+    expect(find.text('番茄牛腩煲 150g'), findsOneWidget);
+    // 【2026-10-25 断言语义变更（需求 20a，强度不降）】原断言是「`meal-totals`
+    // 那一行写 `蛋白质 Xg · 碳水 Yg · 脂肪 Zg`」。用户 2026-10-25 点名：
+    // 「三宏量有的根本看不见，被挡住了，变成省略号了，可以不显示三宏量，
+    // 只显示热量」。于是那行整行退役（Key 一并退役，见证据文件退役清单）。
+    // 判据改成**更强的一组**：视觉上不再出现宏量、但读屏仍能拿到（数字不丢）。
+    expect(
+      find.byKey(Key('meal-totals-$lunchId')),
+      findsNothing,
+      reason: '需求 20a：合计宏量那行整行退役',
+    );
     expect(find.text('蛋白质'), findsNothing);
     expect(find.text('碳水'), findsNothing);
     expect(find.text('脂肪'), findsNothing);
+    expect(
+      find.bySemanticsLabel(RegExp('蛋白质')),
+      findsWidgets,
+      reason: '需求 20a 第 5 条：宏量退到读屏语义，信息不丢',
+    );
+    // 【2026-10-31 断言随热量位移动改写（强度不降）】卡内大号位退役
+    // （embedded），热量数字的唯一落点是槽位头合计——`meal-kcal` 只属于
+    // 非 embedded 形态；这里改钉槽位头合计行完整写全。
+    expect(
+      find.byKey(Key('meal-kcal-$lunchId')),
+      findsNothing,
+      reason: 'embedded 卡面不再画热量行（挪到槽位头标题后边）',
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const Key('nutrition-record-slot-lunch-total')),
+          )
+          .data,
+      '$expectedKcal kcal',
+      reason: '热量在槽位头上完整可读（150g 番茄牛腩煲按每百克手算核对）',
+    );
     // 内嵌 = 槽位卡内**不再**出现第二层 DesignCard。`meal-<id>` 的**最近**
     // 一个 DesignCard 祖先必须是槽位卡本身(即两者之间没有夹着第二张卡)。
     final nearestCard = find
@@ -490,8 +626,6 @@ void main() {
             selectedDate: DateTime(2026, 9, 9),
             now: now,
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             onAddToSlot: slots.add,
           ),
         ),

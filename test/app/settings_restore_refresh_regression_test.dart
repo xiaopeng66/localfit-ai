@@ -198,6 +198,12 @@ void main() {
               'Fit',
             );
           } else {
+            await tester.scrollUntilVisible(
+              find.byKey(const Key('settings-backup-hub')),
+              300,
+              scrollable: find.byType(Scrollable).first,
+            );
+            await _tap(tester, 'settings-backup-hub');
             await _tap(tester, 'cta-restore');
             await tester.enterText(
               find.byKey(const Key('backup-restore-password')),

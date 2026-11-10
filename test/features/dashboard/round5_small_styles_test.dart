@@ -27,7 +27,7 @@ void main() {
     // 不再是「铺满内容宽的 muted 块」——需求 63 的**意图**（不许只占左边
     // 一小块、外观对称）由「内容在卡片内水平居中」承担。
     await tester.pumpWidget(
-      host(const DashboardMealsCard(entries: [], meals: [], onLogMeal: _noop)),
+      host(const DashboardMealsCard(entries: [], meals: [])),
     );
     await tester.pumpAndSettle();
 
@@ -71,5 +71,3 @@ void main() {
 /// `padded` 把命中盒膨胀到 48，量 `getSize` 两档恒 48、分不出 h32 与 h40
 /// ——这正是用户能看出「上下宽度不一样」而测试量不出来的地方。
 /// 主按钮是 `FilledButton`、次级胶囊是 `TextButton`，两型分别读。
-
-void _noop() {}

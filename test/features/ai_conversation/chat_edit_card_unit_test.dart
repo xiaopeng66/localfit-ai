@@ -40,7 +40,7 @@ void main() {
     ],
   );
 
-  Future<String> titleOf(WidgetTester tester, String food) async {
+  Future<String> rowTextOf(WidgetTester tester, String food) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -67,58 +67,67 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return tester
+    // 2026-11-06 起克数在第二行（餐次后面），标题只剩食物名；单位判据要
+    // 看整行的可见文字，不能只读标题。
+    final title = tester
         .widget<Text>(find.byKey(const Key('chat-edit-subitem-title-0-0-0')))
         .data!;
+    final summary = tester
+        .widget<Text>(find.byKey(const Key('chat-edit-subitem-summary-0-0-0')))
+        .data!;
+    return '$title $summary';
   }
 
   group('固体不该显示成 ml（用户实测：鸡蛋水煮 100 → ml）', () {
     testWidgets('「鸡蛋水煮」100g → 显示 100 g', (tester) async {
-      final title = await titleOf(tester, '鸡蛋水煮');
+      final title = await rowTextOf(tester, '鸡蛋水煮');
       expect(title, contains('100 g'), reason: '「鸡蛋水煮」是固体，含「水」字不代表是液体');
       expect(title, isNot(contains('ml')));
     });
 
     testWidgets('「水煮蛋」→ g 不是 ml', (tester) async {
-      final title = await titleOf(tester, '水煮蛋');
+      final title = await rowTextOf(tester, '水煮蛋');
       expect(title, isNot(contains('ml')), reason: '名字**开头**有「水」不是液体');
     });
 
     testWidgets('「油麦菜」→ g 不是 ml', (tester) async {
-      final title = await titleOf(tester, '油麦菜');
+      final title = await rowTextOf(tester, '油麦菜');
       expect(title, isNot(contains('ml')), reason: '开头有「油」不是液体');
     });
 
     testWidgets('「汤面」→ g 不是 ml', (tester) async {
-      final title = await titleOf(tester, '汤面');
+      final title = await rowTextOf(tester, '汤面');
       expect(title, isNot(contains('ml')), reason: '含「汤」但在中间，是面不是汤');
     });
   });
 
   group('液体仍显示 ml', () {
     testWidgets('「牛奶」→ 200 ml', (tester) async {
-      final title = await titleOf(tester, '牛奶');
+      final title = await rowTextOf(tester, '牛奶');
       expect(title, contains('100 ml'));
     });
 
     testWidgets('「豆浆」→ ml', (tester) async {
-      final title = await titleOf(tester, '豆浆');
+      final title = await rowTextOf(tester, '豆浆');
       expect(title, contains('ml'));
     });
 
     testWidgets('「橙汁」→ ml', (tester) async {
-      final title = await titleOf(tester, '橙汁');
+      final title = await rowTextOf(tester, '橙汁');
       expect(title, contains('ml'));
     });
 
     testWidgets('「白开水」→ ml', (tester) async {
-      final title = await titleOf(tester, '白开水');
+      final title = await rowTextOf(tester, '白开水');
       expect(title, contains('ml'));
     });
 
     testWidgets('「紫菜汤」→ ml', (tester) async {
-      final title = await titleOf(tester, '紫菜汤');
+      final title = await rowTextOf(tester, '紫菜汤');
       expect(title, contains('ml'), reason: '结尾是「汤」= 液体');
     });
   });
 }
+
+// 2026-11-07 实帧复核发现：全部行失败时卡头仍显示绿色「已完成」，
+// 会被读成「这次修改生效了」。docs/66 §5.4 要求中性「未应用」。

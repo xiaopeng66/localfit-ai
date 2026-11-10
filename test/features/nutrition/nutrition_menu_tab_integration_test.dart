@@ -65,10 +65,10 @@ void main() {
       findsOneWidget,
     );
 
-    // 食堂目录收进二级页：从页尾 `.list-link`（D28）进入后**只剩目录维护**
+    // 食堂目录收进二级页：从右下浮钮进入后**只剩目录维护**
     // ——2026-10-22 用户：「食堂目录里的今日推荐删掉，这个界面就记录食堂菜品」。
     // 推荐只保留菜单页一处（回到记录页的 `NextMealEntryCard`）。
-    expect(find.text('管理食堂目录'), findsOneWidget);
+    // 2026-11-02：浮钮改成纯图标圆钮，不再有可见文字；入口靠 Key 定位。
     await tester.tap(find.byKey(const Key('cta-manage-canteen')));
     await tester.pumpAndSettle();
 

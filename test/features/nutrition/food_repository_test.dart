@@ -179,6 +179,83 @@ void main() {
     );
   });
 
+  test('读-改-写冲突：拿旧的 updatedAt 来改 ⇒ 拒绝并提示重新打开', () async {
+    final created = await repository.create(
+      const NewFood(
+        name: '并发测试菜',
+        kcalPer100g: 100,
+        proteinPer100g: 5,
+        carbsPer100g: 10,
+        fatPer100g: 3,
+      ),
+    );
+    final stale = (await (database.select(
+      database.foods,
+    )..where((t) => t.id.equals(created.id))).getSingle()).updatedAt;
+
+    // 别人先改了（时钟推后一秒，模拟真实并发）。
+    final later = repository.clock.nowUtc().add(const Duration(seconds: 2));
+    final bumped = FoodRepository(
+      database: database,
+      idGenerator: repository.idGenerator,
+      clock: FixedAppClock(later),
+    );
+    await bumped.update(
+      created.id,
+      const NewFood(
+        name: '并发测试菜',
+        kcalPer100g: 110,
+        proteinPer100g: 5,
+        carbsPer100g: 10,
+        fatPer100g: 3,
+      ),
+    );
+
+    await expectLater(
+      repository.update(
+        created.id,
+        const NewFood(
+          name: '并发测试菜',
+          kcalPer100g: 120,
+          proteinPer100g: 5,
+          carbsPer100g: 10,
+          fatPer100g: 3,
+        ),
+        expectedUpdatedAt: stale,
+      ),
+      throwsA(
+        isA<FoodWriteFailure>().having(
+          (failure) => failure.message,
+          'message',
+          contains('刚在别处被改过'),
+        ),
+      ),
+    );
+    final row = await (database.select(
+      database.foods,
+    )..where((t) => t.id.equals(created.id))).getSingle();
+    expect(row.kcalPer100g, 110, reason: '冲突时不能写入');
+
+    // 用当前 token 再改就成功。
+    await repository.update(
+      created.id,
+      const NewFood(
+        name: '并发测试菜',
+        kcalPer100g: 130,
+        proteinPer100g: 5,
+        carbsPer100g: 10,
+        fatPer100g: 3,
+      ),
+      expectedUpdatedAt: row.updatedAt,
+    );
+    expect(
+      (await (database.select(
+        database.foods,
+      )..where((t) => t.id.equals(created.id))).getSingle()).kcalPer100g,
+      130,
+    );
+  });
+
   test('update 只改自建条目，内置条目给固定文案', () async {
     // 内置（随包种子）：控件层不给入口，数据层也要挡。
     final seed = (await repository.search('鸡蛋')).first;
@@ -422,9 +499,13 @@ void main() {
   });
 }
 
+/// 第一次发 `user-food-1`（食物 id 的既有断言），后续发不重复的修订 id。
+/// docs/67 起「新建/改营养」会同时写一条生效修订，需要第二个 id。
 final class _FixedIdGenerator implements IdGenerator {
+  int _extra = 0;
+
   @override
-  String next() => 'user-food-1';
+  String next() => _extra++ == 0 ? 'user-food-1' : 'user-food-1-rev-$_extra';
 }
 
 final class _SeqIdGenerator implements IdGenerator {

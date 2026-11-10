@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:localfit_ai/core/errors/app_failure.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
@@ -10,17 +12,22 @@ import 'package:localfit_ai/features/ai_memory/domain/ai_memory.dart';
 import 'package:localfit_ai/features/ai_memory/domain/memory_dedupe.dart';
 import 'package:localfit_ai/features/menu_normalize/data/menu_normalize_json_decoder.dart';
 import 'package:localfit_ai/features/campus_menus/application/menu_import_publisher.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
 import 'package:localfit_ai/features/campus_menus/application/food_reference_service.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
+import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 import 'package:localfit_ai/features/campus_menus/application/publish_menu_normalize_draft.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/hydration/application/update_water_target_ml.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
+import 'package:localfit_ai/features/nutrition/application/catalog_resolver.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_write_failure.dart';
+import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart'
-    show FoodRecord, NewFood;
+    show NewFood;
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/onboarding/domain/nutrition_target_calculator.dart'
@@ -57,6 +64,8 @@ final class ChatEditServices {
     required this.stepsRepository,
     required this.aiMemoryRepository,
     this.foodReferenceService,
+    this.foodCatalog,
+    this.supplyCatalog,
   });
 
   final AppDatabase database;
@@ -91,6 +100,14 @@ final class ChatEditServices {
 
   /// 长期记忆（S11：`memory.remember`/`memory.forget` 的落点）。
   final AiMemoryRepository aiMemoryRepository;
+
+  /// 统一主库写服务（docs/67 §6.2）：AI 的新建/挂窗/记餐全部落到它与仓储
+  /// 共用的同一套事务与校验上。null = 未接线（旧单测），退回仓储写入。
+  final FoodCatalogService? foodCatalog;
+
+  /// 供应读取口：`meal.create` 的 `[canteen-dish:id]` 靠它解析。
+  /// null = 未接线，退回旧菜品库映射（只读兼容）。
+  final SupplyCatalogRepository? supplyCatalog;
 }
 
 /// 把注册表里的 23 条命令落到真实仓储（docs/23 §2/§4）。
@@ -110,8 +127,137 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
 
   final ChatEditServices services;
 
+  /// 食物/菜品统一解析（Phase 1）：`meal.create` 的 `items[].food` 不再只查
+  /// 食物库；`[dish:id]` / `[canteen-dish:id]` / 精确菜名都能落到菜品。
+  late final CatalogResolver _catalog = CatalogResolver(
+    foods: services.foodRepository,
+    dishes: services.dishLibraryRepository,
+    supplies: services.supplyCatalog,
+  );
+
+  /// 短时窗幂等（2124）：同一动作在 [_idempotencyWindow] 内重复执行时跳过。
+  ///
+  /// 【为什么是"短时窗"而不是永久幂等】完全相同的 `water.add 250ml` 两次可能是
+  /// 真实需求（你又喝了一杯）。窗口放到 15 秒，只兜住真正重复的场景：
+  /// 一张卡里两条相同命令、用户连点两次「应用」、分组后再整卡点一次。
+  /// 超过窗口照常写入。
+  ///
+  /// 只对**创建类**命令启用（`danger == create`）：更新/删除本身按 id 幂等，
+  /// 重复执行该失败就失败（那才是如实反馈）。
+  static const Duration _idempotencyWindow = Duration(seconds: 15);
+
+  /// 参与短时窗幂等的命令 = **追加型、且业务层没有自己的去重**。
+  ///
+  /// 排除出去的命令各自已有更精确的处理与文案，窗口幂等抢在前面只会让提示
+  /// 变差：`meal.create`（全天去重「今天已记过」）、`food.create` /
+  /// `dish.upsert` / `canteen.*.create`（同名直接引用）、`memory.remember`
+  /// （重复记忆如实拒绝）、`menu.snapshot.publish`（同 hash 跳过）、
+  /// `weight.log`（同日覆盖）。
+  static const Set<String> _idempotentActions = {
+    'water.add',
+    'set.log',
+    'plan.entry.add',
+    'session.start',
+  };
+
+  /// fingerprint → 最近一次成功执行的时间。
+  final Map<String, DateTime> _recentApplies = {};
+
+  /// 正在执行中的 fingerprint（并发双击在 await 前占位）。
+  final Set<String> _inFlightFingerprints = {};
+
   @override
   Future<ChatEditApplyResult> apply(ChatEditCommand command) async {
+    final fingerprint = _idempotentActions.contains(command.action)
+        ? _fingerprintOf(command)
+        : null;
+    if (fingerprint != null) {
+      _pruneIdempotency();
+      final lastAppliedAt = _recentApplies[fingerprint];
+      final withinWindow =
+          lastAppliedAt != null &&
+          services.clock.nowUtc().difference(lastAppliedAt) <=
+              _idempotencyWindow;
+      if (withinWindow || _inFlightFingerprints.contains(fingerprint)) {
+        return _duplicateSkipped(command);
+      }
+      _inFlightFingerprints.add(fingerprint);
+    }
+    try {
+      final result = await _applyOnce(command);
+      if (fingerprint != null && result.ok) {
+        _recentApplies[fingerprint] = services.clock.nowUtc();
+      }
+      return result;
+    } finally {
+      if (fingerprint != null) _inFlightFingerprints.remove(fingerprint);
+    }
+  }
+
+  /// 去掉 5 分钟前的记录，避免映射无限增长（窗口只有 15 秒）。
+  void _pruneIdempotency() {
+    final now = services.clock.nowUtc();
+    _recentApplies.removeWhere(
+      (_, appliedAt) => now.difference(appliedAt) > const Duration(minutes: 5),
+    );
+  }
+
+  /// 动作指纹：`action | 规范化 args（去掉 notes，键排序，items 按食物名排序）| 目标日期`。
+  ///
+  /// 去掉 `notes`：备注措辞差异不该让「同一件事」变成两件；日期参与指纹，
+  /// 补记昨天与今天互不干扰。
+  String _fingerprintOf(ChatEditCommand command) {
+    final args = Map<String, Object>.of(command.args)..remove('notes');
+    final date = command.args['localDate'] ?? '';
+    return '${command.action}|${jsonEncode(_canonical(args))}|$date';
+  }
+
+  Object? _canonical(Object? value) {
+    if (value is Map) {
+      final keys = [for (final key in value.keys) '$key']..sort();
+      return {for (final key in keys) key: _canonical(value[key])};
+    }
+    if (value is List) {
+      final items = [for (final item in value) _canonical(item)];
+      // 用料列表与顺序无关：按食物名排序后再编码。
+      items.sort((a, b) {
+        final left = a is Map ? '${a['food'] ?? ''}' : '$a';
+        final right = b is Map ? '${b['food'] ?? ''}' : '$b';
+        return left.compareTo(right);
+      });
+      return items;
+    }
+    return value;
+  }
+
+  /// 命中幂等窗口时的结果：**算成功**（这条提议已经生效过），文案说清没重复写。
+  ChatEditApplyResult _duplicateSkipped(ChatEditCommand command) {
+    if (command.action == 'meal.create') {
+      final items = command.args['items'];
+      final notes = <String, String>{};
+      if (items is List) {
+        for (final item in items) {
+          if (item is Map && item['food'] is String) {
+            notes[(item['food'] as String).trim()] = '刚才已经记过，没有重复写入';
+          }
+        }
+      }
+      return ChatEditApplyResult.ok('这条操作刚才已经执行过，没有重复写入。', notes);
+    }
+    if (command.action == 'water.add') {
+      final amount = (command.args['amountMl'] as num?)?.toDouble();
+      final text = amount == null
+          ? ''
+          : amount == amount.roundToDouble()
+          ? amount.round().toString()
+          : '$amount';
+      return ChatEditApplyResult.ok('这条 ${text}ml 饮水刚才已经记过，没有重复写入。');
+    }
+    return const ChatEditApplyResult.ok('这条操作刚才已经执行过，没有重复写入。');
+  }
+
+  /// 真正写库的那一趟（原 `apply` 的 try/catch 语义逐字保留）。
+  Future<ChatEditApplyResult> _applyOnce(ChatEditCommand command) async {
     try {
       return await _dispatch(command);
     } on _ChatEditFailure catch (error) {
@@ -142,6 +288,10 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     } on WaterTargetException catch (error) {
       // 同上：没有每日目标行时仓储抛它（也不是 AiMemoryException）。
       return ChatEditApplyResult.failure(error.message);
+    } on Exception {
+      // SQLite/外键/磁盘等持久化异常不能逃逸到 controller，否则编辑行会
+      // 永久停在 applying。具体仓储错误已在上面翻译；其余只给安全的人话。
+      return const ChatEditApplyResult.failure('写入失败，请重试。');
     }
   }
 
@@ -267,8 +417,8 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     final localDate = _localDate(command);
     final slot = _slot(command);
     // 2026-10-23 用户：「AI 不查重（加午餐后再加晚餐会重复午餐计入两份）」。
-    // 同一日期同一餐次已有记录时**并入**那一餐，并跳过同名食物——模型把
-    // 上一餐的条目又带进这一餐的提议里时，不会在账上算两遍。
+    // 同一日期同一餐次已有记录时**并入**那一餐，按来源实体去重；本次已
+    // 接受的条目也加入 seen，防同一载荷重复计入。同名不同来源仍分别保留。
     final sameDay = await services.mealRepository.watchForDate(localDate).first;
     MealRecord? existing;
     for (final meal in sameDay) {
@@ -278,15 +428,32 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       }
     }
     if (existing != null) {
-      final recordedNames = {
-        for (final item in existing.items) item.foodName.trim(),
+      // 并入已有餐次时同样要按**全天**去重：午餐已有米饭时，晚餐合并不能
+      // 因为“晚餐这条记录里没有米饭”就再加一份。
+      final recordedKeys = {
+        for (final meal in sameDay)
+          for (final item in meal.items) _dedupKeyOfRecord(item),
       };
       final fresh = [
         for (final item in items)
-          if (!recordedNames.contains(item.food.name.trim())) item,
+          if (recordedKeys.add(_dedupKeyOfDraft(item))) item,
       ];
       if (fresh.isEmpty) {
-        return ChatEditApplyResult.ok('${slot.label}已经记过这些食物，没有重复写入。');
+        // 指定“改记为午餐”时模型常给 meal.create；若这些食物已经在另一餐，
+        // 静默返回 ok 会让按钮显示“已应用”却什么都没改。如实失败并指路。
+        for (final meal in sameDay) {
+          if (meal.slot == slot) continue;
+          if (_containsAllItems(meal, items)) {
+            return ChatEditApplyResult.failure(
+              '这些食物已经记在今天的${meal.slot.label}；要改餐次请把那条记录改到'
+              '${slot.label}（meal.update），不要重复新建。',
+            );
+          }
+        }
+        // 每样食物下面各挂各的说明（2026-11-07 用户：别堆一句汇总）。
+        return ChatEditApplyResult.ok('这些食物今天都已经记过，没有重复写入。', {
+          for (final item in items) item.foodName.trim(): '今天已记过，没有重复算',
+        });
       }
       final skipped = items.length - fresh.length;
       await services.mealRepository.update(
@@ -297,15 +464,21 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
           notes: existing.notes,
           items: [
             for (final item in existing.items) item.scaledTo(item.grams),
-            for (final item in fresh)
-              MealItemDraft.fromFood(item.food, item.grams),
+            ...fresh,
           ],
         ),
       );
       return ChatEditApplyResult.ok(
         skipped == 0
-            ? '已并入今天的${slot.label}。'
-            : '已并入今天的${slot.label}（跳过 $skipped 条已记录的食物）。',
+            ? '这餐记到了今天已有的${slot.label}里（新增 ${fresh.length} 样）。'
+            : '这餐记到了今天已有的${slot.label}里：新记 ${fresh.length} 样，'
+                  '$skipped 样今天已记过。',
+        _noteItems(
+          items,
+          freshKeys: {for (final item in fresh) _dedupKeyOfDraft(item)},
+          slotLabel: slot.label,
+          date: existing.localDate,
+        ),
       );
     }
     // 新餐次：再按**全天**去重一次。用户实测的场景是「加午餐后再加晚餐，
@@ -313,22 +486,63 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     // 就不再算第二份；用户真要一天吃两次，可以手动再记。
     final recordedToday = {
       for (final meal in sameDay)
-        for (final item in meal.items) item.foodName.trim(),
+        for (final item in meal.items) _dedupKeyOfRecord(item),
     };
     final fresh = [
       for (final item in items)
-        if (!recordedToday.contains(item.food.name.trim())) item,
+        if (recordedToday.add(_dedupKeyOfDraft(item))) item,
     ];
     if (fresh.isEmpty) {
+      for (final meal in sameDay) {
+        if (_containsAllItems(meal, items)) {
+          return ChatEditApplyResult.failure(
+            '这些食物已经记在今天的${meal.slot.label}；要改餐次请把那条记录改到'
+            '${slot.label}（meal.update），不要重复新建。',
+          );
+        }
+      }
       return ChatEditApplyResult.ok('今天的其他餐次已经记过这些食物，没有重复写入。');
     }
     final skipped = items.length - fresh.length;
-    await services.mealRepository.saveManualMeal(
-      ManualMealDraft(localDate: localDate, slot: slot, items: fresh),
+    await services.mealRepository.create(
+      MealDraft(localDate: localDate, slot: slot, items: fresh),
+      source: _mealSourceFor(fresh),
     );
     return ChatEditApplyResult.ok(
-      skipped == 0 ? '已记录这一餐。' : '已记录这一餐（跳过 $skipped 条今天已记录过的食物）。',
+      skipped == 0
+          ? '已记录${slot.label}，共 ${fresh.length} 样。'
+          : '已记录${slot.label}：新记 ${fresh.length} 样，$skipped 样今天已记过。',
+      _noteItems(
+        items,
+        freshKeys: {for (final item in fresh) _dedupKeyOfDraft(item)},
+        slotLabel: slot.label,
+        date: localDate,
+      ),
     );
+  }
+
+  /// 给每样食物生成一句**挂在它自己那行下面**的说明（2026-11-07 用户：
+  /// 结果别堆在卡片末尾，看不出哪句对应哪个）。
+  ///
+  /// * 记上的：`已记入今天的午餐`（非今天的日期写明 `11-06 的午餐`）；
+  /// * 没记上的（全天去重命中）：`今天已记过，没有重复算`。
+  /// key = 食物名（与命令 `items[].food` 同名，卡片按子条目标题对位）。
+  Map<String, String> _noteItems(
+    List<MealItemDraft> items, {
+    required Set<String> freshKeys,
+    required String slotLabel,
+    required String date,
+  }) {
+    final today = formatLocalDate(services.clock.nowUtc());
+    final datePrefix = date == today ? '今天的' : '${date.substring(5)} 的';
+    final recordedNote = '已记入$datePrefix$slotLabel';
+    final skipNote = '今天已记过，没有重复算';
+    return {
+      for (final item in items)
+        item.foodName.trim(): freshKeys.contains(_dedupKeyOfDraft(item))
+            ? recordedNote
+            : skipNote,
+    };
   }
 
   Future<ChatEditApplyResult> _mealUpdate(ChatEditCommand command) async {
@@ -406,32 +620,93 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
 
   Future<ChatEditApplyResult> _foodCreate(ChatEditCommand command) async {
     final name = command.args['name'] as String;
-    final duplicates = await services.foodRepository.searchExact(name);
-    // 2026-10-23 用户：「不主动检索食物库已有食物（先推卡片再说已有/失败）」。
-    // 应用前先查库：已有同名食物就**直接引用**（不新建、不报错），让「新建」
-    // 这条提议落到用户真正想要的结果上；同名多条才需要用户指定。
-    if (duplicates.length == 1) {
-      return ChatEditApplyResult.ok(
-        '食材库里已有「${duplicates.single.name}」，已直接引用（未新建）。',
-      );
+    final brand = command.args['brand'] as String?;
+    final kcal = command.args['kcalPer100g'] as double;
+    final protein = command.args['proteinPer100g'] as double;
+    final carbs = command.args['carbsPer100g'] as double;
+    final fat = command.args['fatPer100g'] as double;
+
+    // docs/67 §6.2：**名字不裁定身份**。同名命中只作为候选提示；只有
+    // 「同名 + 同品牌 + 四项营养完全相同」才视为同一次提交的重复，直接复用。
+    final sameName = await services.foodRepository.searchExact(name);
+    for (final existing in sameName) {
+      final sameBrand = _sameBrand(existing.brand, brand);
+      final sameValues =
+          existing.kcalPer100g == kcal &&
+          existing.proteinPer100g == protein &&
+          existing.carbsPer100g == carbs &&
+          existing.fatPer100g == fat;
+      if (sameBrand && sameValues) {
+        return ChatEditApplyResult.ok(
+          '食物库里已有完全相同的「${existing.name}」，已直接引用（未新建）。'
+          '${await _crossLibraryNote(name)}',
+        );
+      }
     }
-    if (duplicates.length > 1) {
-      return ChatEditApplyResult.failure(
-        '食材库里已有 ${duplicates.length} 条「$name」，请用快照里的 id 指定要用哪一条。',
-      );
-    }
-    final created = await services.foodRepository.create(
-      NewFood(
+
+    final catalog = services.foodCatalog;
+    final String createdId;
+    final String createdName;
+    if (catalog != null) {
+      createdId = await catalog.createMasterFood(
         name: name,
-        kcalPer100g: command.args['kcalPer100g'] as double,
-        proteinPer100g: command.args['proteinPer100g'] as double,
-        carbsPer100g: command.args['carbsPer100g'] as double,
-        fatPer100g: command.args['fatPer100g'] as double,
+        brand: brand,
+        kcalPer100g: kcal,
+        proteinPer100g: protein,
+        carbsPer100g: carbs,
+        fatPer100g: fat,
         defaultServingGrams: command.args['servingGrams'] as double?,
-        brand: command.args['brand'] as String?,
-      ),
+        origin: 'ai_estimate',
+        isEstimated: true,
+      );
+      createdName = name;
+    } else {
+      final created = await services.foodRepository.create(
+        NewFood(
+          name: name,
+          kcalPer100g: kcal,
+          proteinPer100g: protein,
+          carbsPer100g: carbs,
+          fatPer100g: fat,
+          defaultServingGrams: command.args['servingGrams'] as double?,
+          brand: brand,
+        ),
+      );
+      createdId = created.id;
+      createdName = created.name;
+    }
+
+    final candidates = sameName.where((row) => row.id != createdId).toList();
+    final candidateNote = candidates.isEmpty
+        ? ''
+        : '（库里已有同名「$name」${candidates.length} 条；若不是同一做法可以并存，'
+              '要改旧条目请到食物库编辑）';
+    return ChatEditApplyResult.ok(
+      '已保存到食物库「$createdName」（每 100g）；尚未添加到窗口，也未记餐。'
+      '$candidateNote${await _crossLibraryNote(name)}',
     );
-    return ChatEditApplyResult.ok('已创建食材「${created.name}」。');
+  }
+
+  bool _sameBrand(String? left, String? right) {
+    final a = (left ?? '').trim();
+    final b = (right ?? '').trim();
+    return a == b;
+  }
+
+  /// 跨库同名提示：食物库/菜品库是两个实体，同名不算重复，但用户应该知道。
+  /// 查询失败不升级成命令失败——菜已经写成功了，提示只是附注。
+  Future<String> _crossLibraryNote(String name) async {
+    final dishHits = await _dishHitsOrEmpty(name);
+    if (dishHits.isEmpty) return '';
+    return '（注意：菜品库也有同名「$name」；食物/菜品是两回事，不算重复）';
+  }
+
+  Future<List<DishRecord>> _dishHitsOrEmpty(String name) async {
+    try {
+      return await services.dishLibraryRepository.searchExact(name);
+    } on Object {
+      return const [];
+    }
   }
 
   // ---------- 约束 ----------
@@ -460,19 +735,49 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
   // ---------- 菜品库 ----------
 
   Future<ChatEditApplyResult> _dishUpsert(ChatEditCommand command) async {
-    final record = await services.dishLibraryRepository.upsertByName(
-      DishDraft(
-        name: command.args['name'] as String,
-        mealSlot: command.args['slot'] as String,
-        kcal: command.args['kcal'] as double,
-        proteinG: command.args['protein'] as double,
-        carbsG: command.args['carbs'] as double,
-        fatG: command.args['fat'] as double,
-        source: 'ai_chat',
-        comment: command.args['comment'] as String?,
-      ),
+    // docs/67 §6.2：新编译不再生成"独立每份菜品写入"。这条命令保留下来只做
+    // **旧信封兼容**：按旧"每份"语义解码，交给统一主库做安全换算。
+    // 份量不可信时明确要求补全，绝不把"每份"改个名字写成每 100g（A11/A16）。
+    final name = command.args['name'] as String;
+    final kcalPerServing = command.args['kcal'] as double;
+    final proteinPerServing = command.args['protein'] as double;
+    final carbsPerServing = command.args['carbs'] as double;
+    final fatPerServing = command.args['fat'] as double;
+    final servingGrams = command.args['servingGrams'] as double?;
+
+    if (servingGrams == null) {
+      return const ChatEditApplyResult.failure(
+        '这条旧提议只有"一份"的营养、没有每份克数，不能换算成每 100g。'
+        '请补一份多少克后重新生成，或直接按每 100g 新建食物。',
+      );
+    }
+
+    final catalog = services.foodCatalog;
+    if (catalog == null) {
+      return const ChatEditApplyResult.failure('统一食物库未接线，无法把旧"每份"提议换算进主库。');
+    }
+    final foodId = await catalog.createMasterFoodFromServing(
+      name: name,
+      kcalPer100gPerServing: kcalPerServing,
+      proteinPerServing: proteinPerServing,
+      carbsPerServing: carbsPerServing,
+      fatPerServing: fatPerServing,
+      servingGrams: servingGrams,
+      servingGramsStatus: ServingGramsStatus.known,
+      servingGramsSource: ServingGramsSource.userInput,
+      cookingNote: command.args['comment'] as String?,
+      origin: 'ai_estimate',
+      isEstimated: true,
     );
-    return ChatEditApplyResult.ok('菜品「${record.name}」已写入菜品库。');
+    final food = await services.foodRepository.getById(foodId);
+    if (food == null) {
+      return const ChatEditApplyResult.failure('食物写入后读取失败，请刷新后再看。');
+    }
+    return ChatEditApplyResult.ok(
+      '已按每份 ${_trimNumber(servingGrams)}g 换算并保存到食物库'
+      '（${_trimNumber(food.kcalPer100g)} kcal/100g）。'
+      '尚未添加到窗口，也未记餐。',
+    );
   }
 
   Future<ChatEditApplyResult> _dishDelete(ChatEditCommand command) async {
@@ -531,23 +836,120 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
   ) async {
     // `nutritionFrom`（docs/43 B10）：缺省 none = 旧行为逐字节不变。
     final from = _nutritionFrom(command);
+    final contract = _contractOf(command);
     final window = await _resolveWindowRef(command.args['window'] as String);
-    final id = await services.canteenRepository.createDish(
+    final name = command.args['name'] as String;
+    final rawFoodId = (command.args['foodId'] as String?)?.trim();
+    final foodId = rawFoodId == null || rawFoodId.isEmpty
+        ? null
+        : normalizeTargetId(rawFoodId);
+    final servingGrams = command.args['servingGrams'] as double?;
+    final servingSource = _servingSourceOf(command);
+
+    if (contract == 'v2' && from != 'none' && foodId == null) {
+      return const ChatEditApplyResult.failure(
+        'v2 契约要求挂窗时给出主食物 foodId（或用 nutritionFrom=food 让本地匹配决定）；'
+        '请重新生成卡片。',
+      );
+    }
+
+    // 2026-11-04 Phase 3：建菜前先查「窗口 + 精确菜名」——同窗口同名就是
+    // 同一道菜，直接引用，不再堆出第二张同名卡（createDish 本身无去重）。
+    final existing = await services.canteenRepository.findDishInWindow(
       windowId: window.id,
-      name: command.args['name'] as String,
+      name: name,
     );
-    final applied = from == 'food'
-        ? await _applyFoodNutrition(
+    final String id;
+    final String createdNote;
+    if (existing != null) {
+      id = existing.id;
+      createdNote = '该窗口已有同名菜品「${existing.name}」，已直接引用（未新建）';
+    } else {
+      id = await services.canteenRepository.createDish(
+        windowId: window.id,
+        name: name,
+        foodId: foodId,
+        servingGrams: servingGrams,
+        servingGramsStatus: foodId == null
+            ? ServingGramsStatus.unknown
+            : (servingGrams == null
+                  ? ServingGramsStatus.unknown
+                  : ServingGramsStatus.known),
+        servingGramsSource: servingSource,
+      );
+      // 回执是**给用户看的**：新 id 对用户没有意义，卡片里也不需要它
+      // （模型下次从快照拿）。
+      createdNote = '已新增菜品';
+    }
+
+    // 已有同名供应时，显式给了 foodId/份量也要落实（不能只引用不更新）。
+    if (existing != null) {
+      if (foodId != null) {
+        try {
+          await services.canteenRepository.linkSupplyToFood(
             dishId: id,
-            dishName: command.args['name'] as String,
-          )
+            foodId: foodId,
+          );
+        } on CanteenWriteException catch (error) {
+          return ChatEditApplyResult.ok(
+            '$createdNote，但链接食物失败：${error.userMessage}',
+          );
+        }
+      }
+      if (servingGrams != null) {
+        await services.canteenRepository.updateDishServingGrams(
+          id,
+          servingGrams,
+        );
+      }
+    }
+
+    // 已经给了 `foodId`（或本来就有链接）时，"引用食物库"这件事已经成立：
+    // 当前营养从主食物生效修订派生，不需要再走一次本地匹配。
+    final linkedFoodId =
+        foodId ??
+        (await services.canteenRepository.findDishInWindow(
+          windowId: window.id,
+          name: name,
+        ))?.foodId;
+    final applied = (from == 'food' && linkedFoodId == null)
+        ? await _applyFoodNutrition(dishId: id, dishName: name)
         : null;
     if (applied != null && !applied.ok) {
       // 2026-10-20 审查 RV-P1-04：菜**已经落库**。回报「失败」会让用户
       // 重试 → 同名重复菜（createDish 无去重）。如实报「部分成功」。
-      return ChatEditApplyResult.ok('已新增菜品（$id），但营养未填写：${applied.message}');
+      return ChatEditApplyResult.ok('$createdNote，但营养未填写：${applied.message}');
     }
-    return ChatEditApplyResult.ok('已新增菜品（$id）${applied?.message ?? ''}');
+    final servingNote = servingGrams == null
+        ? '；份量未知（记餐时按克填）'
+        : '，一份 ${_trimNumber(servingGrams)}g';
+    final nutritionNote =
+        applied?.message ?? (linkedFoodId == null ? '' : '，营养取自主食物（每 100g）');
+    return ChatEditApplyResult.ok(
+      '$createdNote$servingNote$nutritionNote。未记餐。',
+    );
+  }
+
+  /// 契约版本：不写 = `v1`（旧协议）。只认 v1/v2，别的直接拒绝。
+  String _contractOf(ChatEditCommand command) {
+    final raw = command.args['contract'];
+    if (raw == null) return 'v1';
+    final value = raw is String ? raw.trim().toLowerCase() : '';
+    if (value != 'v1' && value != 'v2') {
+      _fail('契约版本「$raw」不认识，只能是 v1 / v2。');
+    }
+    return value;
+  }
+
+  /// 份量来源：缺省按"用户填写"（这是用户/模型在流程里明确给出的数字）。
+  ServingGramsSource _servingSourceOf(ChatEditCommand command) {
+    final raw = command.args['servingGramsSource'];
+    if (raw == null) return ServingGramsSource.userInput;
+    final value = raw is String ? raw.trim().toLowerCase() : '';
+    for (final source in ServingGramsSource.values) {
+      if (source.storedValue == value) return source;
+    }
+    _fail('份量来源「$raw」不认识，只能是 weighed / user_input / label / ai_estimate。');
   }
 
   /// 读取并校验 `nutritionFrom`（`food|ai|none`）。
@@ -601,33 +1003,20 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       );
     }
     try {
-      // 2026-10-21 RV-P2-07：证据写入与链接确认必须同事务——否则链接失败时
-      // 证据已落库、界面却报失败，用户重试会再写一条证据。
-      await services.database.transaction(() async {
-        await services.canteenRepository.recordNutrition(
-          dishId: dishId,
-          kcalPer100g: candidate.kcalPer100g,
-          proteinPer100g: candidate.proteinPer100g,
-          carbsPer100g: candidate.carbsPer100g,
-          fatPer100g: candidate.fatPer100g,
-          // 证据等级沿用食物条目状态（verified→A / 自建→B / 其他→C）。
-          grade: switch (candidate.state) {
-            'verified' => 'A',
-            'user_created' => 'B',
-            _ => 'C',
-          },
-          confidence: candidate.confidence,
-          origin: 'food_library',
-          sourceText: '引用食物库「${candidate.foodName}」',
-        );
-        await service.confirmAdoption(dishId, candidate.foodId);
-      });
+      // docs/67 §3.3：只落实**权威链接**。当前营养从主食物生效修订派生，
+      // 不再往证据表复制一份——那是第二套当前事实。
+      await services.canteenRepository.linkSupplyToFood(
+        dishId: dishId,
+        foodId: candidate.foodId,
+      );
     } on CanteenWriteException catch (error) {
       return ChatEditApplyResult.failure(error.userMessage);
     } on Object {
-      return ChatEditApplyResult.failure('引用食物库营养失败，请稍后重试。');
+      return ChatEditApplyResult.failure('引用食物库失败，请稍后重试。');
     }
-    return ChatEditApplyResult.ok('，营养引用自食物库「${candidate.foodName}」（每 100g）。');
+    return ChatEditApplyResult.ok(
+      '，已链接食物库「${candidate.foodName}」（营养取自主库每 100g）。',
+    );
   }
 
   /// 精确同名阈值（与 `MenuItemMatcher.confidenceContains` 之上留出余量）。
@@ -650,7 +1039,7 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
               ..limit(1))
             .getSingleOrNull();
     if (row == null) {
-      _fail('菜品「$dishId」不存在（可能已被删除）。');
+      _fail('要修改的菜品已不存在（可能已被删除），请刷新后重试。');
     }
     // `nutritionFrom`（docs/43 B10）：缺省 ai = 旧行为逐字节不变。
     final from = _nutritionFrom(command, fallback: 'ai');
@@ -1111,14 +1500,14 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         if (window.id == id) return window;
       }
     }
-    _fail('窗口「$id」不存在（可能已被删除）。');
+    _fail('这个窗口已不存在（可能已被删除），请刷新后重试。');
   }
 
   Future<void> _requireCanteenDish(String id) async {
     final row = await (services.database.select(
       services.database.menuItems,
     )..where((row) => row.id.equals(id))).getSingleOrNull();
-    if (row == null) _fail('菜品「$id」不存在（可能已被删除）。');
+    if (row == null) _fail('要修改的菜品已不存在（可能已被删除），请刷新后重试。');
   }
 
   DietaryLabel _parseDietaryLabel(String value) {
@@ -1156,7 +1545,13 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
   };
 
   static String normalizeTargetId(String raw) {
-    final value = raw.trim();
+    var value = raw.trim();
+    // 快照里给的是 `[window:abc]` / `[canteen-dish:abc]` 这种**带方括号**的
+    // 形式，模型经常原样抄进参数（实测 GLM 就会）。方括号是快照的排版，
+    // 不是 id 的一部分，这里统一剥掉再按别名拆前缀。
+    if (value.startsWith('[') && value.endsWith(']') && value.length > 2) {
+      value = value.substring(1, value.length - 1).trim();
+    }
     final index = value.indexOf(':');
     if (index <= 0) return value;
     final prefix = value.substring(0, index).toLowerCase();
@@ -1170,7 +1565,7 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       normalizeTargetId(command.args[name] as String);
 
   ChatEditApplyResult _missing(String kind, String id) =>
-      ChatEditApplyResult.failure('$kind「$id」不存在（可能已被删除），请刷新后重试。');
+      ChatEditApplyResult.failure('要修改的$kind已不存在（可能已被删除），请刷新后重试。');
 
   String _localDate(ChatEditCommand command) {
     final explicit = command.args['localDate'] as String?;
@@ -1194,7 +1589,7 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
 
   Future<MealRecord> _requireMeal(String id) async {
     final record = await services.mealRepository.getById(id);
-    if (record == null) _fail('餐记录「$id」不存在（可能已被删除）。');
+    if (record == null) _fail('这条餐记录已不存在（可能已被删除），请刷新后重试。');
     return record;
   }
 
@@ -1210,26 +1605,7 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     for (final venue in await services.canteenRepository.listVenues()) {
       if (venue.id == id) return venue;
     }
-    _fail('食堂地点「$id」不存在（可能已被删除）。');
-  }
-
-  /// `food` 参数：先试 id，再试「精确同名唯一」。
-  Future<FoodRecord> _resolveFoodRef(String reference) async {
-    final byId = await services.foodRepository.getById(reference);
-    if (byId != null) return byId;
-    final matches = await services.foodRepository.searchExact(reference);
-    if (matches.isEmpty) {
-      // 2026-10-16（用户：缺食材要弹「创建鸡蛋食材」按钮）：失败不只是人话，
-      // 还带一个**可行动作**——编辑卡据此渲染「创建食材「X」」按钮。
-      throw _ChatEditFailure(
-        '找不到食材「$reference」。没有的食材要先用 food.create 创建。',
-        repair: ChatEditRepair.createFood(name: reference),
-      );
-    }
-    if (matches.length > 1) {
-      _fail('「$reference」命中 ${matches.length} 条同名食材，请用快照里的 id 指定。');
-    }
-    return matches.single;
+    _fail('这个食堂地点已不存在（可能已被删除），请刷新后重试。');
   }
 
   Future<CanteenVenue> _resolveVenueRef(String reference) async {
@@ -1250,7 +1626,8 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     return byName.single;
   }
 
-  Future<CanteenWindow> _resolveWindowRef(String reference) async {
+  Future<CanteenWindow> _resolveWindowRef(String rawReference) async {
+    final reference = normalizeTargetId(rawReference);
     for (final venue in await services.canteenRepository.listVenues()) {
       for (final window in await services.canteenRepository.listWindows(
         venue.id,
@@ -1288,7 +1665,20 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       );
     }
     if (matches.length > 1) {
-      _fail('「$reference」命中 ${matches.length} 个同名窗口，请用 id 指定。');
+      // 歧义窗口要给**候选清单**（地点·窗口），让模型/用户能指着说清是
+      // 哪一个——只报一个数量还得再来一轮。
+      final venueName = {
+        for (final venue in await services.canteenRepository.listVenues())
+          venue.id: venue.name,
+      };
+      final listed = [
+        for (final window in matches)
+          '${venueName[window.venueId] ?? '未知地点'}·${window.name}',
+      ].join('、');
+      _fail(
+        '「$reference」命中 ${matches.length} 个同名窗口（$listed）；'
+        '请用 id 或带地点的窗口名指定。',
+      );
     }
     return matches.single;
   }
@@ -1342,19 +1732,129 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     return ChatEditApplyResult.ok('已忘掉：${matches.single.text}');
   }
 
-  Future<List<ManualMealItemDraft>> _resolveMealItems(
-    ChatEditCommand command,
-  ) async {
+  /// 去重键：按**来源身份**而不是只按名字。
+  ///
+  /// 食物「米饭」和菜品「米饭」是两个实体；只按名字去重会把后一条静默跳过。
+  /// 有来源 id 时用 `sourceType:sourceId`，没有来源（手动条目/旧行）才退回
+  /// 名字。同一食物/菜品重复提议仍会命中同一个 id，原有去重语义不变。
+  bool _containsAllItems(MealRecord meal, List<MealItemDraft> items) {
+    final keys = {for (final item in meal.items) _dedupKeyOfRecord(item)};
+    return items.every((item) => keys.contains(_dedupKeyOfDraft(item)));
+  }
+
+  String _dedupKeyOfDraft(MealItemDraft item) {
+    final id = item.sourceId;
+    if (id != null && id.isNotEmpty) return '${item.sourceType}:$id';
+    return 'name:${item.foodName.trim()}';
+  }
+
+  String _dedupKeyOfRecord(MealItemRecord item) {
+    final id = item.sourceId;
+    if (id != null && id.isNotEmpty) return '${item.sourceType}:$id';
+    return 'name:${item.foodName.trim()}';
+  }
+
+  /// 餐级来源词表（与 `AddDishToMeal` / 扫码同一套）：一条餐里只要有一道
+  /// 菜品就记 `dish_library`，否则拍照识别 `ai_scan`、食物 `food_library`、
+  /// 都没有才 `manual`。条目级来源已在 `NutritionMath` 里写，这里只补餐级。
+  String _mealSourceFor(List<MealItemDraft> items) {
+    if (items.any((item) => item.sourceType == 'dish')) return 'dish_library';
+    if (items.any((item) => item.sourceType == 'scan')) return 'ai_scan';
+    if (items.any((item) => item.sourceType == 'food')) return 'food_library';
+    return 'manual';
+  }
+
+  /// `items[].food` 解析（docs/67 §6.2）：主食物 id/`[food:id]`、食堂供应
+  /// `[canteen-dish:id]`、旧菜品 `[dish:id]`、或精确名字，统一走
+  /// [CatalogResolver]；返回**可写库的餐条目草稿**。
+  ///
+  /// 单位纪律：
+  /// * 主食物按每 100g 换算；
+  /// * 供应按每份克数换算（`grams` 只作为显式克数透传，不当"份数"）；
+  /// * 旧 `[dish:]` 保持每份语义，份量不可信时**要求补全**而不是按 100g 算。
+  Future<List<MealItemDraft>> _resolveMealItems(ChatEditCommand command) async {
     final items = command.args['items'] as List<Object>;
-    final resolved = <ManualMealItemDraft>[];
+    final resolved = <MealItemDraft>[];
     for (final entry in items) {
       final map = entry as Map<String, Object>;
-      final food = await _resolveFoodRef(map['food'] as String);
-      resolved.add(
-        ManualMealItemDraft(food: food, grams: map['grams'] as double),
-      );
+      final reference = map['food'] as String;
+      final grams = map['grams'] as double;
+      final resolution = await _catalog.resolve(reference);
+      switch (resolution) {
+        case CatalogFood(:final food):
+          resolved.add(NutritionMath.fromFood(food, grams));
+        case final CatalogSupply supply:
+          // 这里的克数是用户/AI 明确给出的食用克数，不是"份数"。
+          resolved.add(
+            NutritionMath.fromMasterAtGrams(
+              foodId: supply.foodId ?? '',
+              name: supply.displayName,
+              kcalPer100g: supply.kcalPer100g,
+              proteinPer100g: supply.proteinPer100g,
+              carbsPer100g: supply.carbsPer100g,
+              fatPer100g: supply.fatPer100g,
+              grams: grams,
+              revisionId: supply.revisionId,
+              sourceType: 'menu_item',
+              sourceId: supply.supplyId,
+              supplyId: supply.supplyId,
+              servingGrams: supply.servingGrams,
+            ),
+          );
+        case CatalogLegacyDish(:final dish):
+          if (!resolution.hasTrustedServingGrams) {
+            throw _ChatEditFailure(
+              '菜品「${dish.name}」没有可信的每份克数，不能按克换算；'
+              '请先补一份多少克，或重新分析成食物后记餐。',
+            );
+          }
+          resolved.add(NutritionMath.fromLegacyDish(dish, grams));
+        case CatalogNeedsAnalysis(:final menuItemId):
+          throw _ChatEditFailure(
+            '食堂菜「${_displayReference(menuItemId)}」还没有可用营养；'
+            '先在食堂目录补分析（每 100g），再记这一餐。',
+          );
+        case CatalogAmbiguous(
+          :final reference,
+          :final foods,
+          :final dishes,
+          :final supplies,
+        ):
+          if (foods.isNotEmpty || dishes.isNotEmpty || supplies.isNotEmpty) {
+            final hits = <String>[
+              if (foods.isNotEmpty) '食物库 ${foods.length} 条',
+              if (supplies.isNotEmpty) '食堂供应 ${supplies.length} 条',
+              if (dishes.isNotEmpty) '旧菜品 ${dishes.length} 条',
+            ];
+            throw _ChatEditFailure(
+              '「$reference」命中${hits.join('、')}；请说明按哪一条记。',
+              repair: ChatEditRepair.chooseCatalog(name: reference),
+            );
+          }
+          if (supplies.length > 1) {
+            _fail('「$reference」命中 ${supplies.length} 个窗口的同名供应，请用快照里的 id 指定。');
+          }
+          if (foods.length > 1) {
+            _fail('「$reference」命中 ${foods.length} 条同名食材，请用快照里的 id 指定。');
+          }
+          _fail('「$reference」命中 ${dishes.length} 条同名菜品，请用快照里的 id 指定。');
+        case CatalogMissing(:final reference):
+          final display = _displayReference(reference);
+          throw _ChatEditFailure(
+            '找不到食物「$display」。没有的食物要先用 food.create 创建。',
+            repair: ChatEditRepair.createFood(name: display),
+          );
+      }
     }
     return resolved;
+  }
+
+  /// 失败文案里的引用：`[food:bad]` 之类的快照坐标不上屏，只留名字。
+  String _displayReference(String reference) {
+    final trimmed = reference.trim();
+    final match = RegExp(r'^\[(?:food|dish|canteen-dish):(.+)\]$')
+        .firstMatch(trimmed);
+    return (match?.group(1) ?? trimmed).trim();
   }
 }
 

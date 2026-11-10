@@ -250,3 +250,148 @@ decoder（信封形状/坏 JSON/未知 action/超 10 条/NaN/枚举与区间）�
 （23 条命令各 ≥1 正例 + 关键失败路径：目标缺失/歧义/越界）、快照（含 id、上限截断、
 空库）、controller（信封→编辑卡、应用/忽略/双击守卫、落库回环）、页面（卡片渲染、
 按钮接线、流式占位、2.0× 不溢出）。隐私审计补一条：对话披露写明「发送可编辑数据快照」。
+
+---
+
+## 7. 按需生成应用卡片（docs/66 v2，2116 起的手动链路）
+
+**正常对话（含图片轮）不再强制 JSON、不再自动弹卡**：聊天上下文与编译上下文
+拆分——`ChatEditCoordinator.buildChatContext`（内容纪律 + 能力边界 + 快照，
+不含命令协议）给普通发送；`buildEditContext`（`renderProtocol(compileMode: true)`
+编译变体 + 现场快照）只给手动编译。协议里的对话型规则（估算、suggestions、
+「必须给信封」）在编译变体里被移除；内容事实纪律压缩成 `chatContentDiscipline`
+（≤2 KB，不含命令名/JSON 字样）留在聊天侧。
+
+**手动编译链路**（`ConversationController.generateEditCard`，不复用旧
+`_runCompiler`）：输入 = 用户请求（wireText 优先）+ 目标助手回复（≤6000 字，
+超限直接失败不重试）+ 最近 6 条对话（单条 ≤600 字、总 ≤3000 字，图片用
+`[图片]` 占位，不含目标回复本身）+ 编译协议变体 + 点击时现场快照；输出经
+严格 decoder → **suggestions 全部丢弃** → **数字接地闸门**
+（`chat_edit_number_grounding.dart`：全部数值写入字段须在用户请求/目标回复
+中有可见依据，`150` 不误匹配 `1500`，带对象锚点的要求数字邻近锚点，
+`weekday` 用语义别名接地，`food.create` 每 100g 营养是唯一例外；字段无策略
+fail-closed 拒绝挂卡）→ **日期钉定**（缺省 `localDate` 的命令钉到目标消息
+本地日期，`targets.update` 只钉 `waterMl` 分支，`steps` 保持全局语义；
+`ChatEditTurnItem.copyWith(raw:)` 同步 raw，落库读 raw）→ 挂到**同一条助手
+消息**（`turn.reply == 原文`，不新增气泡、不改原文）→ 落库 → 审查。
+
+**状态机**（内存态，独立 `cardGeneration` notifier，不触发页面滚到底）：
+`idle / generating / empty / failed`；取消先失效 epoch，再向 token 发取消
+事件、取消订阅、关 token、回 idle，迟到流事件不挂卡不写库；生成期间可继续
+聊天（不占 `_pending`、不改 `ConversationState.status`）。
+
+**应用前日期确认**：整卡 / 分组 / 旧卡 suggestion / 选卡重放统一经过控制器
+preflight——选中命令有非今天 `localDate` 时经页面 `confirmEditDates` 确认
+（`chat-edit-date-confirm`）；新模式下回调缺失 / 拒绝 / 异常都不写库。旧模式
+（`manualCardGeneration=false`，构造参数默认值即回滚开关）行为与 2115 逐字节
+一致，正式入口 `app_router` 显式传 `true`。
+
+**落库回环前置修复**（§5.8）：`outcomes` 增加 `status`（`dismissed` 落库，
+重启不复活成 proposed；`ok` 布尔保留兼容旧 reader）；`copyWith(raw:)` 让
+日期钉死与选卡重放的改写同步进 raw。待应用卡摘要（`pendingProposalSummaryOf`）
+压平空白后 ≤240 字。
+
+旧自动弹卡/补信封链路（`_promoteEditTurn`、`_maybeRetryForEnvelope`、
+`_runCompiler`、兜底卡等）**保留一个版本**（v2117 再清），新模式下
+`needsEnvelopeRetry` 恒为 false。
+
+### 7.1 编译上下文的结构化分离（2122）
+
+手动编译的输入里，**编辑卡一律不进「最近对话」**：
+
+- 已应用的卡，其 reply 就是「米饭 150g、鸡胸肉 150g」——把它当素材会让编译器重复生成
+  （餐食有全天去重兜底，饮水/体重没有，会真记两条）；
+- 待应用的卡若也塞进对话文本，会与快照的「尚未应用的提议」段重复。
+
+因此「今天已记录什么」只有**一个权威来源**：数据快照（今日餐记录 / 饮水 / 体重 / 目标）；
+「上一张待应用卡」由 `ChatEditCoordinator.buildEditContext(pendingProposal:)` 以结构化段注入。
+编译器不再需要从自由文本里重建已经发生过的事实——重复的入口被删除，而不是被规则拦截。
+
+尚未做的更强防线（下一版）：命令级幂等键（`action+args+date` 指纹，执行器记「最近执行过」，
+重复则跳过并说明）；挂卡前对照今天已有记录做「重复可见化」标注。
+
+### 7.2 重复可见化（2123）
+
+编译侧的结构化分离（§7.1）让「已落库内容」进不了编译素材；但模型仍可能对同一件事
+再提一次（连点两次生成、回复里重复列出同一份食物）。执行器对餐食做全天去重、体重是
+**同日覆盖**、**饮水则是追加**，所以需要让用户在**点应用前**看见重复：
+
+| 命令 | 应用前提示 | 应用后行为 |
+|---|---|---|
+| `meal.create` | 今天已经记过 X，应用时不会重复写入 | 全天去重跳过同名食物 |
+| `water.add` | 今天已有 N 次 Xml 的饮水，确认要再记一次吗 | 追加（用户可忽略该行） |
+| `weight.log` | 今天已记过 X kg，应用会覆盖为这次的值 | 同日覆盖 |
+
+实现：`ExistingFactProbe`（查当天餐/饮水/体重，按日期缓存）→ `duplicateHintFor`
+（纯判断，可单测）→ `ChatEditCoordinator.annotateDuplicates`（探针缺失/异常一律
+原样返回）→ `ChatEditTurnItem.duplicateHint`（内存态，不落库）→ 卡片主行下显示。
+组合根 `main.dart` 注入；未接线时行为与之前完全一致。
+
+**仍未做**：命令级幂等键（`action+args+date` 指纹 + 最近执行记录），需新增存储。
+
+### 7.3 短时窗幂等（2124）
+
+「重复」的最后一道防线在**执行器**：同一动作在 **15 秒**内重复执行只写一次。
+
+- 指纹：`action | 规范化 args（去 notes、键排序、items 按食物名排序）| 目标日期`；
+- 只对**追加型且业务无去重**的命令启用：`water.add` / `set.log` / `plan.entry.add` /
+  `session.start`。其余命令各自的去重文案更精确，不参与：
+  `meal.create`（全天去重）、`food.create`/`dish.upsert`/`canteen.*.create`（同名引用）、
+  `memory.remember`（重复拒绝）、`menu.snapshot.publish`（同 hash 跳过）、`weight.log`（同日覆盖）；
+- 命中时返回**成功** + 「刚才已经记过，没有重复写入」（这条提议确实已经生效过）；
+- 并发双击：`await` 之前用 in-flight 集合占位，不会两条都写；
+- **不做永久幂等**：超过窗口的相同动作照常写入（「又喝一杯 250ml」是真实需求）；
+- 记录是进程内内存态（不落库），重启清零——只服务于短时间内的重复动作。
+
+### 7.4 流程加固与卡片密度（2125）
+
+- **失败先失效 epoch**：真实 SSE 在 `addError` 之后还会补一个 done 事件。取消订阅
+  是主防线，但时序不巧时迟到的 `onDone` 会进完成路径、把 failed 覆盖成挂卡
+  （缓冲区里可能已攒了半个合法信封）。现在失败时**先让 epoch 失效**再收尾。
+- **单条命令卡不画组头**：卡头已有「1 条修改」+ 摘要，组头「记一笔饮水 1 条」纯属
+  重复。多组（记餐 + 新建食材 + 记忆…）时组头保留——那是归类线索。
+  「板块存在性」的判据改为浅灰块 key（`chat-edit-block-<卡>-<组>`）。
+- **应用前后提示互斥**：「今天已有…」只在应用前显示，应用后由每行的结果说明取代。
+- 密度：行垂直间距 6→5、结果/提示小字行高 1.4→1.3。
+
+### 7.5 状态矩阵复核（2126）
+
+编辑卡的状态矩阵逐张渲染审看（`test/card_states_capture_test.dart`，10 帧）后修正：
+
+| 条件 | 修前 | 修后 |
+|---|---|---|
+| 全部行失败 | 卡头绿色「已完成」 | 中性「未应用」（有成功的行才算完成） |
+| 320dp × 2.0× | 序号数字被 18×18 框裁切 | 框随字号放大（上限 1.6×） |
+| 320dp × 2.0× | 食物名被行尾徽标挤成「抹茶曲奇…」 | >1.4× 时徽标下移右对齐，名称拿回整行宽；徽标限幅 1.3× |
+| 单命令单行卡 | 卡头摘要与行摘要重复一遍 | 卡头不显示摘要（信息全在行里） |
+
+## 8. 统一主库后的协议增量（schema 31，2026-11-09）
+
+方案：[`docs/67`](67-unified-nutrition-master-canteen-catalog-feasibility-plan-2026-11-09.md)
+· 实际契约：[`docs/68`](68-unified-nutrition-data-contract.md)。
+
+### 8.1 新增可选参数（缺省 = 旧协议 v1）
+
+| 命令 | 参数 | 说明 |
+|---|---|---|
+| `canteen.dish.create` | `foodId` | 链接主食物（快照里的 `[food:id]`）；写了就建立权威引用 |
+| `canteen.dish.create` | `servingGrams` / `servingGramsSource` | 这个窗口的每份克数与来源（`weighed|user_input|label|ai_estimate`） |
+| `canteen.dish.create` / `canteen.dish.nutrition` / `dish.upsert` | `contract` | `v1`（缺省）或 `v2`；其它值整条拒绝 |
+
+`contract=v2` 时 `canteen.dish.create` 必须给 `foodId`（或 `nutritionFrom=food`）。
+
+### 8.2 语义变更
+
+- `canteen.dish.create` 的 `nutritionFrom=food` 现在是**建立链接**，不再把每 100g
+  复制进证据表（供应的当前营养从主食物生效修订派生）。
+- `dish.upsert` 只做**旧信封兼容**：按旧"每份"语义解码，必须有 `servingGrams` 才能
+  换算进主库；没有就明确要求补全，不会再写一份独立的每份营养副本。
+- `meal.create` 的 `items[].food` 支持 `[canteen-dish:id]`（供应），克数按该供应解析；
+  旧 `[dish:id]` 保持每份语义，份量不可信时报错要求补全。
+- 快照段（`chat_edit_context_loader`）里的食堂供应会带：主食物 id/名称、每 100g、
+  份量状态、每份克数、一份大约多少千卡（仅份量可信时）。
+
+### 8.3 数字接地
+
+`canteen.dish.create.servingGrams` 已登记接地策略；未配置策略的数值字段仍**整卡拒绝**
+（fail-closed），不因为新增参数而放宽。

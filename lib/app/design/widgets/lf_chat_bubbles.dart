@@ -62,12 +62,17 @@ class AiMessageRow extends StatelessWidget {
 /// [onLongPress]：长按整条气泡（2026-10-16 用户「对话内容要能长按复制」）。
 /// 气泡自身**不碰剪贴板**——它只把长按转给页面，剪贴板与提示由页面负责
 /// （与其它受控件的分工一致）。
+///
+/// [footer]（docs/66 §6.1）：气泡内**底行、右对齐**的插槽（「生成应用卡片」
+/// 按钮挂在这里，视觉上属于内容卡）。null = 不占位（既有形态逐字节不变）。
+/// 长按复制由外层手势处理，footer 里的按钮点击优先命中（内层子树先收到）。
 class AiMessageBubble extends StatelessWidget {
   const AiMessageBubble({
     super.key,
     required this.text,
     this.onLongPress,
     this.markdown = true,
+    this.footer,
   });
 
   final String text;
@@ -80,6 +85,8 @@ class AiMessageBubble extends StatelessWidget {
   /// 调用方必须**先清洗**（`replyTextForDisplay`）再交给本件——顺序写在这里，
   /// 测试 `chat_reply_display_test` 钉住。
   final bool markdown;
+
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -102,15 +109,25 @@ class AiMessageBubble extends StatelessWidget {
             ),
             border: Border.all(color: c.border),
           ),
-          child: markdown
-              ? LfMarkdown(
-                  text: text,
-                  baseStyle: LfText.body.copyWith(color: c.cardForeground),
-                )
-              : Text(
-                  text,
-                  style: LfText.body.copyWith(color: c.cardForeground),
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              markdown
+                  ? LfMarkdown(
+                      text: text,
+                      baseStyle: LfText.body.copyWith(color: c.cardForeground),
+                    )
+                  : Text(
+                      text,
+                      style: LfText.body.copyWith(color: c.cardForeground),
+                    ),
+              if (footer != null) ...[
+                const SizedBox(height: 4),
+                Align(alignment: Alignment.centerRight, child: footer),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -165,7 +182,7 @@ class UserMessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     text,
-                    style: LfText.body.copyWith(color: const Color(0xFFFFFFFF)),
+                    style: LfText.body.copyWith(color: LfColors.onMedia),
                   ),
                   ?trailing,
                 ],
@@ -194,38 +211,147 @@ class UserMessageBubble extends StatelessWidget {
   }
 }
 
-/// 用户消息带图（docs/21 §3.4「用户图片」形态 / AI 工作.html）：180×140
-/// 缩略（16 圆角，cover）+ 左下文件名药丸（半透明黑底白字）+ 右上对勾徽章
-/// + 右下 45° 旋转小方块尾角；说明文字在图片**下方**右对齐（10px muted）。
+/// 全屏看大图层（需求 3）：黑底 + `InteractiveViewer`（双指缩放/拖动）
+/// + 右上关闭键（44dp 触达）+ 点空白处关闭。
 ///
-/// 图片本体由页面给（`Image.file`；文件被系统清掉时给缺失占位），本件只
-/// 负责几何与外壳。
+/// 【为什么是 `InteractiveViewer` 而不是静态大图】用户要看的是菜名与份量，
+/// 那些细节在 180×140 缩略里必然糊；只有能放大才叫「看清」。
+///
+/// 【关闭有三条路】右上关闭键（明确）、点背景（习惯动作）、系统返回键
+/// （`Navigator.pop` 天然支持）。三条都不必二次确认——这是只读查看，
+/// 没有可丢的东西。
+///
+/// 【Key 约定】全屏层本身用 `ai-chat-image-zoom-<index>`（页面传入），
+/// 内部关闭键固定 `ai-chat-image-zoom-close`。
+class ChatImageZoomView extends StatelessWidget {
+  const ChatImageZoomView({super.key, required this.image, this.caption});
+
+  /// 图片本体（与缩略图同一个 builder，保证两处看到的是同一张）。
+  final Widget image;
+
+  /// 说明文字（用户输入的原话）；显示在图片下方，便于对照。
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final captionText = caption?.trim() ?? '';
+    return ColoredBox(
+      // 看图就该是黑底：白底会让照片周围的边框抢注意力，也让亮照片刺眼。
+      color: LfColors.scrimSolid,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              // 点背景关闭：`opaque` 保证空白处的点击也命中这里
+              // （否则点到图片外的区域什么都不会发生）。
+              key: const Key('ai-chat-image-zoom-backdrop'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).maybePop(),
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => image,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: LfDimens.spaceSmall,
+            top: LfDimens.spaceSmall,
+            child: SafeArea(
+              child: Semantics(
+                button: true,
+                label: '关闭大图',
+                // `Material` 必须自己给：本件会被放进**裸 `showDialog`**（不是
+                // `Scaffold`/`Dialog`），树里没有 Material 祖先，`InkWell` 会在
+                // 构建期直接抛断言。透明 Material 只提供墨水层，不画底色。
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    key: const Key('ai-chat-image-zoom-close'),
+                    onTap: () => Navigator.of(context).maybePop(),
+                    customBorder: const CircleBorder(),
+                    child: const SizedBox(
+                      width: LfDimens.minTouchTarget,
+                      height: LfDimens.minTouchTarget,
+                      child: Center(
+                        child: Icon(
+                          Icons.close,
+                          size: LfDimens.iconMd,
+                          color: LfColors.onMedia,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (captionText.isNotEmpty)
+            Positioned(
+              left: LfDimens.spaceMedium,
+              right: LfDimens.spaceMedium,
+              bottom: LfDimens.spaceMedium,
+              child: SafeArea(
+                child: Text(
+                  captionText,
+                  textAlign: TextAlign.center,
+                  style: LfText.caption.copyWith(color: LfColors.onMedia),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 用户消息带图（2026-10-31 用户重定稿）：**只留图**——原始宽高比完整
+/// 显示（contain，不裁剪；宽上限 232dp、高上限 280dp），无放大角标、无
+/// 文件名药丸、无对勾徽章；右下 45° 旋转小方块尾角与用户文本气泡同一
+/// 口径；用户输入的说明文字在图片下方右对齐（保留：那是消息正文的一部分）。
+///
+/// 图片本体由页面给（`Image.file` + contain；文件被系统清掉时给缺失占位）。
+///
+/// [onZoom] 非空 ⇒ 整图可点（页面打开全屏 `InteractiveViewer`）；为空 ⇒
+/// 不可点（不摆可点态，与全仓「不给点了没反应的入口」同一纪律）。
 class ImageMessage extends StatelessWidget {
   const ImageMessage({
     super.key,
     required this.image,
-    this.fileName,
     this.caption,
-    this.sent = true,
+    this.onZoom,
   });
 
-  /// 缩略图本体（页面负责 cover 与错误占位）。
+  /// 图片本体（页面负责 contain 与错误占位）。
   final Widget image;
-
-  /// 文件名药丸文字；null = 不显示药丸。
-  final String? fileName;
 
   /// 图片下方的说明文字（用户输入的原话）；空/null = 不显示。
   final String? caption;
 
-  /// 已发出：右上角显示对勾徽章（发送中的消息不显示）。
-  final bool sent;
+  /// 点图（打开全屏大图）。null = 不可点。
+  final VoidCallback? onZoom;
 
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
     final mint = LfColors.mint(Theme.of(context).brightness);
     final captionText = caption?.trim() ?? '';
+    final zoom = onZoom;
+    final imageBody = zoom == null
+        ? image
+        : Material(
+            color: Colors.transparent,
+            child: InkWell(
+              // 可测性：点击目标就是这枚 InkWell（与整图同尺寸）。
+              key: const Key('ai-chat-image-zoom-tap'),
+              onTap: zoom,
+              child: image,
+            ),
+          );
     return Align(
       alignment: Alignment.centerRight,
       child: Column(
@@ -236,55 +362,20 @@ class ImageMessage extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(LfDimens.radiusLg),
-                child: SizedBox(width: 180, height: 140, child: image),
+                child: ConstrainedBox(
+                  // 原始宽高比 contain：宽上限 232、高上限 280，不裁剪。
+                  constraints: const BoxConstraints(
+                    maxWidth: 232,
+                    maxHeight: 280,
+                  ),
+                  child: imageBody,
+                ),
               ),
-              if (fileName != null)
-                Positioned(
-                  left: 8,
-                  bottom: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF000000).withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(LfDimens.radiusFull),
-                    ),
-                    constraints: const BoxConstraints(maxWidth: 150),
-                    child: Text(
-                      fileName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: LfText.microStrong.copyWith(
-                        color: const Color(0xFFFFFFFF),
-                      ),
-                    ),
-                  ),
-                ),
-              if (sent)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF000000).withValues(alpha: 0.35),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 12,
-                      color: Color(0xFFFFFFFF),
-                    ),
-                  ),
-                ),
-              // 45° 旋转小方块尾角（右上，与用户文本气泡同一口径）。
+              // 45° 旋转小方块尾角（右下，与用户文本气泡同一口径）。
               Positioned(
-                right: -5,
-                top: 12,
+                key: const Key('ai-chat-image-tail'),
+                right: -3,
+                bottom: -2,
                 child: Transform.rotate(
                   angle: 45 * 3.141592653589793 / 180,
                   child: Container(
@@ -403,7 +494,7 @@ class FeatureCardMessage extends StatelessWidget {
                             primaryLabel,
                             textAlign: TextAlign.center,
                             style: LfText.bodyStrong.copyWith(
-                              color: const Color(0xFFFFFFFF),
+                              color: LfColors.onMedia,
                             ),
                           ),
                         ),

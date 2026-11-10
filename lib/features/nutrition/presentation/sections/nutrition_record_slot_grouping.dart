@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:localfit_ai/app/design/lf_dimens.dart';
 import 'package:localfit_ai/app/design/lf_text_styles.dart';
 import 'package:localfit_ai/app/design/lf_tokens.dart';
-import 'package:localfit_ai/app/design/number_format.dart';
 import 'package:localfit_ai/app/design/widgets/app_error_text.dart';
 import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/entrance_item.dart';
+import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_slot_icons.dart';
@@ -37,13 +37,14 @@ class NutritionRecordSlotGrouping extends StatelessWidget {
     required this.repository,
     required this.localDate,
     required this.now,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEditSlot,
     this.onAddToSlot,
     this.selectionMode = false,
     this.selectedIds = const {},
+    this.selectedItemIds = const {},
     this.onLongPress,
     this.onToggleSelected,
+    this.onToggleItemSelected,
     this.onMealsChanged,
   });
 
@@ -55,8 +56,9 @@ class NutritionRecordSlotGrouping extends StatelessWidget {
   /// 「今天」的判据来源(A 用 `ui.date === state.today` 决定加号与空态文案)。
   final DateTime now;
 
-  final ValueChanged<MealRecord> onEdit;
-  final ValueChanged<MealRecord> onDelete;
+  /// 【2026-10-31 用户】整卡点击：合并编辑该槽位全部已添加食物。
+  /// 回调携带当前槽位记录，避免编辑午餐时误合并全天餐食。
+  final void Function(List<MealRecord> records)? onEditSlot;
 
   /// 槽位头的加号(**仅今天**渲染,A `data-action="meal-add" data-slot`):
   /// 直接走既有 `NutritionActions.editMeal(initialSlot:)` 通道(D19)。
@@ -65,15 +67,40 @@ class NutritionRecordSlotGrouping extends StatelessWidget {
 
   final bool selectionMode;
   final Set<String> selectedIds;
+  final Set<String> selectedItemIds;
 
   /// null = 未接多选(`onDeleteSelected` 未接线)→ 不给长按入口。
   final ValueChanged<MealRecord>? onLongPress;
   final ValueChanged<MealRecord>? onToggleSelected;
+  final void Function(MealRecord meal, MealItemRecord item)?
+  onToggleItemSelected;
 
   /// 每次拿到列表时回传最近一帧(批量删除要按 id 还原成完整记录)。
   final ValueChanged<List<MealRecord>>? onMealsChanged;
 
   bool get _isToday => formatLocalDate(now) == localDate;
+
+  /// 补记窗口（B-3，docs/64 阶段 4）：用户 2026-10-27 裁决「30 天」。
+  static const int backfillWindowDays = 30;
+
+  /// 选中日能不能补记：今天，或近 [backfillWindowDays] 天内的过去日期。
+  /// **未来日期永远不能**（仓储层 B-2 的守卫也会拒，UI 不给入口）。
+  bool get _canAdd {
+    // `DateTime.parse` 直接吃 `yyyy-MM-dd`（无时区 = 本地零点），不引新依赖、
+    // 也不跨 feature 取 progress 的 parseLocalDate。
+    final selected = DateTime.parse(localDate);
+    final today = DateTime.parse(formatLocalDate(now));
+    if (selected.isAfter(today)) return false;
+    return today.difference(selected).inDays <= backfillWindowDays;
+  }
+
+  /// 窗口外的过去日期：不画「+」，但**如实说**窗口——默默少一个按钮
+  /// 会让用户以为是坏了（诚实口径，docs/64 B-3 判据 3）。
+  bool get _showBackfillWindowNote {
+    final selected = DateTime.parse(localDate);
+    final today = DateTime.parse(formatLocalDate(now));
+    return selected.isBefore(today) && !_canAdd;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +144,18 @@ class NutritionRecordSlotGrouping extends StatelessWidget {
           // A `.meal-timeline{flex-column;gap:12px}`:四张卡竖直排、间距 12。
           child: Column(
             children: [
+              if (_showBackfillWindowNote)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: LfDimens.spaceMedium),
+                  child: Text(
+                    '只支持补记近 $backfillWindowDays 天。更早的日期是历史回看，'
+                    '不再改动。',
+                    key: const Key('nutrition-record-backfill-window-note'),
+                    style: LfText.caption.copyWith(
+                      color: context.lf.mutedForeground,
+                    ),
+                  ),
+                ),
               for (var index = 0; index < MealSlot.values.length; index++)
                 Padding(
                   padding: EdgeInsets.only(
@@ -128,17 +167,24 @@ class NutritionRecordSlotGrouping extends StatelessWidget {
                     slot: MealSlot.values[index],
                     meals: bySlot[MealSlot.values[index]]!,
                     isToday: _isToday,
-                    onEdit: onEdit,
-                    onDelete: onDelete,
-                    // A：`ui.date === state.today ? <button ...> : ''` —— 加号
-                    // **仅今天**渲染。历史日期是只读回看面，写入口一律不出现。
-                    onAdd: !_isToday || onAddToSlot == null
+                    // B-3（docs/64 阶段 4，用户 2026-10-27 裁决「30 天」）：
+                    // 加号从「仅今天」放开为「今天或近 30 天内」——写路径本来
+                    // 就按选中日，这里只放开 UI 门禁；非今天另给「补记」徽标。
+                    backfill: !_isToday && _canAdd && onAddToSlot != null,
+                    onEditSlot:
+                        bySlot[MealSlot.values[index]]!.isEmpty ||
+                            onEditSlot == null
+                        ? null
+                        : () => onEditSlot!(bySlot[MealSlot.values[index]]!),
+                    onAdd: !_canAdd || onAddToSlot == null
                         ? null
                         : () => onAddToSlot!(MealSlot.values[index]),
                     selectionMode: selectionMode,
                     selectedIds: selectedIds,
+                    selectedItemIds: selectedItemIds,
                     onLongPress: onLongPress,
                     onToggleSelected: onToggleSelected,
+                    onToggleItemSelected: onToggleItemSelected,
                   ),
                 ),
             ],
@@ -155,25 +201,34 @@ class _SlotCard extends StatelessWidget {
     required this.slot,
     required this.meals,
     required this.isToday,
-    required this.onEdit,
-    required this.onDelete,
+    required this.backfill,
+    this.onEditSlot,
     required this.onAdd,
     required this.selectionMode,
     required this.selectedIds,
+    required this.selectedItemIds,
     required this.onLongPress,
     required this.onToggleSelected,
+    required this.onToggleItemSelected,
   });
 
   final MealSlot slot;
   final List<MealRecord> meals;
   final bool isToday;
-  final ValueChanged<MealRecord> onEdit;
-  final ValueChanged<MealRecord> onDelete;
+
+  /// 非今天但在补记窗口内（槽位头画「补记」徽标）。
+  final bool backfill;
+
+  /// 【2026-10-31 用户】整卡点击：合并编辑该槽位全部已添加食物。
+  final VoidCallback? onEditSlot;
   final VoidCallback? onAdd;
   final bool selectionMode;
   final Set<String> selectedIds;
+  final Set<String> selectedItemIds;
   final ValueChanged<MealRecord>? onLongPress;
   final ValueChanged<MealRecord>? onToggleSelected;
+  final void Function(MealRecord meal, MealItemRecord item)?
+  onToggleItemSelected;
 
   /// A `.meal-slot-card{padding:8px 12px 12px}`。
   /// 见下方 build 注释:本仓的自有内边距由**内嵌行**承担,见 D16 说明。
@@ -195,10 +250,6 @@ class _SlotCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.lf;
-    final total = meals.fold<double>(
-      0,
-      (sum, meal) => sum + meal.nutrition.kcal,
-    );
     return DesignCard(
       key: Key('nutrition-record-slot-${slot.storedValue}'),
       padding: const EdgeInsets.fromLTRB(
@@ -212,10 +263,38 @@ class _SlotCard extends StatelessWidget {
         children: [
           _SlotHeading(
             slot: slot,
-            // A:`rows.length ? format(sum)+' kcal' : '尚未记录'`。
+            backfill: backfill,
+            // 【2026-10-25（需求 20b 的连带变更）】非空槽位的汇总**不再是
+            // 那一串 `N kcal`**：同槽位的多条记录现在合并成一张卡，卡头大号位
+            // 写的就是这个合计 ⇒ 写两遍是同一个数字挨着出现两次（取帧复核：
+            // 「午餐 444 kcal」正下方又是「午餐 444 kcal」）。
+            //
+            // 改成只在**多条记录**时说清「几条」（那是卡头没有的新信息）；
+            // 单条记录时这里留空（槽位名 + 卡头合计已经说完了）。
+            // 空槽位仍是 `尚未记录`（A 的字面值，语义是「无记录 ≠ 零值记录」）。
+            // 唯一例外：补记徽章在场时省略——徽章 + 槽位名已把「这不是今天」
+            // 说完，再挤「尚未记录」在 2.0× 窄屏会截成「尚…」，且与下方空态
+            // 行（「还没记录这一餐」）语义重复。
             summary: meals.isEmpty
-                ? '尚未记录'
-                : '${withThousandsSeparator(total.round())} kcal',
+                ? (backfill ? '' : '尚未记录')
+                // 【2026-10-31 用户：热量直接放在标题晚餐后边】卡内自带头部
+                // 行退役（MealRecordCard embedded 不再画「晚餐 + kcal」），
+                // 合计 kcal 挪到槽位头标题后面；多条记录时同时说清条数。
+                : () {
+                    final total = meals.fold(
+                      const NutritionValues(
+                        kcal: 0,
+                        proteinGrams: 0,
+                        carbsGrams: 0,
+                        fatGrams: 0,
+                      ),
+                      (sum, meal) => sum + meal.nutrition,
+                    );
+                    final kcal = '${total.kcal.round()} kcal';
+                    return meals.length > 1
+                        ? '$kcal · ${meals.length} 条记录'
+                        : kcal;
+                  }(),
             onAdd: onAdd,
           ),
           if (meals.isEmpty)
@@ -233,33 +312,40 @@ class _SlotCard extends StatelessWidget {
               ),
             )
           else
-            for (var index = 0; index < meals.length; index++)
-              EntranceItem(
-                index: index,
-                child: Padding(
-                  // A `.meal-slot-card .meal-row{padding:2px 0 7px}`。
-                  padding: EdgeInsets.only(
-                    top: index == 0 ? LfDimens.spaceXSmall : 0,
-                    bottom: LfDimens.spaceTiny,
-                  ),
-                  child: MealRecordCard(
-                    // D12:`nutrition-record-meal-card-<i>`(跨槽位全局序号)
-                    // 在分组后无意义,已退役;`meal-<id>` 等既有稳定 Key 不动。
-                    meal: meals[index],
-                    embedded: true,
-                    onEdit: () => onEdit(meals[index]),
-                    onDelete: () => onDelete(meals[index]),
-                    selectionMode: selectionMode,
-                    selected: selectedIds.contains(meals[index].id),
-                    onLongPress: onLongPress == null
-                        ? null
-                        : () => onLongPress!(meals[index]),
-                    onToggleSelected: selectionMode
-                        ? () => onToggleSelected?.call(meals[index])
-                        : null,
-                  ),
+            // 【需求 20b（2026-10-25 用户：「午餐就都放一起，不要因为我后边
+            // 记的就分开显示」）】**一个槽位一张卡**：把该槽位当日的全部记录
+            // 交给同一张卡，卡内按原记录用极淡分隔线分组。
+            //
+            // 原来是 `for (index < meals.length) MealRecordCard(meal: meals[index])`
+            // ——记两次午餐就有两张都写着「午餐」的卡（各自带时间）。现在
+            // 只建一张，编辑/删除/多选仍按 `meal.id` 走（见 MealRecordCard）。
+            EntranceItem(
+              index: 0,
+              child: Padding(
+                // A `.meal-slot-card .meal-row{padding:2px 0 7px}`。
+                padding: const EdgeInsets.only(
+                  top: LfDimens.spaceXSmall,
+                  bottom: LfDimens.spaceTiny,
+                ),
+                child: MealRecordCard(
+                  // D12:`nutrition-record-meal-card-<i>`(跨槽位全局序号)
+                  // 在分组后无意义,已退役;`meal-<id>` 等既有稳定 Key 不动。
+                  meals: meals,
+                  embedded: true,
+                  // 【2026-10-31 用户：整卡点击看全部已添加食物】合并编辑；
+                  // 逐条 onEdit/onDelete 已随 ⋮ 菜单整族退役。
+                  onTapCard: onEditSlot,
+                  selectionMode: selectionMode,
+                  selectedIds: selectedIds,
+                  selectedItemIds: selectedItemIds,
+                  onLongPress: onLongPress,
+                  onToggleSelected: selectionMode ? onToggleSelected : null,
+                  onToggleItemSelected: selectionMode
+                      ? onToggleItemSelected
+                      : null,
                 ),
               ),
+            ),
         ],
       ),
     );
@@ -273,11 +359,15 @@ class _SlotHeading extends StatelessWidget {
     required this.slot,
     required this.summary,
     required this.onAdd,
+    this.backfill = false,
   });
 
   final MealSlot slot;
   final String summary;
   final VoidCallback? onAdd;
+
+  /// 非今天但在补记窗口内：槽位名后加「补记」徽标（免得用户以为是今天）。
+  final bool backfill;
 
   @override
   Widget build(BuildContext context) {
@@ -303,18 +393,34 @@ class _SlotHeading extends StatelessWidget {
           // 档即 `bodyStrong`(w600);按 token 收敛,不新造 w700。
           style: LfText.bodyStrong.copyWith(color: c.cardForeground),
         ),
+        if (backfill) ...[
+          const SizedBox(width: _SlotCard.headingGap),
+          // 【N-7（2026-10-29 用户：补记标签太丑，优化设计）】虚框徽标
+          // 换成「带图标的 mint 软徽标」：历史图标 + 「补记」二字，语义
+          // （这不是今天，是在补往日的账）一眼可读，颜色也不与虚框计划态
+          // 徽标（晚餐 · 计划）混同。Key 沿用。
+          const LfBadge.mint(
+            '补记',
+            icon: Icons.history,
+            key: Key('nutrition-record-backfill-badge'),
+          ),
+        ],
         const SizedBox(width: _SlotCard.headingGap),
         // A `>span{flex:1}`:合计占据图标与加号之间的**全部**余量(不只是
         // 文字宽),所以加号恒贴卡右缘。
+        // 【2026-10-31】合计从「N 条记录」变成「N kcal(· M 条记录)」后变长了，
+        // `maxLines:1 + ellipsis` 会在 320dp×2.0× 把 kcal 截没（用户点名要看
+        // 的数字不能截）——改 `FittedBox(scaleDown)`：单行完整、按比例缩小，
+        // 与今日页热量行的同一套兜底。
         Expanded(
-          child: Text(
-            summary,
-            key: Key('nutrition-record-slot-${slot.storedValue}-total'),
-            style: LfText.caption.copyWith(color: c.mutedForeground),
-            maxLines: 1,
-            // 2.0× 窄屏:合计最长「尚未记录」(≈96dp),与槽位名并排仍有余量;
-            // 极端字号下按 A 的 `flex:1` 语义让位而不是溢出。
-            overflow: TextOverflow.ellipsis,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              summary,
+              key: Key('nutrition-record-slot-${slot.storedValue}-total'),
+              style: LfText.caption.copyWith(color: c.mutedForeground),
+            ),
           ),
         ),
         if (onAdd != null) ...[

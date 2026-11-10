@@ -419,6 +419,46 @@ void main() {
     );
 
     test(
+      'C05b 菜品记餐：菜品库里的菜能真正写进一餐（source=dish）',
+      () async {
+        await dishes.create(
+          DishDraft(
+            name: '番茄炒蛋',
+            mealSlot: 'lunch',
+            kcal: 300,
+            proteinG: 15,
+            carbsG: 10,
+            fatG: 21,
+            servingGrams: 250,
+            source: 'manual',
+          ),
+        );
+        final out = await ask('午餐吃了番茄炒蛋，一份。');
+        expect(actionsOf(out), contains('meal.create'));
+        final applied = out
+            .where((entry) => entry.command.action == 'meal.create')
+            .toList();
+        expect(applied, isNotEmpty);
+        expect(
+          applied.last.result.ok,
+          isTrue,
+          reason: applied.last.result.message,
+        );
+
+        final items = await database.select(database.mealItems).get();
+        final hit = items.where((row) => row.foodNameSnapshot.contains('番茄炒蛋'));
+        expect(hit, isNotEmpty, reason: '菜品必须真的写进餐记录');
+        expect(
+          hit.first.sourceType,
+          'dish',
+          reason: '菜品记餐的条目来源必须是 dish，不能退化成 manual',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 3)),
+      skip: skipReason,
+    );
+
+    test(
       'C06 陈述式约束：「我对芒果过敏」→ constraints.set',
       () async {
         final out = await ask('我对芒果过敏，别给我安排含芒果的东西。');

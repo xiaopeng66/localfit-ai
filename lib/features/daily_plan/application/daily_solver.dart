@@ -1,6 +1,6 @@
 // 2026-10-24：`DailyPlanEngine`（本文件的唯一生产调用者）随「下一餐」整族退役。
 // 本文件**保留**：`daily_solver_test` 仍在验证排程算法，`menu_service_window` 的
-// 窗口判定也被 `nutrition` 的两处推荐复用（`add_canteen_dishes_to_library` /
+// 窗口判定也被 `nutrition` 的两处推荐复用（食堂目录取窗口时段 /
 // `build_daily_meal_recommendation`）。
 /// 2.0-4 solver 候选输入视图（docs/07 §7.2/7.3）。
 ///

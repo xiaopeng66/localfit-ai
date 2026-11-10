@@ -12,6 +12,7 @@ import 'package:localfit_ai/features/settings/domain/ai_provider_settings.dart';
 import 'package:localfit_ai/features/settings/domain/ai_reasoning_mode.dart';
 import 'package:localfit_ai/features/settings/domain/open_ai_compatible_endpoint.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/ai_conversation_service.dart';
+import 'package:localfit_ai/features/ai_conversation/domain/ai_envelope_compiler.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/conversation_message.dart';
 
 /// BYOK AI 对话服务（三种协议，docs/24）。
@@ -28,7 +29,11 @@ import 'package:localfit_ai/features/ai_conversation/domain/conversation_message
 ///   的多字节序列在下一个 chunk 到达时正确接上；
 /// * 行层持一个残留缓冲，只有见到完整行才解析——半行 JSON 直接 `jsonDecode`
 ///   会 FormatException，旧实现就是这么静默丢增量的。
-class OpenAiCompatibleConversationService implements AiConversationService {
+class OpenAiCompatibleConversationService
+    implements
+        AiConversationService,
+        AiEnvelopeCompiler,
+        JsonForcedConversationService {
   OpenAiCompatibleConversationService({
     required this.dio,
     required this.configurationReader,
@@ -88,6 +93,144 @@ class OpenAiCompatibleConversationService implements AiConversationService {
     return controller.stream;
   }
 
+  /// 首轮就强制 JSON 模式（修改请求/照片记餐用），避免“先散文、再补信封”
+  /// 产生两条重复回复。供应商不支持 `response_format` 时沿用 [_send] 的
+  /// 有界降级：去掉约束重发一次。
+  @override
+  Stream<String> sendMessageForcedJson({
+    required List<ConversationMessage> messages,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String? systemContext,
+  }) {
+    final controller = StreamController<String>();
+    _send(
+      controller,
+      messages,
+      onProgress,
+      cancelToken,
+      systemContext,
+      forceJson: true,
+    );
+    return controller.stream;
+  }
+
+  /// 信封编译器（2026-11-03 根治「不按协议输出 JSON」）：
+  /// 纯文字、强制 JSON，把助手刚说过的话转成 chat-edit 信封。
+  ///
+  /// 与 `sendMessage` 共用同一套流式装配/取消/超时；差别只有三处：
+  /// * 历史只有一条**编译指令**（不带图、不带整段对话）；
+  /// * `forceJson = true`（chat-completions 的 response_format / Responses 的
+  ///   text.format），JSON 合规由供应商解码层保证；
+  /// * 使用专门的 system prompt，避免「健康顾问」人格把输出带回散文。
+  @override
+  Stream<String> compileEnvelope({
+    required String userText,
+    required String assistantReply,
+    required String systemContext,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String conversationContext = '',
+    String targetLocalDate = '',
+  }) {
+    final controller = StreamController<String>();
+    _compile(
+      controller,
+      userText: userText,
+      assistantReply: assistantReply,
+      systemContext: systemContext,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+      conversationContext: conversationContext,
+      targetLocalDate: targetLocalDate,
+    );
+    return controller.stream;
+  }
+
+  static const _compilerSystemPrompt =
+      '你是 chat-edit 信封编译器。你只做一件事：把助手已经对用户说过的'
+      '可执行操作，原样转成 chat-edit JSON 信封。'
+      '不要聊天、不要解释、不要新增或修改任何数字。';
+
+  Future<void> _compile(
+    StreamController<String> controller, {
+    required String userText,
+    required String assistantReply,
+    required String systemContext,
+    required void Function(String chunk) onProgress,
+    Stream<void>? cancelToken,
+    String conversationContext = '',
+    String targetLocalDate = '',
+  }) async {
+    final request = userText.trim().isEmpty
+        ? '（用户发来一张食物照片，没有文字说明）'
+        : userText.trim();
+    // docs/66 §5.2 的编译 prompt：目标回复是主体，最近对话只补指代；
+    // 明确「不新增、不改数、不估算、不输出 suggestions」。
+    final prompt = StringBuffer();
+    final recent = conversationContext.trim();
+    if (recent.isNotEmpty) {
+      prompt
+        ..writeln('最近对话（只用于理解「刚才那份/第二项」等指代；')
+        ..writeln('**不是要记录的内容**，不要从中提取命令——里面的记录可能已经写库）：')
+        ..writeln(recent)
+        ..writeln();
+    }
+    prompt
+      ..writeln('用户请求：')
+      ..writeln(request)
+      ..writeln();
+    final dateSuffix = targetLocalDate.trim().isEmpty
+        ? ''
+        : '（本地日期：${targetLocalDate.trim()}）';
+    prompt
+      ..writeln('目标助手回复$dateSuffix：')
+      ..writeln(assistantReply.trim())
+      ..writeln()
+      ..writeln('任务：用户点了「生成应用卡片」= 明确要求**把这段对话里的内容记入 App**——')
+      ..writeln('不是聊天，是记账。把**目标助手回复与用户请求**里出现的、能落库的对象与')
+      ..writeln('数值，逐条转成 chat-edit 命令（最近对话只用来补指代，不作为提取来源）。')
+      ..writeln('硬规则：')
+      ..writeln('1. 只输出一个 JSON 对象（供应商已强制 JSON 模式）。')
+      ..writeln('2. 只使用目标回复/最近对话/用户请求中出现过的实体和数字；不要新增、')
+      ..writeln('   不要改数、不要估算没写过的值（这条覆盖协议规则 0 的「可估算」）。')
+      ..writeln('   **克数/毫升/公斤必须原样照抄回复里的写法**（回复写「约 150g」就写 150），')
+      ..writeln('   不要四舍五入、不要换算单位、不要补成整数（写错一个数整张卡都会被拒）。')
+      ..writeln('3. **按点击意图提取，不要判断「是不是提议」**：照片识别清单、回复里')
+      ..writeln('   列出的食物与份量、用户请求里说的记录内容——都是要转成命令的素材，')
+      ..writeln('   逐样转成对应命令（记餐通常一条 meal.create 带全部食物；餐次按')
+      ..writeln('   回复/用户说法，不确定记加餐）。第三方的内容（「我朋友吃了…」）不转。')
+      ..writeln('4. 不转的只有：纯科普/闲聊、没有具体对象或数值的泛泛建议（「下次少要酱」')
+      ..writeln('   「多运动」）、与用户无关的内容。')
+      ..writeln('5. 确实没有任何可落库的对象/数值时，输出 {"reply":"<原因>","edits":[]}；')
+      ..writeln('   reply 一句话（≤60 字）：说清缺什么、让用户怎么补（例如「回一句说清')
+      ..writeln('   要记哪餐」），不要大段解释，不要反问，不要列清单。')
+      ..writeln('6. edits 里每条必须是协议中注册的 action + 完整 args。')
+      ..writeln('7. **args 只能包含命令清单里列出的参数名，一个都不能多**：')
+      ..writeln('   清单里没有的参数会被 App 直接拒绝整条命令。例如 water.add')
+      ..writeln('   只有 amountMl 和 localDate——没有 notes；不确定就对照协议')
+      ..writeln('   systemContext 里的命令清单，逐字照抄参数名。')
+      ..writeln('8. **reply 只写一句话（≤60 字）**：出卡时说「已整理出 N 条记录，点应用')
+      ..writeln('   写入」；不出卡时一句话说清缺什么、让用户怎么补（例如「回一句说清')
+      ..writeln('   要记哪餐」），不要大段解释，不要反问，不要列清单。');
+    final message = ConversationMessage(
+      id: 'envelope-compile',
+      role: ConversationRole.user,
+      text: prompt.toString(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      status: ConversationMessageStatus.sent,
+    );
+    await _send(
+      controller,
+      [message],
+      onProgress,
+      cancelToken,
+      systemContext,
+      forceJson: true,
+      systemPrompt: _compilerSystemPrompt,
+    );
+  }
+
   /// 带图请求被供应商拒绝时，**去掉图片重发一次**并如实说明原因。
   ///
   /// 2026-10-16 用户实测缺陷：「打开 app 的 ai 对话显示发送失败，点击重试」
@@ -108,6 +251,9 @@ class OpenAiCompatibleConversationService implements AiConversationService {
     bool includeImages = true,
     String? leadingNote,
     bool imageFallbackUsed = false,
+    bool forceJson = false,
+    bool jsonFallbackUsed = false,
+    String? systemPrompt,
   }) async {
     final dioCancelToken = CancelToken();
     try {
@@ -122,6 +268,8 @@ class OpenAiCompatibleConversationService implements AiConversationService {
         systemContext: systemContext,
         reasoning: configuration.reasoning,
         includeImages: includeImages,
+        forceJson: forceJson,
+        systemPrompt: systemPrompt,
       );
       final body = built.body;
       // 「去图重发」这一趟要先把原因播给用户与上屏（不静默）。
@@ -180,6 +328,24 @@ class OpenAiCompatibleConversationService implements AiConversationService {
       }
       final status = error.response?.statusCode;
       final rejected = status == 400 || status == 422;
+      // 供应商不认 response_format / text.format（或该模型不支持 JSON 模式）
+      // ⇒ 去掉约束重发一次，仍走原来的提示词路径。有界：只降一次。
+      if (forceJson && rejected && !jsonFallbackUsed) {
+        await _send(
+          controller,
+          messages,
+          onProgress,
+          cancelToken,
+          systemContext,
+          includeImages: includeImages,
+          leadingNote: leadingNote,
+          imageFallbackUsed: imageFallbackUsed,
+          forceJson: false,
+          jsonFallbackUsed: true,
+          systemPrompt: systemPrompt,
+        );
+        return;
+      }
       if (includeImages && rejected && !imageFallbackUsed) {
         // 带图被拒 ⇒ 去图重发一次（有界：`imageFallbackUsed` 挡住二次降级）。
         await _send(
@@ -191,6 +357,9 @@ class OpenAiCompatibleConversationService implements AiConversationService {
           includeImages: false,
           leadingNote: imageRejectionNote,
           imageFallbackUsed: true,
+          forceJson: forceJson,
+          jsonFallbackUsed: jsonFallbackUsed,
+          systemPrompt: systemPrompt,
         );
         return;
       }
@@ -345,6 +514,8 @@ class OpenAiCompatibleConversationService implements AiConversationService {
     required String? systemContext,
     required AiReasoningMode reasoning,
     bool includeImages = true,
+    bool forceJson = false,
+    String? systemPrompt,
   }) async {
     final wire = <ConversationWireMessage>[];
     for (var i = 0; i < messages.length; i++) {
@@ -376,10 +547,11 @@ class OpenAiCompatibleConversationService implements AiConversationService {
         protocol.conversationRequestBody(
           model: model,
           maxTokens: maxOutputTokens,
-          systemPrompt: _systemPrompt,
+          systemPrompt: systemPrompt ?? _systemPrompt,
           systemContext: systemContext,
           reasoning: reasoning,
           messages: wire,
+          forceJson: forceJson,
         ),
       ),
       hasImage: wire.any((message) => message.image != null),

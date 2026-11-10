@@ -32,6 +32,11 @@ void main() {
   late MealRepository mealRepository;
 
   setUp(() async {
+    final previousFatal = WidgetController.hitTestWarningShouldBeFatal;
+    WidgetController.hitTestWarningShouldBeFatal = true;
+    addTearDown(() {
+      WidgetController.hitTestWarningShouldBeFatal = previousFatal;
+    });
     database = AppDatabase(NativeDatabase.memory());
     await seedFoodFixture(database);
     await const ExerciseSeedImporter().importIfNeeded(database);
@@ -55,7 +60,8 @@ void main() {
       ),
     );
     const ids = UuidV7Generator();
-    const clock = SystemAppClock();
+    // 与 app 的审计日期一致，避免餐食被真实时钟的 30 天补记守卫拒绝。
+    final clock = FixedAppClock(DateTime(2026, 9, 13, 12));
     foodRepository = FoodRepository(
       database: database,
       idGenerator: ids,
@@ -160,12 +166,29 @@ void main() {
     );
   }
 
+  Future<void> tapVisible(WidgetTester tester, Finder target) async {
+    await tester.ensureVisible(target);
+    await settle(tester);
+    expect(target.hitTestable(), findsOneWidget);
+    await tester.tap(target);
+    await settle(tester);
+  }
+
   /// 饮食页 chips 是横向 ListView；窄屏下把目标 chip 拖进视口后点击。
   Future<void> openChip(WidgetTester tester, String label) async {
-    final chip = find.text(label);
+    final chip = find.byKey(
+      Key(switch (label) {
+        '记录' => 'nutrition-tab-record',
+        '菜单' => 'nutrition-tab-menu',
+        '食物库' => 'nutrition-tab-foodlib',
+        _ => throw ArgumentError.value(label, 'label'),
+      }),
+    );
     if (!tester.any(chip)) {
       fail('未找到 chip：$label');
     }
+    await tester.ensureVisible(chip);
+    await settle(tester);
     final rect = tester.getRect(chip);
     if (rect.right > 320 || rect.left < 0) {
       final view = find.ancestor(
@@ -227,7 +250,7 @@ void main() {
       await scrollThroughPage(tester);
       finishAudit('今日');
 
-      await tester.tap(find.text('训练'));
+      await tester.tap(find.byKey(const Key('nav-training')));
       await settle(tester);
       await scrollThroughPage(tester);
       finishAudit('训练');
@@ -275,30 +298,24 @@ void main() {
       // 1) 记录体重弹层：填写并保存。体重卡在 320dp 首屏下方，先滚动露出。
       await tester.dragFrom(const Offset(160, 400), const Offset(0, -600));
       await settle(tester);
-      // 测试环境的悬浮层会截获体重入口的命中链，直接调用回调绕过该夹具限制。
-      // 今日页体重卡空态入口 `dashboard-weight-record`（2026-10-03 起为
-      // docs/21 §3.8 的 B6 文字按钮 `LfTextButton`，内部是原生 `TextButton`；
-      // 这里只取回调，与按钮类型无关——按新结构重新定位）。
-      final weightEntryButton =
-          find
-                  .byKey(const Key('dashboard-weight-record'))
-                  .evaluate()
-                  .single
-                  .widget
-              as TextButton;
-      weightEntryButton.onPressed!();
-      await settle(tester);
+      await tapVisible(
+        tester,
+        find.byKey(const Key('dashboard-weight-record')),
+      );
+      expect(find.byType(BottomSheet), findsOneWidget);
       await tester.ensureVisible(find.byKey(const Key('weight-input')));
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('weight-input')), '62.5');
       await settle(tester);
-      // 体重保存后的 SnackBar 在测试中不会自动消失，直接调用按钮回调绕过
-      // 被浮层遮挡的命中链；这与下方餐食保存的测试处理一致。
-      final weightSaveButton =
-          find.byKey(const Key('weight-save')).evaluate().single.widget
-              as FilledButton;
-      weightSaveButton.onPressed!();
-      await settle(tester);
+      await tapVisible(tester, find.byKey(const Key('weight-save')));
+      expect(find.byKey(const Key('weight-save')), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
+      final weights = await database.select(database.measurements).get();
+      expect(
+        weights.where((row) => row.weightKg == 62.5),
+        hasLength(1),
+        reason: '体重弹层必须真实保存 62.5 kg，不能只巡检未提交的表单',
+      );
       dismissSnackBar(tester);
       finishAudit('弹层·记录体重');
 
@@ -307,8 +324,7 @@ void main() {
       await settle(tester);
       await tester.tap(find.byTooltip('记录一餐'));
       await settle(tester);
-      await tester.tap(find.byKey(const Key('meal-entry-by-food')));
-      await settle(tester);
+      // 【N-2】chooser 退役：统一记录弹层直接开。
       await tester.enterText(find.byKey(const Key('meal-food-search')), '米饭');
       await settle(tester);
       await tester.tap(find.text('米饭').last);
@@ -320,54 +336,97 @@ void main() {
       await tester.enterText(find.byKey(const Key('meal-grams-item-1')), '180');
       await settle(tester);
       finishAudit('弹层·记录一餐（食物行）');
-      // 第 1 步体重保存的悬浮 SnackBar 在测试环境永不退出，会盖住弹层底部
-      // 按钮行（hit 链被 SnackBar 结构截胡），直调 onPressed 绕过 hit test。
-      final saveButton =
-          find.byKey(const Key('meal-save')).evaluate().single.widget
-              as FilledButton;
-      saveButton.onPressed!();
-      await settle(tester);
+      await tapVisible(tester, find.byKey(const Key('meal-save')));
+      final meals = await mealRepository.listRecent();
+      expect(meals, hasLength(1), reason: '保存必须真正落库；失败后留在弹层不能冒充餐食历史巡检');
+      final meal = meals.single;
+      expect(meal.localDate, '2026-09-13');
+      expect(meal.items, hasLength(2));
+      expect(
+        meal.items.map((item) => item.foodName),
+        unorderedEquals(['米饭', '鸡蛋']),
+      );
+      expect(
+        meal.items.singleWhere((item) => item.foodName == '米饭').grams,
+        180,
+      );
+      expect(find.byKey(const Key('meal-save')), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
       dismissSnackBar(tester);
       await scrollThroughPage(tester);
+      final historyScroll = find.descendant(
+        of: find.byType(CustomScrollView),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Scrollable && widget.axis == Axis.vertical,
+        ),
+      );
+      expect(historyScroll, findsOneWidget);
+      for (final item in meal.items) {
+        final historyRow = find.byKey(Key('meal-food-${item.id}'));
+        // 餐卡在记录页首屏以下，先滚动触发 sliver/查询流构建。
+        await tester.scrollUntilVisible(
+          historyRow,
+          200,
+          scrollable: historyScroll,
+        );
+        await settle(tester);
+        expect(historyRow.hitTestable(), findsOneWidget);
+      }
+      expect(find.text('米饭 180g'), findsOneWidget);
       finishAudit('饮食·餐食历史行');
 
       // 3) 新建食物弹层（表单字段密集）。
       await openChip(tester, '食物库');
-      await tester.tap(find.byTooltip('自建食物'));
+      expect(find.byKey(const Key('food-library-search')), findsOneWidget);
+      final createFood = find.byKey(const Key('cta-new-food'));
+      final createFoodEmpty = find.byKey(const Key('food-search-empty-action'));
+      expect(
+        tester.any(createFood) || tester.any(createFoodEmpty),
+        isTrue,
+        reason: '必须到达食物库并打开真实的新建食物表单',
+      );
+      await tester.tap(tester.any(createFood) ? createFood : createFoodEmpty);
       await settle(tester);
+      expect(find.byKey(const Key('new-food-name')), findsOneWidget);
+      expect(find.byType(BottomSheet), findsOneWidget);
       await scrollThroughPage(tester);
       finishAudit('弹层·新建食物');
       await tester.tap(find.text('取消'));
       await settle(tester);
+      expect(find.byKey(const Key('new-food-name')), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
 
       // 「新建食谱弹层」步骤随食谱整族下线一并删除（docs/28 §6.1）。
 
       // 4) 训练·新建动作弹层（名称 + 两组选项 chips）。
-      // 动作库已收进二级入口（docs/22 裁决 ②）：训练页默认落在计划分段，
-      // 「动作库」行在分段底部；320×640 下它远在懒列表折叠线以下，先拖进
-      // 视口再点。
-      await tester.tap(find.text('训练'));
+      // 【2026-10-25（需求 13b）】动作库已从页面内的 list-link 行迁到**右下
+      // 浮动按钮**（Key `training-exercise-library` 不变）——所以这里不再
+      // 「滚到那行文字出现」。
+      // 【2026-11-02】动作库又收进「上拉三角」：先展开，再点动作库。
+      await tester.tap(find.byKey(const Key('nav-training')));
       await settle(tester);
+      expect(find.byKey(const Key('training-segment-plan')), findsOneWidget);
       // 分段文案按 Round7 A（app.js:216）：计划 → 我的计划。
-      await tester.tap(find.text('我的计划'));
+      await tester.tap(find.byKey(const Key('training-segment-plan')));
       await settle(tester);
-      final libraryEntry = find.text('动作库');
-      if (!tester.any(libraryEntry)) {
-        await tester.dragUntilVisible(
-          libraryEntry,
-          find.byType(Scrollable).first,
-          const Offset(0, -160),
-        );
-        await settle(tester);
-      }
-      await tester.tap(libraryEntry);
+      await tester.tap(find.byKey(const Key('training-actions-toggle')));
       await settle(tester);
+      await tester.tap(find.byKey(const Key('training-exercise-library')));
+      await settle(tester);
+      expect(
+        find.byKey(const Key('training-exercise-library-back')),
+        findsOneWidget,
+      );
       await tester.tap(find.byTooltip('新建动作'));
       await settle(tester);
+      expect(find.byKey(const Key('training-exercise-name')), findsOneWidget);
+      expect(find.byType(BottomSheet), findsOneWidget);
       await scrollThroughPage(tester);
       finishAudit('弹层·新建动作');
       await tester.tap(find.text('取消'));
       await settle(tester);
+      expect(find.byKey(const Key('training-exercise-name')), findsNothing);
+      expect(find.byType(BottomSheet), findsNothing);
       await unmountApp(tester);
     });
   });

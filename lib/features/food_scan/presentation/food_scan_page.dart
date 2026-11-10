@@ -598,7 +598,7 @@ class _FoodScanPageState extends State<FoodScanPage> {
       messages.add(
         const ChatMessageUI(
           key: Key('scan-chat-candidates'),
-          message: '识别完成，请确认下面的结果；可以改克数或换成本地食物。',
+          message: '识别完成，请确认结果；可改克数或换食物。',
           type: MessageType.ai,
         ),
       );
@@ -930,6 +930,8 @@ class _FoodScanPageState extends State<FoodScanPage> {
     final prepare = widget.prepareMealImage;
     if (prepare == null) return;
     await prepare.discard(_image).catchError((_) {});
+    // 丢弃期间页面可能已被关闭（用户返回/换页）：await 之后必须再判一次。
+    if (!mounted) return;
     setState(() {
       _image = null;
       _draft = null;

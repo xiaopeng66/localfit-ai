@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/text/search_text.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/core/validation/entity_name.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
@@ -41,6 +42,59 @@ final class DishLibraryRepository {
   /// 命中「本周热门」的菜品（`isHot`）。
   Stream<List<DishRecord>> watchHot() =>
       watchAll(filter: const DishLibraryFilter(hotOnly: true));
+
+  /// 按 id 取一条菜；不存在返回 null（AI 记餐的 `[dish:id]` 解析用）。
+  Future<DishRecord?> getById(String id) async {
+    final row = await (database.select(
+      database.dishLibrary,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _map(row);
+  }
+
+  /// 精确同名（trim 后全等）查找；0 或多于 1 条都原样返回。
+  ///
+  /// 与 `FoodRepository.searchExact` 同口径：调用方据此区分「找不到」与
+  /// 「有歧义」，不猜。
+  Future<List<DishRecord>> searchExact(String name) async {
+    final normalized = name.trim();
+    if (normalized.isEmpty) return const [];
+    final rows = await (database.select(
+      database.dishLibrary,
+    )..where((row) => row.name.equals(normalized))).get();
+    return rows.map(_map).toList(growable: false);
+  }
+
+  /// 按来源键取菜（食堂菜 → 菜品库同一行）。
+  Future<DishRecord?> findBySource({
+    required String sourceType,
+    required String sourceId,
+  }) async {
+    final row =
+        await (database.select(database.dishLibrary)
+              ..where(
+                (row) =>
+                    row.sourceType.equals(sourceType) &
+                    row.sourceId.equals(sourceId),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _map(row);
+  }
+
+  /// 按名称检索（归一化包含匹配，与记餐/菜品选择弹层同一口径）。
+  ///
+  /// 这是「菜品库侧」的唯一检索入口：AI 记餐解析、记餐弹层、按菜品记录
+  /// 都走它，不再各写一份 `watchAll()` 全量过滤。
+  Future<List<DishRecord>> searchByName(String query, {int limit = 20}) async {
+    final normalized = normalizeSearchText(query);
+    if (normalized.isEmpty) return const [];
+    final all = await watchAll().first;
+    final hits = [
+      for (final dish in all)
+        if (normalizeSearchText(dish.name).contains(normalized)) dish,
+    ];
+    return hits.take(limit).toList(growable: false);
+  }
 
   /// 新增一道菜。
   Future<DishRecord> create(DishDraft draft) async {
@@ -213,11 +267,16 @@ final class DishLibraryRepository {
     // 这一层放在仓储而不是 UI：调用方有三个（自动同步 / backfill / 手动），
     // 策略写在仓储才不会漏。
     if (existing.userEdited) {
-      final record = _updatedPreservingUserNutrition(existing, draft, name);
+      final record = _updatedPreservingUserNutrition(
+        existing,
+        draft,
+        name,
+        sourceAuthoritative: true,
+      );
       await restore(record);
       return record;
     }
-    final record = _updated(existing, draft, name);
+    final record = _updated(existing, draft, name, sourceAuthoritative: true);
     await restore(record);
     return record;
   }
@@ -228,8 +287,9 @@ final class DishLibraryRepository {
   DishRecord _updatedPreservingUserNutrition(
     DishLibraryEntry existing,
     DishDraft draft,
-    String name,
-  ) => DishRecord(
+    String name, {
+    bool sourceAuthoritative = false,
+  }) => DishRecord(
     id: existing.id,
     name: name,
     mealSlot: draft.mealSlot,
@@ -241,18 +301,21 @@ final class DishLibraryRepository {
     source: existing.source,
     createdAt: existing.createdAt,
     updatedAt: clock.nowUtc(),
-    // 照片/窗口/份量是来源侧的排布事实，跟随来源。
-    imagePath: _normalizeText(draft.imagePath),
+    // 照片/窗口是来源侧的排布事实，跟随来源；**份量属于用户手改，冻结**
+    // ——否则来源份量为空时，同步会把用户填的 300g 清回「按 100g 估算」。
+    imagePath: sourceAuthoritative
+        ? _normalizeText(draft.imagePath)
+        : (_normalizeText(draft.imagePath) ?? existing.imagePath),
     servingWindow: _normalizeText(draft.servingWindow),
     isHot: draft.isHot,
     fiberG: existing.fiberG,
     sodiumMg: existing.sodiumMg,
     vitaminDMcg: existing.vitaminDMcg,
-    comment: _normalizeText(draft.comment),
-    servingGrams: draft.servingGrams,
-    basisAssumed: draft.servingGrams == null,
-    sourceType: draft.sourceType,
-    sourceId: draft.sourceId,
+    comment: _normalizeText(draft.comment) ?? existing.comment,
+    servingGrams: existing.servingGrams,
+    basisAssumed: existing.basisAssumed,
+    sourceType: draft.sourceType ?? existing.sourceType,
+    sourceId: draft.sourceId ?? existing.sourceId,
     // 来源证据时间**不动**：动了会让「来源有更新」的陈旧判定以为已同步。
     sourceUpdatedAt: existing.sourceUpdatedAt,
     userEdited: true,
@@ -279,8 +342,9 @@ final class DishLibraryRepository {
   DishRecord _updated(
     DishLibraryEntry existing,
     DishDraft draft,
-    String name,
-  ) => DishRecord(
+    String name, {
+    bool sourceAuthoritative = false,
+  }) => DishRecord(
     id: existing.id,
     name: name,
     mealSlot: draft.mealSlot,
@@ -291,107 +355,37 @@ final class DishLibraryRepository {
     source: draft.source,
     createdAt: existing.createdAt,
     updatedAt: clock.nowUtc(),
-    imagePath: _normalizeText(draft.imagePath),
+    imagePath: sourceAuthoritative
+        ? _normalizeText(draft.imagePath)
+        : (_normalizeText(draft.imagePath) ?? existing.imagePath),
     servingWindow: _normalizeText(draft.servingWindow),
     isHot: draft.isHot,
-    fiberG: draft.fiberG,
-    sodiumMg: draft.sodiumMg,
-    vitaminDMcg: draft.vitaminDMcg,
-    comment: _normalizeText(draft.comment),
-    servingGrams: draft.servingGrams,
-    basisAssumed: draft.servingGrams == null,
-    sourceType: draft.sourceType,
-    sourceId: draft.sourceId,
-    sourceUpdatedAt: draft.sourceUpdatedAt,
+    fiberG: draft.fiberG ?? existing.fiberG,
+    sodiumMg: draft.sodiumMg ?? existing.sodiumMg,
+    vitaminDMcg: draft.vitaminDMcg ?? existing.vitaminDMcg,
+    comment: _normalizeText(draft.comment) ?? existing.comment,
+    // 份量是用户/来源事实，不是「每条更新都重填」的字段：食堂同步
+    // （authoritative）跟随来源；按名更新（AI）不带份量时保留原值，
+    // 否则一次普通改名就会把份量打回「按 100g 估算」。
+    servingGrams: sourceAuthoritative
+        ? draft.servingGrams
+        : (draft.servingGrams ?? existing.servingGrams),
+    basisAssumed:
+        (sourceAuthoritative
+            ? draft.servingGrams
+            : (draft.servingGrams ?? existing.servingGrams)) ==
+        null,
+    // 空草稿（AI 按名更新）不能把食堂来源清掉；否则下一次同步又按名抢回，
+    // 同一行在「有来源 / 无来源」之间来回改写。
+    sourceType: draft.sourceType ?? existing.sourceType,
+    sourceId: draft.sourceId ?? existing.sourceId,
+    sourceUpdatedAt: draft.sourceUpdatedAt ?? existing.sourceUpdatedAt,
     // **只置位、不清零**：自动同步（食堂菜每次写入都会 upsert）不能把用户
     // 「我手改过这一行」的标记抹掉——那是「以后别自动覆盖我」的唯一凭据。
     // 老实现无条件写 `draft.userEdited`（草稿默认 false），一个自动同步就会
     // 静默清掉它（2026-10-24 复核时抓到）。
     userEdited: existing.userEdited || draft.userEdited,
   );
-
-  /// 把来源（食堂菜）最新营养同步进这一行（docs/40 §6 的「同步」动作）。
-  ///
-  /// 只改营养四值与 `sourceUpdatedAt`：**份量模板 `servingGrams` 不动**——
-  /// 那是用户的份量，不是来源的事实。`userEdited` 的拦截在 `DishSourceSync`
-  /// （策略与写分离，仓储只做一次写）。
-  Future<DishRecord> updateNutritionFromSource({
-    required String id,
-    required double kcal,
-    required double proteinG,
-    required double carbsG,
-    required double fatG,
-    required DateTime sourceUpdatedAt,
-  }) async {
-    await (database.update(
-      database.dishLibrary,
-    )..where((row) => row.id.equals(id))).write(
-      DishLibraryCompanion(
-        kcal: Value(kcal),
-        proteinG: Value(proteinG),
-        carbsG: Value(carbsG),
-        fatG: Value(fatG),
-        sourceUpdatedAt: Value(sourceUpdatedAt),
-        updatedAt: Value(clock.nowUtc()),
-      ),
-    );
-    final row = await (database.select(
-      database.dishLibrary,
-    )..where((row) => row.id.equals(id))).getSingle();
-    return _map(row);
-  }
-
-  /// 把菜品库的一行关联到食堂菜（docs/40 §4「确认后才生效」）。
-  ///
-  /// 关联后 `sourceUpdatedAt` 先对齐到来源的 `updatedAt`：刚建立的链接
-  /// 不应该立刻显示「有更新」——用户还没做任何同步动作。
-  ///
-  /// 已关联到**另一条**食堂菜时拒绝（[FormatException]）：同名不同窗口是
-  /// 正常情况，但「一道菜同时指向两个来源」会让陈旧判定失去唯一答案。
-  Future<DishRecord> linkSource({
-    required String id,
-    required String sourceType,
-    required String sourceId,
-    required DateTime sourceUpdatedAt,
-  }) async {
-    final row =
-        await (database.select(database.dishLibrary)
-              ..where((item) => item.id.equals(id))
-              ..limit(1))
-            .getSingleOrNull();
-    if (row == null) {
-      throw const FormatException('菜品不存在，可能已被删除。');
-    }
-    final existing = row.sourceId;
-    if (existing != null && existing.isNotEmpty && existing != sourceId) {
-      throw const FormatException('这道菜已关联另一个食堂菜品。');
-    }
-    await (database.update(
-      database.dishLibrary,
-    )..where((item) => item.id.equals(id))).write(
-      DishLibraryCompanion(
-        sourceType: Value(sourceType),
-        sourceId: Value(sourceId),
-        sourceUpdatedAt: Value(sourceUpdatedAt),
-        updatedAt: Value(clock.nowUtc()),
-      ),
-    );
-    final updated = await (database.select(
-      database.dishLibrary,
-    )..where((item) => item.id.equals(id))).getSingle();
-    return _map(updated);
-  }
-
-  /// 只把 `sourceUpdatedAt` 对齐到来源（同步后「不再陈旧」的落点；
-  /// 也用于把一条已有菜品挂到来源上）。
-  Future<void> updateSourceUpdatedAt({
-    required String id,
-    required DateTime sourceUpdatedAt,
-  }) async {
-    await (database.update(database.dishLibrary)
-          ..where((row) => row.id.equals(id)))
-        .write(DishLibraryCompanion(sourceUpdatedAt: Value(sourceUpdatedAt)));
-  }
 
   /// 删除一道菜，返回被删除的记录（不存在返回 null，供撤销使用）。
   Future<DishRecord?> delete(String id) async {
@@ -401,6 +395,12 @@ final class DishLibraryRepository {
               ..limit(1))
             .getSingleOrNull();
     if (row == null) return null;
+    // 食堂来源菜不能在菜品库直接删：下一次 recordNutrition/改名会经
+    // upsertBySource 又建回来（没有墓碑）。删除必须走食堂目录的「删来源菜」，
+    // 那条路径会级联删掉这一行。
+    if (row.sourceType == kCanteenSourceType) {
+      throw const FormatException('这道菜来自食堂目录，请在食堂目录删除来源菜（菜品库会跟着删）。');
+    }
     await (database.delete(
       database.dishLibrary,
     )..where((row) => row.id.equals(id))).go();

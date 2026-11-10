@@ -7,6 +7,7 @@ import 'package:localfit_ai/app/design/widgets/app_sheet.dart';
 import 'package:localfit_ai/app/design/widgets/app_snack_bar.dart';
 import 'package:localfit_ai/app/placeholder_feature_page.dart';
 import 'package:localfit_ai/core/time/daily_rollover.dart';
+import 'package:localfit_ai/features/dashboard/domain/next_meal_slot.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_ai_entry_card.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_calorie_card.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_greeting_header.dart';
@@ -14,9 +15,11 @@ import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_m
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_next_meal_card.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_quick_stats_row.dart';
 import 'package:localfit_ai/features/dashboard/presentation/sections/dashboard_weight_card.dart';
+import 'package:localfit_ai/features/dashboard/presentation/sections/weight_records_sheet.dart';
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
 import 'package:localfit_ai/features/hydration/domain/water_intake.dart';
 import 'package:localfit_ai/features/hydration/presentation/water_entry_dialog.dart';
+import 'package:localfit_ai/features/hydration/presentation/water_records_sheet.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/progress/data/measurement_repository.dart';
@@ -69,8 +72,8 @@ class DashboardPage extends StatefulWidget {
   /// A 的餐次卡只有「查看全部」；菜单首屏仍在底栏「饮食」页里。
   final VoidCallback? onOpenRecord;
 
-  /// 「记录饮食」（参数 null）/「记录晚餐」（`MealSlot.dinner`）：打开餐食编辑
-  /// 弹层并预选槽位（决策 D9 的一次性意向通道）。路由层负责导航到饮食页。
+  /// 「记录<下一餐>」：按当前时刻算出餐次（[nextMealSlotFor]），打开餐食编辑
+  /// 并预选该餐位（决策 D9 的一次性意向通道）。路由层负责导航到饮食页。
   final ValueChanged<MealSlot?>? onLogMeal;
 
   /// 头像：跳「我的」。
@@ -101,7 +104,7 @@ class _DashboardPageState extends State<DashboardPage> with DailyRollover {
       return const PlaceholderFeaturePage(
         title: '今日',
         icon: Icons.today_outlined,
-        message: '热量、营养目标和今日训练将在这里汇总。',
+        message: '热量、营养与训练汇总。',
       );
     }
     final localDate = _localDate;
@@ -147,6 +150,7 @@ class _DashboardPageState extends State<DashboardPage> with DailyRollover {
               identity: widget.identity,
               onRecordWeight: _recordWeight,
               onAddWater: _addWater,
+              onOpenWaterRecords: _openWaterRecords,
             );
           },
         );
@@ -250,6 +254,28 @@ class _DashboardPageState extends State<DashboardPage> with DailyRollover {
       ),
     );
   }
+
+  /// 长按饮水卡：列当天的记录并允许删一条（A-1，docs/64）。
+  ///
+  /// 空记录时不弹一张空列表——那只是把「没有记录」再说一遍，直接一句提示
+  /// 就够（与卡片空态文案一致）。
+  Future<void> _openWaterRecords(WaterSummary water) async {
+    final repository = widget.waterRepository;
+    if (repository == null) return;
+    if (water.records.isEmpty) {
+      AppSnackBar.show(
+        context,
+        '还没有饮水记录。点卡片可以记一杯。',
+        icon: AppSnackBar.infoIcon,
+      );
+      return;
+    }
+    await showWaterRecordsSheet(
+      context,
+      repository: repository,
+      localDate: _localDate,
+    );
+  }
 }
 
 /// 页面主体：按 Round7 A 变体 A 的卡片顺序排列（`app.js:154`）。
@@ -264,6 +290,7 @@ class _DashboardBody extends StatelessWidget {
     required this.stepsRepository,
     required this.onRecordWeight,
     required this.onAddWater,
+    required this.onOpenWaterRecords,
     this.onOpenAiWorkbench,
     this.onOpenRecord,
     this.onLogMeal,
@@ -281,6 +308,9 @@ class _DashboardBody extends StatelessWidget {
   final Future<void> Function({double? initial, WeightMeasurement? existing})
   onRecordWeight;
   final Future<void> Function(double consumedMl) onAddWater;
+
+  /// 长按饮水卡：看当天记录 / 删错记（A-1）。参数是当时那份汇总（用来判断空态）。
+  final Future<void> Function(WaterSummary water) onOpenWaterRecords;
   final VoidCallback? onOpenAiWorkbench;
   final VoidCallback? onOpenRecord;
   final ValueChanged<MealSlot?>? onLogMeal;
@@ -339,6 +369,13 @@ class _DashboardBody extends StatelessWidget {
                   ),
                   endLocalDate: localDate,
                   onRecord: () => onRecordWeight(),
+                  onOpenRecords: measurementRepository == null
+                      ? null
+                      : () => showWeightRecordsSheet(
+                          context,
+                          repository: measurementRepository!,
+                          measurements: const [],
+                        ),
                 );
               }
               return DashboardWeightCard(
@@ -348,6 +385,13 @@ class _DashboardBody extends StatelessWidget {
                   initial: overview.latest?.weightKg,
                   existing: overview.latest,
                 ),
+                onOpenRecords: measurementRepository == null
+                    ? null
+                    : () => showWeightRecordsSheet(
+                        context,
+                        repository: measurementRepository!,
+                        measurements: overview.measurements,
+                      ),
               );
             },
           ),
@@ -370,29 +414,33 @@ class _DashboardBody extends StatelessWidget {
               return DashboardQuickStatsRow(
                 water: snapshot.data ?? WaterSummary.empty,
                 onTapWater: () => onAddWater(snapshot.data?.consumedMl ?? 0),
+                onLongPressWater: () =>
+                    onOpenWaterRecords(snapshot.data ?? WaterSummary.empty),
                 stepsRepository: stepsRepository,
                 localDate: localDate,
               );
             },
           ),
         gap,
-        // A `nextMeal()`：下一餐预算卡（剩余额度 / 进度轨 / 笔数与目标 /
-        // 记录晚餐）。
+        // A `nextMeal()`：下一餐预算卡（剩余额度 / 进度轨 / 记录按钮）。
+        // 【2026-10-31 用户】下一餐不再固定晚餐：槽位由本页的 `now` 经
+        // [nextMealSlotFor] 算出（0–9 早 / 9–14 午 / 14–20 晚 / 20–24 加餐），
+        // 标题、图标与按钮文案都跟着它走。
         DashboardNextMealCard(
           consumedKcal: summary.consumed.kcal,
           targetKcal: summary.target?.calorieMaxKcal,
-          mealCount: meals.length,
-          onLogDinner: onLogMeal == null
+          slot: nextMealSlotFor(now),
+          onLogMeal: onLogMeal == null
               ? null
-              : () => onLogMeal!(MealSlot.dinner),
+              : () => onLogMeal!(nextMealSlotFor(now)),
         ),
         gap,
-        // A `meals`：今日餐次卡（行列表 / 空态 / 置信摘要 / 记录饮食）。
+        // A `meals`：今日餐次卡（行列表 / 空态 / 置信摘要）。不再画空态
+        // 「记一餐」按钮（2026-10-31 用户：只显示记录）。
         DashboardMealsCard(
           entries: buildMealTimeline(meals: meals),
           meals: meals,
           onViewAll: onOpenRecord,
-          onLogMeal: onLogMeal == null ? null : () => onLogMeal!(null),
         ),
         if (onOpenAiWorkbench != null) ...[
           gap,

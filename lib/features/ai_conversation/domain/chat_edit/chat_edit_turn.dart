@@ -21,6 +21,9 @@ final class ChatEditTurnItem {
     this.status = ChatEditRowStatus.proposed,
     this.resultMessage,
     this.repair,
+    this.itemNotes = const {},
+    this.itemLabels = const {},
+    this.duplicateHint,
   });
 
   /// 在信封 `edits` 数组里的下标（结果回写与重启恢复都按它对位）。
@@ -39,19 +42,54 @@ final class ChatEditTurnItem {
   /// 失败后的可点修复动作（见 [ChatEditRepair]）；没有就为 null。
   final ChatEditRepair? repair;
 
+  /// **应用前**的「今天已有相同记录」提示（2026-11-07 下一版）：例如
+  /// 「今天已经记过米饭，应用时不会重复写入」「今天已有 2 次 250ml 的饮水」。
+  ///
+  /// 只用于上屏提醒（用户在点应用前看见），**不参与执行、不落库**——它是
+  /// 当时的数据快照，重启后由下一次生成重新计算；应用后由 `itemNotes` 的
+  /// 结果说明取代。
+  final String? duplicateHint;
+
+  /// **按食物**的结果说明（2026-11-07 用户）：记餐应用后，每样食物行下面
+  /// 各挂各的说明（「已记入今天的午餐」/「今天已记过，没有重复算」），
+  /// 不再在卡片末尾堆一句汇总。key = 食物名；由执行器填写、随 outcomes
+  /// 落库，重启后原样还原。空 = 该行没有按食物拆分的说明（结果整句由
+  /// 卡片挂到单行命令自己那一行，或留在组尾）。
+  final Map<String, String> itemNotes;
+
+  /// `items[].food` 的展示名（原始引用 → 人话）。**只用于上屏**：卡片行
+  /// 标题、组摘要与数字接地的报错都用它，避免把 `[food:01a16…]` 摆到用户
+  /// 面前。由 `MealItemLabels.resolve` 在解码后/重启加载时填，不写进 raw。
+  final Map<String, String> itemLabels;
+
   ChatEditTurnItem copyWith({
+    int? index,
+    ChatEditCommand? command,
     ChatEditRowStatus? status,
     String? resultMessage,
     ChatEditRepair? repair,
+    Map<Object?, Object?>? raw,
+    Map<String, String>? itemNotes,
+    Map<String, String>? itemLabels,
+    String? duplicateHint,
+    bool clearResultMessage = false,
+    bool clearRepair = false,
   }) {
     return ChatEditTurnItem(
-      index: index,
-      raw: raw,
-      command: command,
+      index: index ?? this.index,
+      // 【docs/66 §5.8】改写 command 参数的地方（日期钉死、选卡重放）必须
+      // 同步更新 raw：落库编码读的是 raw，只改 command 重启就会回退。
+      raw: raw ?? this.raw,
+      command: command ?? this.command,
       decodeError: decodeError,
       status: status ?? this.status,
-      resultMessage: resultMessage ?? this.resultMessage,
-      repair: repair ?? this.repair,
+      resultMessage: clearResultMessage
+          ? null
+          : (resultMessage ?? this.resultMessage),
+      repair: clearRepair ? null : (repair ?? this.repair),
+      itemNotes: itemNotes ?? this.itemNotes,
+      itemLabels: itemLabels ?? this.itemLabels,
+      duplicateHint: duplicateHint ?? this.duplicateHint,
     );
   }
 }
@@ -380,6 +418,9 @@ ChatEditTurnItem _parseRow(
 }
 
 /// 把落库时并进信封的 `outcomes`（[encodeChatEditTurn] 写的）按 index 对位还原。
+///
+/// 【docs/66 §5.8】`status` 优先（`dismissed` 是新落库的状态）；缺 `status`
+/// 的旧数据按 `ok:true/false` 回退（applied/failed），兼容旧版本库里的行。
 ChatEditTurnItem _applyOutcome(
   ChatEditTurnItem item,
   int index,
@@ -388,20 +429,41 @@ ChatEditTurnItem _applyOutcome(
   if (rawOutcomes is! List) return item;
   for (final entry in rawOutcomes) {
     if (entry is! Map || entry['index'] != index) continue;
+    final rawStatus = entry['status'];
+    ChatEditRowStatus? status;
+    if (rawStatus is String) {
+      for (final candidate in ChatEditRowStatus.values) {
+        if (candidate.name == rawStatus) {
+          status = candidate;
+          break;
+        }
+      }
+    }
     final ok = entry['ok'];
-    if (ok is! bool) continue;
+    status ??= ok is bool
+        ? (ok ? ChatEditRowStatus.applied : ChatEditRowStatus.failed)
+        : null;
+    if (status == null) continue;
     final message = entry['message'];
+    final rawNotes = entry['itemNotes'];
+    final notes = <String, String>{
+      if (rawNotes is Map)
+        for (final entry2 in rawNotes.entries)
+          if (entry2.key is String && entry2.value is String)
+            entry2.key as String: entry2.value as String,
+    };
     final parsedRepair = _parseRepair(entry['repair']);
     return item.copyWith(
-      status: ok ? ChatEditRowStatus.applied : ChatEditRowStatus.failed,
+      status: status,
       resultMessage: message is String && message.isNotEmpty ? message : null,
+      itemNotes: notes,
       repair: parsedRepair,
     );
   }
   return item;
 }
 
-/// 解析 `outcomes[].repair`（四类缺实体；形状不认识就当作没有）。
+/// 解析 `outcomes[].repair`（缺实体与双库歧义；形状不认识就当作没有）。
 ChatEditRepair? _parseRepair(Object? raw) {
   if (raw is! Map) return null;
   final name = raw['name'];
@@ -418,6 +480,7 @@ ChatEditRepair? _parseRepair(Object? raw) {
               venueId: raw['venueId']! as String,
             )
           : null,
+    'chooseCatalog' => ChatEditRepair.chooseCatalog(name: trimmed),
     _ => null,
   };
 }
@@ -438,15 +501,22 @@ Map<String, Object?> encodeSuggestion(ChatEditSuggestion suggestion) => {
 
 /// 把编辑提议编码回可落库的文本（与 [parseChatEditTurn] 互逆）：
 /// `{"reply":…,"edits":[原始提议…],"suggestions":[…],"outcomes":[…]}`。
+///
+/// 【docs/66 §5.8】`dismissed` 一并落库（`status` 字段；旧 `ok` 布尔保留以
+/// 兼容旧版 reader）：否则用户忽略过的卡重启后会复活成 `proposed`，又能再
+/// 应用一次。
 String encodeChatEditTurn(ChatEditTurn turn) {
   final outcomes = [
     for (final row in turn.rows)
       if (row.status == ChatEditRowStatus.applied ||
-          row.status == ChatEditRowStatus.failed)
+          row.status == ChatEditRowStatus.failed ||
+          row.status == ChatEditRowStatus.dismissed)
         {
           'index': row.index,
+          'status': row.status.name,
           'ok': row.status == ChatEditRowStatus.applied,
           if (row.resultMessage != null) 'message': row.resultMessage,
+          if (row.itemNotes.isNotEmpty) 'itemNotes': row.itemNotes,
           if (row.decodeError != null && row.resultMessage == null)
             'message': row.decodeError,
           if (row.repair != null)
@@ -466,4 +536,18 @@ String encodeChatEditTurn(ChatEditTurn turn) {
       ],
     if (outcomes.isNotEmpty) 'outcomes': outcomes,
   });
+}
+
+/// 待应用卡摘要（docs/66 §5.9）：压平空白后最多 [kMaxPendingSummaryChars]
+/// 字，超出加「…」；空摘要用「（上一条待应用卡）」。
+///
+/// 手动卡的 `reply` 是**整段原文**——不截断就会把它整段带进后续每轮请求。
+/// 任何新代码都不得把 `turn.reply` 当短摘要直接用，一律走本函数。
+const int kMaxPendingSummaryChars = 240;
+
+String pendingProposalSummaryOf(String reply) {
+  final flat = reply.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (flat.isEmpty) return '（上一条待应用卡）';
+  if (flat.length <= kMaxPendingSummaryChars) return flat;
+  return '${flat.substring(0, kMaxPendingSummaryChars)}…';
 }

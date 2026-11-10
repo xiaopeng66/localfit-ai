@@ -60,7 +60,7 @@ final class FoodReferenceCoordinator {
       case FoodReferenceChoice.adopt:
         // 2026-10-22 用户：引用**用户点中的那条**，不再默认第一条。
         final picked = decision.candidate ?? candidates.first;
-        final error = _adoptFoodReference(dishId, picked);
+        final error = await _adoptFoodReference(dishId, picked);
         // isMounted 已由调用方 guard（页面闭包 () => mounted）。
         if (!isMounted()) return;
         if (error != null) {
@@ -71,26 +71,20 @@ final class FoodReferenceCoordinator {
     }
   }
 
-  /// 「引用食物库营养」落库：证据表写 per100g + 链接置 confirmed（docs/40 §3.1）。
-  /// 返回 null = 成功；文案 = 给用户的错误提示（调用方用 SnackBar 呈现）。
-  String? _adoptFoodReference(String dishId, FoodReferenceCandidate candidate) {
+  /// 「引用食物库」落库：把供应**链接**到主食物（docs/67 §3.3）。
+  /// 返回 null = 成功；文案 = 给用户的错误提示。
+  ///
+  /// 2026-11-09（docs/67 P2-U21）：旧实现把每 100g 复制进证据表，等于给
+  /// 供应存了第二套当前营养；现在只落实**权威链接**，营养从主修订派生。
+  /// 链接与匹配确认在同一事务里，不留"界面说成功、链接仍是 suggested"。
+  Future<String?> _adoptFoodReference(
+    String dishId,
+    FoodReferenceCandidate candidate,
+  ) async {
     try {
-      repository.recordNutrition(
+      await repository.linkSupplyToFood(
         dishId: dishId,
-        kcalPer100g: candidate.kcalPer100g,
-        proteinPer100g: candidate.proteinPer100g,
-        carbsPer100g: candidate.carbsPer100g,
-        fatPer100g: candidate.fatPer100g,
-        // 证据等级沿用食物条目的状态（verified→A / 自建→B / 其他→C）：
-        // 引用的可信度就是食物那条数据的可信度，不重新发明一档。
-        grade: switch (candidate.state) {
-          'verified' => 'A',
-          'user_created' => 'B',
-          _ => 'C',
-        },
-        confidence: candidate.confidence,
-        origin: 'food_library',
-        sourceText: '引用食物库「${candidate.foodName}」',
+        foodId: candidate.foodId,
       );
       return null;
     } on CanteenWriteException catch (error) {

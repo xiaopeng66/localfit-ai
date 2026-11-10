@@ -9,12 +9,12 @@ import 'package:localfit_ai/app/design/lf_tokens.dart';
 import 'package:localfit_ai/app/design/widgets/design_card.dart';
 import 'package:localfit_ai/app/design/widgets/lf_badge.dart';
 import 'package:localfit_ai/app/design/widgets/lf_food_kcal_ring.dart';
+import 'package:localfit_ai/app/design/widgets/lf_top_bar.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_category.dart';
-import 'package:localfit_ai/features/nutrition/domain/food_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart';
 import 'package:localfit_ai/features/nutrition/presentation/meal_editor_dialog.dart';
 import 'package:localfit_ai/features/nutrition/presentation/food_category_icon.dart';
@@ -327,7 +327,26 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Prosciutto Cotto火腿片'), findsOneWidget);
-      expect(find.text('Beretta'), findsNothing, reason: '品牌前缀已拆掉');
+      // 【2026-10-25 断言语义更正（需求 18）】原断言是「卡面上完全找不到
+      // 『Beretta』」——那在「品牌内联成 ` · Beretta`」时成立（精确匹配不到），
+      // 但**不是这条想测的东西**：它要测的是「名称字段里的品牌前缀被拆掉了」。
+      // 需求 18 把品牌改成独立一行后，`find.text('Beretta')` 会命中品牌位，
+      // 于是旧断言变成「品牌不许显示」——与 R8/需求 18 直接冲突。
+      // 现在按**名称字段**断言（这才是清洗规则的判据），品牌位单独钉。
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('food-card-name-seed-fc-1')))
+            .data,
+        isNot(contains('Beretta')),
+        reason: '名称里的品牌前缀必须被拆掉',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('food-card-brand-seed-fc-1')))
+            .data,
+        'Beretta',
+        reason: '拆出来的品牌落到品牌位（需求 18：名称下一行）',
+      );
     });
 
     testWidgets('数据层的品牌列现在进卡面（内联，不追加行高）——`RV4-P2-11`', (tester) async {
@@ -534,13 +553,15 @@ void main() {
         expect(find.text(slot.label), findsOneWidget);
       }
 
-      // 默认午餐选中：选中是 primary 实底，未选是 muted 底。
-      expect(pillColor(tester, '午餐'), LfSemanticColors.light.primary);
+      // 默认午餐选中：选中是品牌实底（brandStrong），未选是 muted 底。
+      // 【2026-10-29】实心面带文字的档位统一 brandStrong + onBrandStrong
+      // （旧档 primary + 深墨字被用户判「看不清」）。
+      expect(pillColor(tester, '午餐'), LfColors.brandStrong(Brightness.light));
       expect(pillColor(tester, '早餐'), LfSemanticColors.light.muted);
 
       await tester.tap(find.text('早餐'));
       await tester.pumpAndSettle();
-      expect(pillColor(tester, '早餐'), LfSemanticColors.light.primary);
+      expect(pillColor(tester, '早餐'), LfColors.brandStrong(Brightness.light));
       expect(pillColor(tester, '午餐'), LfSemanticColors.light.muted);
     });
 
@@ -556,18 +577,45 @@ void main() {
       expect(find.text('搜索并添加食物'), findsOneWidget);
     });
 
+    testWidgets('搜索候选列表首末各留 spaceTiny，三卡高度预算仍成立', (tester) async {
+      await pumpEditor(tester);
+      await tester.enterText(find.byKey(const Key('meal-food-search')), '鸡');
+      await tester.pumpAndSettle();
+
+      final list = tester.widget<ListView>(
+        find.descendant(
+          of: find.byType(MealEditorDialog),
+          matching: find.byType(ListView),
+        ),
+      );
+      expect(
+        list.padding,
+        const EdgeInsets.symmetric(vertical: LfDimens.spaceTiny),
+        reason: '首末候选都不能贴住滚动区边缘；间距必须与实现共用 token',
+      );
+      // 三行 56 + 两条 spaceTiny 间距 + 上下各 spaceTiny 内衬 = 192，
+      // 与结果区高度一致（本工程 spaceTiny = 6）。
+      expect(3 * 56 + 4 * LfDimens.spaceTiny, 192);
+    });
+
     testWidgets('空查询的结果提示不占一大块空白（合计卡才不会被挤出可视区）', (tester) async {
       await pumpEditor(tester);
 
-      expect(find.text('输入名称搜索本地食物'), findsOneWidget);
+      expect(find.text('输入名称搜索食物库与菜品库'), findsOneWidget);
       final searchBottom = tester
           .getRect(find.byKey(const Key('meal-food-search')))
           .bottom;
       final addedTop = tester.getRect(find.text('已添加')).top;
       // 固定 168dp 结果区时这里约 190dp；零高度提示时约 52dp。
+      // 【2026-10-29（N-2）】提示区新增常驻「手动添加食材」入口（约 44dp），
+      // 上限放宽到 120。
+      // 【2026-10-30 再放宽到 132，记理由】用户「手动添加食材的按钮太丑」：
+      // 虚线小胶囊（28dp）改成与检索结果同形态的整行入口（40dp 图标 +
+      // 标题 + 副标题，实测 56dp + 间距）。仍是**固定增高**、不随结果数
+      // 变化；判据的实质（空查询不预留整块列表的 190dp）不变。
       expect(
         addedTop - searchBottom,
-        lessThan(90),
+        lessThan(132),
         reason: '空查询时结果区不该预留列表高度，否则合计卡被切在滚动区之外',
       );
     });
@@ -579,15 +627,22 @@ void main() {
       // 米饭 116 kcal/100g，默认份量 100g。
       expect(find.text('米饭'), findsOneWidget);
       expect(find.text('116 kcal'), findsNWidgets(2), reason: '条目卡 + 合计卡');
-      expect(find.text('蛋白质 2.6g'), findsNWidgets(2));
-      expect(find.text('按当前克数'), findsOneWidget);
+      // 【2026-10-31 用户（round11/editor）：卡压成两行】「按当前克数」并入
+      // kcal 的 tooltip；条目卡宏量改短词「蛋白」（合计卡保留全称，两处
+      // 视觉档不同——条目卡一行三组，合计卡整行只有一组）。
+      expect(find.text('蛋白质 2.6g'), findsOneWidget, reason: '合计卡保留全称');
+      expect(find.text('蛋白 2.6g'), findsOneWidget, reason: '条目卡用短词');
+      expect(find.textContaining('按当前克数'), findsNothing);
 
       await tester.enterText(gramsField(), '200');
       await tester.pumpAndSettle();
 
       expect(find.text('232 kcal'), findsNWidgets(2));
-      expect(find.text('蛋白质 5.2g'), findsNWidgets(2));
+      expect(find.text('蛋白 5.2g'), findsOneWidget, reason: '条目卡短词（蛋白无「质」）');
+      expect(find.text('蛋白质 5.2g'), findsOneWidget, reason: '合计卡全称');
+      // 碳水/脂肪长短同形：两卡各一份。（米饭 200g = 碳水 51.8 / 脂肪 0.6）
       expect(find.text('碳水 51.8g'), findsNWidgets(2));
+      expect(find.text('脂肪 0.6g'), findsNWidgets(2));
       expect(find.text('116 kcal'), findsNothing);
     });
 
@@ -613,11 +668,16 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('139 kcal / 100g'), findsOneWidget);
 
-      Future<List<FoodRecord>>? currentFuture() => tester
-          .widget<FutureBuilder<List<FoodRecord>>>(
-            find.byType(FutureBuilder<List<FoodRecord>>),
-          )
-          .future;
+      // 【N-2】结果 future 类型从 `List<FoodRecord>` 改为合并命中
+      // `List<_SearchHit>`（私有类型）——泛型在运行时具体化，按谓词取
+      // FutureBuilder 本体再读 future。
+      Future<Object?>? currentFuture() {
+        final builder = tester.widget<FutureBuilder<Object?>>(
+          find.byWidgetPredicate((w) => w is FutureBuilder),
+        );
+        return builder.future;
+      }
+
       final before = currentFuture();
       expect(before, isNotNull);
 
@@ -680,6 +740,107 @@ void main() {
       await tester.tap(find.byKey(const Key('meal-save')));
       await tester.pumpAndSettle();
       expect(find.text('食物克数必须是大于零的数值。'), findsOneWidget);
+    });
+
+    // 【2026-11-02 用户】「这些控件的水平位置要固定，比如删除按钮，每个卡片
+    // 都不一样」——旧行 `Flexible(名称) + Expanded(克数)` 让删除钮随名称长度
+    // 漂移。现在固定列：克数 92、kcal 84、删除 44。
+    testWidgets('条目卡的删除按钮水平位置固定（名称长短不影响）', (tester) async {
+      final stamp = DateTime.utc(2026, 9, 9);
+      MealItemRecord item(String id, String name) => MealItemRecord(
+        id: id,
+        foodName: name,
+        grams: 100,
+        nutrition: const NutritionValues(
+          kcal: 120,
+          proteinGrams: 4,
+          carbsGrams: 20,
+          fatGrams: 3,
+        ),
+        createdAt: stamp,
+        updatedAt: stamp,
+      );
+      tester.view.physicalSize = const Size(900, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        host(
+          MealEditorDialog(
+            foodRepository: repository,
+            localDate: '2026-09-09',
+            initialMeal: MealRecord(
+              id: 'meal-1',
+              localDate: '2026-09-09',
+              slot: MealSlot.lunch,
+              eatenAt: stamp,
+              source: 'manual',
+              createdAt: stamp,
+              updatedAt: stamp,
+              items: [
+                item('short', '蛋'),
+                item('long', '君乐宝简醇0蔗糖酸奶（大桶装家庭分享版）'),
+                item('mid', '米饭'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // `_EditableItem.id` 是弹层内递增计数器（不是 MealItemRecord.id），
+      // 所以按卡内食物名找它同一张卡里的删除钮。
+      Finder deleteOf(String name) => find.descendant(
+        of: find
+            .ancestor(of: find.text(name), matching: find.byType(MutedBlock))
+            .first,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is LfCircleIconButton &&
+              (widget.tooltip ?? '').startsWith('删除'),
+        ),
+      );
+      Finder gramsOf(String name) => find.descendant(
+        of: find
+            .ancestor(of: find.text(name), matching: find.byType(MutedBlock))
+            .first,
+        matching: find.byType(TextFormField),
+      );
+
+      final names = const ['蛋', '君乐宝简醇0蔗糖酸奶（大桶装家庭分享版）', '米饭'];
+      final rects = [for (final name in names) tester.getRect(deleteOf(name))];
+      for (var i = 1; i < rects.length; i++) {
+        expect(
+          rects[i].left,
+          closeTo(rects[0].left, 0.5),
+          reason:
+              '删除按钮必须对齐：第 ${i + 1} 张卡偏了 '
+              '${(rects[i].left - rects[0].left).abs()}dp',
+        );
+        expect(rects[i].width, closeTo(rects[0].width, 0.5));
+      }
+      final gramsRects = [
+        for (final name in names) tester.getRect(gramsOf(name)),
+      ];
+      // 【2026-11-03 用户：克数在名称后边、删除按钮前边】克数不再固定 left
+      // （名称是 Expanded，克数跟着名称宽度走），但「克数右缘 → 删除钮」的
+      // 间距必须恒定，且克数宽度固定。
+      for (var i = 0; i < gramsRects.length; i++) {
+        expect(
+          gramsRects[i].width,
+          closeTo(gramsRects[0].width, 0.5),
+          reason: '克数输入框宽度必须固定',
+        );
+        final gap = rects[i].left - gramsRects[i].right;
+        final baseGap = rects[0].left - gramsRects[0].right;
+        expect(
+          gap,
+          closeTo(baseGap, 0.5),
+          reason:
+              '克数与删除钮的间距必须恒定：第 ${i + 1} 张卡偏了 '
+              '${(gap - baseGap).abs()}dp',
+        );
+      }
     });
   });
 }

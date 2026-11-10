@@ -333,7 +333,3 @@ final class WorkerEmbeddingEngine implements EmbeddingEngine {
 
 /// 把 `[List<double>]` 压成 `Float32List`（写 `embedding_index.vector` 用）；
 /// 与 `SemanticRuntime` 的编解码同口径，放在这里供 worker 侧复用。
-Uint8List float32Bytes(List<double> vector) {
-  final data = Float32List.fromList(vector);
-  return data.buffer.asUint8List();
-}

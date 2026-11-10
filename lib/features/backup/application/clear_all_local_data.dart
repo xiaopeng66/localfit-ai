@@ -53,9 +53,14 @@ final class ClearAllLocalData {
     await database.transaction(() async {
       await database.delete(database.workoutSets).go();
       await database.delete(database.workoutSessions).go();
+      // Cardio prescriptions reference planned exercises with NO ACTION;
+      // remove them before the planned-exercise parent.
+      await database.delete(database.cardioPrescriptions).go();
       await database.delete(database.plannedExercises).go();
       await database.delete(database.workoutDays).go();
       await database.delete(database.workoutPlans).go();
+      // Recognition results may point at meals with a restrictive FK.
+      await database.delete(database.recognitionResults).go();
       await database.delete(database.mealItems).go();
       await database.delete(database.meals).go();
       // 2026-10-23 用户：「清除本地数据不清内置食物；导入的食物都属内置，
@@ -152,9 +157,14 @@ final class ClearAllLocalData {
     await database.transaction(() async {
       await database.delete(database.workoutSets).go();
       await database.delete(database.workoutSessions).go();
+      // Cardio prescriptions reference planned exercises with NO ACTION;
+      // remove them before the planned-exercise parent.
+      await database.delete(database.cardioPrescriptions).go();
       await database.delete(database.plannedExercises).go();
       await database.delete(database.workoutDays).go();
       await database.delete(database.workoutPlans).go();
+      // Recognition results may point at meals with a restrictive FK.
+      await database.delete(database.recognitionResults).go();
       await database.delete(database.mealItems).go();
       await database.delete(database.meals).go();
       await database.delete(database.foodAliases).go();

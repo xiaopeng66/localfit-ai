@@ -318,6 +318,33 @@ void main() {
     },
   );
 
+  test(
+    'removing a plan deletes restrictive cardio prescriptions first',
+    () async {
+      final planId = await seedPlan();
+      final planned =
+          (await database.select(database.plannedExercises).get()).first;
+      await database
+          .into(database.cardioPrescriptions)
+          .insert(
+            CardioPrescriptionsCompanion.insert(
+              id: 'cardio-1',
+              plannedExerciseId: planned.id,
+              kind: 'duration',
+              value: 30,
+              unit: 'min',
+            ),
+          );
+
+      expect(await plans.removePlan(planId), isTrue);
+      expect(
+        await database.select(database.cardioPrescriptions).get(),
+        isEmpty,
+      );
+      expect(await database.select(database.plannedExercises).get(), isEmpty);
+    },
+  );
+
   test('lists plan summaries newest first', () async {
     final firstId = await seedPlan();
     final secondId = await plans.create(

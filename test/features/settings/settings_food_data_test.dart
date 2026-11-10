@@ -195,6 +195,14 @@ void main() {
     await tester.pumpWidget(page());
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('settings-backup-hub')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-backup-hub')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('backup-export-foods-csv')));
     await tester.pumpAndSettle();
 

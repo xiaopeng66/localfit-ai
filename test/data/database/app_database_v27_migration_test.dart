@@ -2,18 +2,68 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
+import 'package:localfit_ai/features/ai_memory/data/ai_memory_repository.dart';
+import 'package:localfit_ai/features/ai_memory/domain/ai_memory.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 /// S11（docs/38 §6.1）：schema 26 → 27 —— **纯加法**（AI 长期记忆表）。
 ///
 /// 加法迁移的失败模式：按版本区间猜「表在不在」、把旧库里的行误伤、
 /// 或重开已升过的库时重复建表。这里钉三件事：
-/// 1. v26 老库升级后 `ai_memories` 在、旧数据一字不动、新表可读；
-/// 2. 全新安装（onCreate）直接带这张表；
-/// 3. 幂等：已升到 27 的库再打开不抛。
+/// 1. v26 老库升到当前 schema，旧数据保全，生产仓库可读写当前记忆；
+/// 2. 全新安装（onCreate）的同一写入路径也可用；
+/// 3. 幂等：重开升级后的库不会重建表或丢掉已保存记忆。
 void main() {
   late Directory tempDir;
+  final now = DateTime.utc(2026, 11, 10, 12);
+
+  AiMemoryRepository repositoryFor(AppDatabase database) => AiMemoryRepository(
+    database: database,
+    clock: FixedAppClock(now),
+    idGenerator: const UuidV7Generator(),
+    // 不接向量索引：这里只验证本地持久层，不触发嵌入或其它外呼。
+  );
+
+  Future<AiMemoryRow> expectRememberWorks(AppDatabase database) async {
+    final repository = repositoryFor(database);
+    final memory = await repository.remember(
+      text: '周三晚饭后散步',
+      kind: AiMemoryKind.habit,
+      domain: AiMemoryDomain.training,
+      tags: ['散步'],
+      source: 'manual',
+    );
+    final row = (await database.select(database.aiMemories).get()).single;
+    expect(row.id, memory.id);
+    expect(row.textContent, '周三晚饭后散步');
+    expect(row.kind, 'habit');
+    expect(row.domain, 'training');
+    expect(decodeAiMemoryTags(row.tagsJson), ['散步']);
+    expect(row.source, 'manual');
+    expect(row.status, 'active');
+    expect(row.pinned, isFalse);
+    expect(row.importance, 50);
+    expect(row.useCount, 0);
+    expect(row.lastUsedAt, isNull);
+    expect(row.supersededById, isNull);
+    expect(row.expiresAt, isNull);
+    // SQLite 存时间戳，Drift 读回可为本地时区；比较同一 UTC 时刻而非时区标志。
+    expect(row.createdAt.toUtc(), now);
+    expect(row.updatedAt.toUtc(), now);
+    expect(row.validFrom?.toUtc(), now);
+    expect(row.validTo, isNull);
+
+    final active = (await repository.listActive()).single;
+    expect(active.id, memory.id);
+    expect(active.text, '周三晚饭后散步');
+    expect(active.kind, AiMemoryKind.habit);
+    expect(active.domain, AiMemoryDomain.training);
+    expect(active.validFrom?.toUtc(), now);
+    return row;
+  }
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('localfit-v27-');
@@ -23,7 +73,7 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  test('v26 老库升级：ai_memories 建出来，旧数据一字不动', () async {
+  test('v26 老库升级：记忆生产读写可用，旧数据一字不动', () async {
     final file = File(
       '${tempDir.path}${Platform.pathSeparator}localfit.sqlite',
     );
@@ -36,11 +86,6 @@ void main() {
         .customSelect('PRAGMA user_version')
         .getSingle();
     expect(version.data['user_version'], database.schemaVersion);
-    // 2026-10-19（S14 / docs/41 §11）：当时当前 schema 是 29；本用例的意图是
-    // 「升到当前版」，不是钉住某个历史版本号。
-    // 2026-10-21（ADR-036）：现在是 30（foods DROP 17 列）——本条跟着当前值走，
-    // 断言的仍是「v26 老库能一路升到现在」。
-    expect(database.schemaVersion, 30);
 
     final tables =
         (await database
@@ -63,27 +108,41 @@ void main() {
     expect(tables, containsAll(['embedding_index', 'background_jobs']));
     expect(await database.select(database.embeddingIndex).get(), isEmpty);
     expect(await database.select(database.backgroundJobs).get(), isEmpty);
+    await expectRememberWorks(database);
+    expect(
+      (await database.select(database.appSettings).get()).single.value,
+      'kept',
+    );
   });
 
-  test('全新安装：建表即带 ai_memories', () async {
+  test('全新安装：记忆生产仓库读写与时间语义可用', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
     expect(await database.select(database.aiMemories).get(), isEmpty);
+    await expectRememberWorks(database);
   });
 
-  test('幂等：已升到当前版的库再打开不抛', () async {
+  test('幂等：重开已升级库保全全部记忆字段和旧设置', () async {
     final file = File(
       '${tempDir.path}${Platform.pathSeparator}localfit-again.sqlite',
     );
     _createV26Database(file.path);
 
     final first = AppDatabase(NativeDatabase(file));
-    await first.customSelect('SELECT 1').get();
-    await first.close();
+    late final AiMemoryRow saved;
+    try {
+      saved = await expectRememberWorks(first);
+    } finally {
+      await first.close();
+    }
 
     final second = AppDatabase(NativeDatabase(file));
     addTearDown(second.close);
-    expect(await second.select(second.aiMemories).get(), isEmpty);
+    expect(await second.select(second.aiMemories).get(), [saved]);
+    final active = (await repositoryFor(second).listActive()).single;
+    expect(active.id, saved.id);
+    expect(active.text, '周三晚饭后散步');
+    expect(active.validFrom?.toUtc(), now);
     expect(
       (await second.select(second.appSettings).get()).single.value,
       'kept',

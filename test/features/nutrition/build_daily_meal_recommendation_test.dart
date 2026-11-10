@@ -1,12 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/app/design/widgets/lf_evidence_badge.dart'
     show LfEvidenceGrade;
+import 'package:localfit_ai/features/daily_plan/domain/planning_constraints.dart';
 import 'package:localfit_ai/features/nutrition/application/build_daily_meal_recommendation.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
 import 'package:localfit_ai/features/nutrition/domain/meal_evidence.dart'
     show evidenceGradeForSource;
 import 'package:localfit_ai/features/nutrition/domain/meal_record.dart'
     show MealSlot;
+import 'package:localfit_ai/features/retrieval/application/feedback_store.dart';
 
 /// 三餐推荐引擎（docs/28 §4.3）：六条规则逐条钉住。
 ///
@@ -291,9 +293,118 @@ void main() {
       );
       expect(forSlot(result, MealSlot.lunch).primary?.id, 'near');
     });
+
+    test('两次「不错」在同证据等级内优先于预算距离', () {
+      final feedback = FeedbackStore();
+      feedback.record('liked dish', FeedbackVote.like);
+      feedback.record('liked dish', FeedbackVote.like); // 达到 2 次门槛
+      final result = buildDailyMealRecommendation(
+        dishes: [
+          dish(id: 'liked', name: 'Liked Dish', kcal: 400),
+          dish(id: 'near', name: 'Near Dish', kcal: 780),
+        ],
+        dailyTargetKcal: 2000, // 午餐预算 800：near 原本更贴合
+        nowMinute: 10 * 60,
+        feedback: feedback,
+      );
+      expect(forSlot(result, MealSlot.lunch).primary?.id, 'liked');
+    });
+
+    test('一次「不错」样本不足，不改变排序；反馈也不能越过证据等级', () {
+      final oneLike = FeedbackStore()..record('liked dish', FeedbackVote.like);
+      final oneSample = buildDailyMealRecommendation(
+        dishes: [
+          dish(id: 'liked', name: 'Liked Dish', kcal: 400),
+          dish(id: 'near', name: 'Near Dish', kcal: 780),
+        ],
+        dailyTargetKcal: 2000,
+        nowMinute: 10 * 60,
+        feedback: oneLike,
+      );
+      expect(forSlot(oneSample, MealSlot.lunch).primary?.id, 'near');
+
+      final feedback = FeedbackStore();
+      feedback.record('liked dish', FeedbackVote.like);
+      feedback.record('liked dish', FeedbackVote.like);
+      final gradeFirst = buildDailyMealRecommendation(
+        dishes: [
+          dish(
+            id: 'liked-estimated',
+            name: 'Liked Dish',
+            kcal: 780,
+            source: 'ai_estimate',
+          ),
+          dish(
+            id: 'confirmed',
+            name: 'Confirmed Dish',
+            kcal: 400,
+            source: 'manual',
+          ),
+        ],
+        dailyTargetKcal: 2000,
+        nowMinute: 10 * 60,
+        feedback: feedback,
+      );
+      expect(
+        forSlot(gradeFirst, MealSlot.lunch).primary?.id,
+        'confirmed',
+        reason: '已确认数据永远优先于 AI 估算，点赞不能推翻证据等级',
+      );
+    });
   });
 
   group('规则 6 不猜：空态的成因与行动', () {
+    test('忌口从候选里硬过滤；全被过滤时说清是饮食约束', () {
+      final constraints = const PlanningConstraints(allergenAvoidances: ['花生']);
+      final result = buildDailyMealRecommendation(
+        dishes: [
+          dish(id: 'peanut', name: '花生酱拌面', kcal: 500),
+          dish(id: 'safe', name: '鸡胸肉饭', kcal: 500),
+        ],
+        nowMinute: 10 * 60,
+        constraints: constraints,
+      );
+      expect(
+        forSlot(result, MealSlot.lunch).primary?.id,
+        'safe',
+        reason: '花生被列为忌口后，本地推荐不能再推花生酱',
+      );
+
+      final allBlocked = buildDailyMealRecommendation(
+        dishes: [dish(id: 'peanut', name: '花生酱拌面', kcal: 500)],
+        nowMinute: 10 * 60,
+        constraints: constraints,
+      );
+      final lunch = forSlot(allBlocked, MealSlot.lunch);
+      expect(lunch.state, MealRecommendationState.empty);
+      expect(lunch.reason, contains('饮食约束'));
+    });
+
+    test('素食标签排除常见肉/鱼菜，但不误伤鸡蛋和牛奶', () {
+      final constraints = const PlanningConstraints(
+        dietaryLabels: [DietaryLabel.vegetarian],
+      );
+      final result = buildDailyMealRecommendation(
+        dishes: [
+          dish(id: 'meat', name: '红烧牛肉', kcal: 500),
+          dish(id: 'fish', name: '清蒸鲈鱼', kcal: 500),
+          dish(id: 'egg', name: '番茄炒蛋', kcal: 300),
+          dish(id: 'milk', name: '牛奶燕麦', kcal: 300),
+        ],
+        nowMinute: 10 * 60,
+        constraints: constraints,
+      );
+      final lunch = forSlot(result, MealSlot.lunch);
+      final names = [
+        lunch.primary?.name,
+        ...lunch.alternatives.map((d) => d.name),
+      ];
+      expect(names, isNot(contains('红烧牛肉')));
+      expect(names, isNot(contains('清蒸鲈鱼')));
+      expect(names, contains('番茄炒蛋'));
+      expect(names, contains('牛奶燕麦'));
+    });
+
     test('一条候选都没有时说「还没有已分析的菜品」', () {
       final result = buildDailyMealRecommendation(
         dishes: const [],

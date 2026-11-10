@@ -36,8 +36,7 @@ void main() {
         _expectIntake(tester, consumed: 0, last: null, average: null);
         await tester.tap(find.byKey(const Key('nutrition-record-fab')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('meal-entry-by-food')));
-        await tester.pumpAndSettle();
+        // 【N-2】chooser 退役：统一记录弹层直接开。
         await tester.enterText(
           find.byKey(const Key('meal-food-search')),
           'Regression Rice',
@@ -74,9 +73,13 @@ void main() {
         _expectIntake(tester, consumed: 100, last: 100, average: 100);
         await tester.tap(find.byKey(Key('meal-$id')));
         await tester.pumpAndSettle();
+        // 【N-3】克数字段标签退役、单位 g 进输入框右缘后缀。
         final grams = tester.widget<AppNumberField>(
           find.byWidgetPredicate(
-            (widget) => widget is AppNumberField && widget.label == '克数',
+            (widget) =>
+                widget is AppNumberField &&
+                widget.suffixText == 'g' &&
+                widget.label.isEmpty,
           ),
         );
         await tester.enterText(find.byKey(grams.fieldKey), '200');
@@ -99,11 +102,13 @@ void main() {
       final id = await h.addMeal();
       await h.pumpApp(tester);
       _expectIntake(tester, consumed: 100, last: 100, average: 100);
-      await tester.tap(find.byKey(Key('meal-manage-$id')));
+      // 【2026-10-31 改写（⋮ 管理菜单随整卡编辑退役，强度不降）】单条删除
+      // 走既有的「长按多选 → 批量删除」通道（同一确认弹层、同一删除动作）。
+      await tester.longPress(find.byKey(Key('meal-$id')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('删除'));
+      await tester.tap(find.byKey(const Key('meals-bulk-delete')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('meal-delete-confirm')));
+      await tester.tap(find.byKey(const Key('meals-bulk-delete-confirm')));
       await tester.pumpAndSettle();
 
       expect(await h.meals.getById(id), isNull);
@@ -309,7 +314,7 @@ void main() {
         await h.addMeal(grams: 300);
         await h.addMeal(date: '2026-09-07');
         await h.addMeal(date: '2026-09-02', grams: 40);
-        await h.addMeal(date: '2026-09-12', grams: 900);
+        await h.seedFutureMeal(date: '2026-09-12', grams: 900);
         await h.pumpApp(tester);
         expect(_week(tester).bars.kcalByDay[4], 300);
         await tester.tap(find.byKey(const Key('meal-day-2026-09-07')));
@@ -355,14 +360,14 @@ void main() {
     (tester) async {
       final h = await _Harness.create();
       try {
-        await h.addMeal(date: '2026-07-27', grams: 80);
-        final friday = await h.addMeal(date: '2026-07-31', grams: 240);
-        await h.addMeal(date: '2026-08-02', grams: 160);
-        await h.addMeal(date: '2026-08-03', grams: 900);
+        await h.addMeal(date: '2026-08-24', grams: 80);
+        final friday = await h.addMeal(date: '2026-08-28', grams: 240);
+        await h.addMeal(date: '2026-08-30', grams: 160);
+        await h.addMeal(date: '2026-08-31', grams: 900);
         final windows = <(int, DateTime)>[];
         await h.pumpRecord(
           tester,
-          selected: DateTime(2026, 7, 27),
+          selected: DateTime(2026, 8, 24),
           loader: (days, end) {
             windows.add((days, end));
             return h.trend.run(days: days, endDate: end);
@@ -371,10 +376,10 @@ void main() {
 
         expect(
           windows,
-          [(7, DateTime(2026, 7, 27)), (6, DateTime(2026, 8, 2))],
+          [(7, DateTime(2026, 8, 24)), (6, DateTime(2026, 8, 30))],
           reason: 'Historical weeks must not scan the intervening months up to today.',
         );
-        expect(_week(tester).bars.dates.last, '2026-08-02');
+        expect(_week(tester).bars.dates.last, '2026-08-30');
         expect(_week(tester).bars.kcalByDay, [
           80,
           null,
@@ -389,7 +394,7 @@ void main() {
               ..where((row) => row.mealId.equals(friday)))
             .write(const MealItemsCompanion(kcalSnapshot: Value(320)));
         await tester.pumpAndSettle();
-        expect(_week(tester).selectedDate, DateTime(2026, 7, 27));
+        expect(_week(tester).selectedDate, DateTime(2026, 8, 24));
         expect(_week(tester).bars.kcalByDay, [
           80,
           null,
@@ -516,6 +521,9 @@ class _Harness {
   final AppDatabase db;
   final FoodRepository foods;
   final MealRepository meals;
+
+  /// 直插脏数据用的序号（见 [seedFutureMeal]）。
+  int _futureSeq = 0;
   LoadIntakeTrend get trend => LoadIntakeTrend(
     database: db,
     mealRepository: meals,
@@ -564,6 +572,52 @@ class _Harness {
     );
   }
 
+  /// 直接落库造一条「未来日期」的餐（**绕开仓储**）。
+  ///
+  /// B-2（docs/64）起 `MealRepository` 拒绝写未来日期，所以这类行只可能来自
+  /// 加固前的历史数据。周图「不把未来的餐算进今天」这条显示口径仍必须成立，
+  /// 因此这里用 drift 直插复现那条脏数据，而不是把断言删掉。
+  Future<String> seedFutureMeal({
+    required String date,
+    required double grams,
+  }) async {
+    final food = (await foods.search('Regression Rice')).single;
+    final id = 'future-${_futureSeq++}';
+    await db.transaction(() async {
+      await db
+          .into(db.meals)
+          .insert(
+            MealsCompanion.insert(
+              id: id,
+              localDate: date,
+              slot: MealSlot.lunch.storedValue,
+              source: 'manual',
+              eatenAt: _now,
+              createdAt: _now,
+              updatedAt: _now,
+            ),
+          );
+      await db
+          .into(db.mealItems)
+          .insert(
+            MealItemsCompanion.insert(
+              id: 'future-item-$id',
+              mealId: id,
+              foodId: Value(food.id),
+              foodNameSnapshot: food.name,
+              grams: grams,
+              kcalSnapshot: food.kcalPer100g * grams / 100,
+              proteinSnapshot: food.proteinPer100g * grams / 100,
+              carbsSnapshot: food.carbsPer100g * grams / 100,
+              fatSnapshot: food.fatPer100g * grams / 100,
+              createdAt: _now,
+              updatedAt: _now,
+            ),
+          );
+    });
+    return id;
+  }
+
   Future<void> pumpApp(WidgetTester tester) async {
     _viewport(tester);
     await tester.pumpWidget(
@@ -593,8 +647,6 @@ class _Harness {
             selectedDate: selected ?? DateTime(2026, 9, 11),
             now: _now,
             onSelectDate: (_) {},
-            onEditMeal: (_) {},
-            onDeleteMeal: (_) {},
             loadTrend:
                 loader ?? (days, end) => trend.run(days: days, endDate: end),
           ),

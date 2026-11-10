@@ -286,6 +286,41 @@ final class MeasurementRepository {
     });
   }
 
+  /// 删除一条体重记录（A-2，docs/64）。返回被删掉的那一行，不存在时 null。
+  ///
+  /// 删完「最近记录」会回退到前一条——那是 `watchWeightOverview` 的事，
+  /// 调用方**不许**自己算（把最新一条在内存里改掉会让图与库不一致）。
+  Future<WeightMeasurement?> delete(String id) async {
+    final row =
+        await (database.select(database.measurements)
+              ..where((r) => r.id.equals(id))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null) return null;
+    final deleted = await (database.delete(
+      database.measurements,
+    )..where((r) => r.id.equals(id))).go();
+    return deleted == 1 ? _map(row) : null;
+  }
+
+  /// 回写一条体重记录（撤销删除用；保留原 id / 来源 / 备注）。
+  Future<void> restore(WeightMeasurement record) async {
+    await database
+        .into(database.measurements)
+        .insertOnConflictUpdate(
+          MeasurementsCompanion.insert(
+            id: record.id,
+            profileId: record.profileId,
+            localDate: record.localDate,
+            weightKg: record.weightKg,
+            source: Value(record.source ?? 'manual'),
+            notes: Value(record.notes),
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+          ),
+        );
+  }
+
   WeightMeasurement _map(Measurement row) => WeightMeasurement(
     id: row.id,
     profileId: row.profileId,

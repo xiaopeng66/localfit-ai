@@ -21,18 +21,24 @@ abstract final class AppTheme {
     final lfc = isLight ? LfComponentColors.light : LfComponentColors.dark;
     final accent = LfColors.mintText(brightness);
     final soft = LfColors.brandSoft(brightness);
+    // 【2026-10-29 用户裁决】实心品牌面统一 brandStrong + onBrandStrong
+    // （设计源稿基础层 `.btn.primary{background:var(--brand-strong);color:var(--card)}`；
+    // refinement 层的「亮绿底 + #10271D 深字」被实机判为看不清，见
+    // `LfColors.brandStrong` 的注释）。
+    final brandFill = LfColors.brandStrong(brightness);
+    final onBrand = LfColors.onBrandStrong(brightness);
     final colorScheme = ColorScheme(
       brightness: brightness,
       primary: lf.primary,
-      onPrimary: lf.primaryForeground,
+      onPrimary: onBrand,
       primaryContainer: soft,
       onPrimaryContainer: accent,
       secondary: lf.primary,
-      onSecondary: lf.primaryForeground,
+      onSecondary: onBrand,
       secondaryContainer: soft,
       onSecondaryContainer: accent,
       tertiary: lf.primary,
-      onTertiary: lf.primaryForeground,
+      onTertiary: onBrand,
       tertiaryContainer: lf.carbs100,
       onTertiaryContainer: lf.cardForeground,
       error: lf.error,
@@ -68,12 +74,11 @@ abstract final class AppTheme {
       labelSmall: LfText.label,
     ).apply(bodyColor: lf.foreground, displayColor: lf.foreground);
     final solidFill = WidgetStateProperty.resolveWith<Color?>(
-      (states) => states.contains(WidgetState.disabled) ? lf.muted : lf.primary,
+      (states) => states.contains(WidgetState.disabled) ? lf.muted : brandFill,
     );
     final solidForeground = WidgetStateProperty.resolveWith<Color?>(
-      (states) => states.contains(WidgetState.disabled)
-          ? lf.mutedForeground
-          : lf.primaryForeground,
+      (states) =>
+          states.contains(WidgetState.disabled) ? lf.mutedForeground : onBrand,
     );
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(LfDimens.buttonRadius),
@@ -282,8 +287,10 @@ abstract final class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: lf.primary,
-        foregroundColor: lf.primaryForeground,
+        // 与实心按钮同一档（brandStrong + onBrandStrong）：FAB 也是
+        // 「绿底 + 图标」，旧档 primary+primaryForeground 是同一类看不清。
+        backgroundColor: brandFill,
+        foregroundColor: onBrand,
         elevation: 0,
         focusElevation: 0,
         hoverElevation: 0,

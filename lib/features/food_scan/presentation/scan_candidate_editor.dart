@@ -268,7 +268,7 @@ final class ScanAnalysisSheet extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       Text(
-        '这里展示 AI 返回的结构化识别依据，不会展示模型内部思考。营养仍以本地食物库重算为准。',
+        '营养以本地食物库重算为准。',
         style: LfText.bodySmall.copyWith(color: context.lf.mutedForeground),
       ),
       const SizedBox(height: 16),

@@ -74,12 +74,9 @@ void main() {
       find.descendant(of: sheet, matching: find.text('分析过程')),
       findsOneWidget,
     );
+    // 2026-11-02：长解释收进帮助文档，弹层只留营养口径这一句。
     expect(
-      find.descendant(of: sheet, matching: find.textContaining('结构化识别依据')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: sheet, matching: find.textContaining('不会展示模型内部思考')),
+      find.descendant(of: sheet, matching: find.textContaining('营养以本地食物库重算为准')),
       findsOneWidget,
     );
     expect(

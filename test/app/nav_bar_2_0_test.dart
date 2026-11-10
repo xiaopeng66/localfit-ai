@@ -17,9 +17,13 @@ import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
 
 /// 新底栏契约（docs/21 §3.6 / §4.1 / §5.8.4，**视觉值按 Round7 A 有效层叠**）：
 /// 贴底 64dp 直角栏（border-t + card 95% + backdrop-blur，五槽 px-2），
-/// 中央 AI 凸起圆 56dp（A `refinement.css:3` `.nav-ai .nav-icon`：实心 `--brand`
-/// + 5dp `--card` 描边 + `#10271D` sparkles），**净上凸 9.5dp**（位移量 16 是
+/// 中央 AI 凸起圆 56dp（A `refinement.css:3` `.nav-ai .nav-icon`：实心品牌底
+/// + 5dp `--card` 描边 + 反色 sparkles），**净上凸 9.5dp**（位移量 16 是
 /// CSS margin，不是视觉量）。
+///
+/// 【2026-10-29 用户裁决】凸起圆底从 `--brand`（亮绿）改为 `brandStrong`
+/// （亮 #187653 深绿）+ onBrandStrong 图标——「绿底深字」类看不清的统一修复，
+/// 见 `LfColors.brandStrong` 注释。
 ///
 /// 历史教训（docs/21 §5.8.4）：凸起圆曾因玻璃层裁剪 + 槽位盒不覆盖上凸带
 /// 出现「看得见但点不到」。本文件同时验证可见性（像素为证）与命中区
@@ -152,15 +156,16 @@ void main() {
     expect(find.byIcon(Icons.person_outline), findsWidgets);
     // 凸起圆内是 sparkles 图标：A 有效值（`refinement.css:3`
     // `.nav-ai .nav-icon{...background:var(--brand);color:#10271D}`）——实心品牌底
-    // 配**深墨字** `#10271D`（= `--lf-primary-foreground`），不再是旧稿的白图标
-    // （旧稿底是 mint-600→700 渐变，白字才有对比；底换成 brand 后白字对比不足）。
+    // 配**反色图标** onBrandStrong（亮白）——【2026-10-29】与实心按钮同档：
+    // brandStrong 深绿底 + onBrandStrong 图标（旧档 primary + #10271D 深字
+    // 属用户点名的「看不清」）。
     final sparkles = tester.widget<Icon>(
       find.descendant(
         of: find.byKey(const Key('nav-ai-workbench')),
         matching: find.byIcon(Icons.auto_awesome),
       ),
     );
-    expect(sparkles.color, LfSemanticColors.light.primaryForeground);
+    expect(sparkles.color, LfColors.onBrandStrong(Brightness.light));
     expect(find.byKey(const Key('nav-dashboard')), findsOneWidget);
     expect(find.byKey(const Key('nav-nutrition')), findsOneWidget);
     expect(find.byKey(const Key('nav-training')), findsOneWidget);
@@ -196,7 +201,8 @@ void main() {
     // color:#10271D}` → 46+2×5 = 56 的实心圆，5dp 描边取 `--card`
     // （= 栏体底色，视觉上「贴在栏上」）；旧稿的 135° 渐变 + 双层白/彩阴影
     // 已被 A 覆盖。渐变与阴影必须**真的没有**——否则会把栏顶那条 1px 描边盖住。
-    expect(decoration.color, LfSemanticColors.light.primary);
+    // 【2026-10-29】底 = brandStrong（旧档 primary 被用户判「看不清」）。
+    expect(decoration.color, LfColors.brandStrong(Brightness.light));
     expect(decoration.gradient, isNull);
     expect(decoration.boxShadow, isNull);
     final border = decoration.border! as Border;
@@ -230,7 +236,7 @@ void main() {
     );
     expect(cuts, isEmpty, reason: '这些裁剪祖先会把圆顶削平：\n${cuts.join('\n')}');
 
-    // ③ 像素：栏顶之上、凸起圆中心列必须真的画出薄荷绿。
+    // ③ 像素：栏顶之上、凸起圆中心列必须真的画出品牌绿（深绿也算）。
     final captured = await tester.binding.runAsync<ui.Image?>(
       () => captureImage(find.byType(MaterialApp).evaluate().single),
     );
@@ -433,9 +439,12 @@ int _rgbAt(ByteData rawRgba, int width, int x, int y) {
 ///
 /// 用「关系」而不是精确色值：凸起圆是 mint-500→mint-600 渐变（上浅下深），
 /// 加上背景描边与抗锯齿，任何等值断言都会随取点位置漂移。
+/// 品牌绿判定：绿通道占优、明显偏绿。【2026-10-29】阈值从 `g > 140`（亮薄荷）
+/// 放宽到 `g > 100`：凸起圆底改 brandStrong `#187653`（g=118），仍是品牌绿，
+/// 只是更深；对照列（页面底 #F7F9F8）的 g-r 只有 2，不会被误判。
 bool _isMint(int rgb) {
   final r = (rgb >> 16) & 0xFF;
   final g = (rgb >> 8) & 0xFF;
   final b = rgb & 0xFF;
-  return g > 140 && g - r > 50 && g - b > 15;
+  return g > 100 && g - r > 50 && g - b > 15;
 }

@@ -58,7 +58,67 @@ ThemeData round7CaptureTheme(ThemeData source) => source.copyWith(
       fontFamily: 'Round7LocalCjk',
     ),
   ),
+  // 【2026-10-26 复核取帧抓到】`AlertDialog` 的标题/正文不走 `textTheme`，走
+  // `dialogTheme` 的两条**冻结样式**（`AppTheme` 用 `LfText.headline/body`
+  // 定型，族为 null）。测试引擎没有平台兜底 ⇒ 确认弹层整段渲染成豆腐块
+  // （`verify-6d-confirm-dialog.png` 第一版标题是一排方框）。与 listTile/
+  // appBar 同一条处置：捕获件补族，生产代码不动。
+  dialogTheme: source.dialogTheme.copyWith(
+    titleTextStyle: source.dialogTheme.titleTextStyle?.copyWith(
+      fontFamily: 'Round7LocalCjk',
+    ),
+    contentTextStyle: source.dialogTheme.contentTextStyle?.copyWith(
+      fontFamily: 'Round7LocalCjk',
+    ),
+  ),
+  // 同族同因：按钮/菜单/气泡的 `textStyle` 也都是**构建时冻结**的 `LfText.*`
+  // （`ButtonStyleButton`、`PopupMenuButton`、`Tooltip`、`SnackBar` 都**替换**
+  // 而不是合并环境 `DefaultTextStyle`）。不补的话，「先不记 / 创建并记入」
+  // 这类裸 `TextButton/FilledButton` 在帧里就是方框。
+  filledButtonTheme: FilledButtonThemeData(
+    style: _cjkButtonStyle(source.filledButtonTheme.style),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: _cjkButtonStyle(source.elevatedButtonTheme.style),
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: _cjkButtonStyle(source.textButtonTheme.style),
+  ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: _cjkButtonStyle(source.outlinedButtonTheme.style),
+  ),
+  popupMenuTheme: source.popupMenuTheme.copyWith(
+    textStyle: _cjkTextStyle(source.popupMenuTheme.textStyle),
+  ),
+  tooltipTheme: source.tooltipTheme.copyWith(
+    textStyle: _cjkTextStyle(source.tooltipTheme.textStyle),
+  ),
+  snackBarTheme: source.snackBarTheme.copyWith(
+    contentTextStyle: _cjkTextStyle(source.snackBarTheme.contentTextStyle),
+  ),
 );
+
+const String _captureFontFamily = 'Round7LocalCjk';
+
+TextStyle? _cjkTextStyle(TextStyle? style) =>
+    style?.copyWith(fontFamily: _captureFontFamily);
+
+ButtonStyle? _cjkButtonStyle(ButtonStyle? style) {
+  final textStyle = style?.textStyle;
+  if (style == null || textStyle == null) return style;
+  return style.copyWith(textStyle: _CjkTextStyleProperty(textStyle));
+}
+
+/// 把一个 `WidgetStateProperty<TextStyle?>` 的每个状态结果都补上捕获字体族。
+final class _CjkTextStyleProperty implements WidgetStateProperty<TextStyle?> {
+  const _CjkTextStyleProperty(this._inner);
+
+  final WidgetStateProperty<TextStyle?> _inner;
+
+  @override
+  TextStyle? resolve(Set<WidgetState> states) =>
+      _cjkTextStyle(_inner.resolve(states));
+}
 
 Future<void> captureRound7(WidgetTester tester, String name) async {
   final output = Platform.environment['LF_ROUND7_CAPTURE_DIR'];

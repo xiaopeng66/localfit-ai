@@ -305,7 +305,7 @@
 - Date: 2026-10-07
 - Status: accepted
 - Context: ADR-025 把随包食物库整体换成 FoodCalu 派生的 49,464 条，并如实记下该库的两个已知缺陷：**没有品牌列**（上游 `food_database.db` 只有 name/四项营养），以及**名称里品牌与品名混在一起**（`Kelsen凯尔森 Kelsen 凯尔森 黄油曲奇饼干`）。docs/29 的诊断进一步点明：既有自动规则（`build_brand_gazetteer.py`，W3）**主动放弃纯汉字首 token**——按频率分不清「品牌」与「描述词」，因此 `明治`（品牌）与 `迷你`（尺寸词）在算法眼里同形，这条缺口**只有人工能关**（D6，用户 2026-10-05 裁定全量人工审核必做）。P8b-1 交付了审核台与账本（`tool/food_seed/review/`，账本 `reports/review_ledger.jsonl` 追加式、可重放），P8b-2 的出口条件是账本覆盖率 100%。本会话达成该条件并完成 v5 生成与 App 升级。
-- Decision: ①**账本为唯一权威**：49,464 条逐条有人工裁决（逐条核验 18,920 + 族批确认 30,544，存疑 0），每条可点名到时间/前后值/来源；**报告不得把族批确认写成逐条核验**（`reports/review_report.md` 分列，不混称）。②**v5 定稿**：`assets/seed/foods.v5.json` = 49,444 条（审核删除 20 条），`version: 5`；生成器 `tool/food_seed/apply_review.py` 幂等（连跑两次逐字节相同），门控 `--require-coverage 100` **且 `pending == 0`**——判据用待审条数本身，**不用四舍五入后的百分比**（实测摘掉 1 条仍显示 100.0%，属真缺陷）。③**D13：两张词表分开存放**。自动表 `lib/utils/food_brands.g.dart`（2,650 token，**仍从 v5 按规则重算**，性质未变）与人工表 `lib/utils/food_brands_reviewed.g.dart`（3,897 token，含 `明治`/`桃李` 等**纯汉字**品牌）**不得合并成一个文件**——合并会毁掉「自动表可从种子重算」这条可核验性质。显示层取并集 `kFoodBrandTokensAll`。④**App 原地升级而非换 asset**：`seedSource='seed-v5'`、`legacySources=[seed-v1,seed-v2,seed-v3]`（清理）、`upgradeSource='seed-v4'`（**原地 UPDATE**）。`source='user'` 或 `isUserCreated` 的行**永不触碰**；v5 删掉的 id 若被 `meal_items.food_id` 或 `menu_item_food_matches.food_id` 引用则**保留旧行**（宁可留一条旧名字，不可让餐次指向空）。返回 `SeedImportResult{upgraded, inserted, deleted, keptWhileReferenced}`。⑤**条数不硬编码**：`apply_review.py` 生成 `lib/features/nutrition/domain/food_seed_count.g.dart`（`kFoodSeedV5RowCount` / `kFoodSeedV5RowCountGrouped`），`data_attribution.dart` 与设置页断言引用它；**不引入 manifest 文件**（多一个需校验一致性的文件，收益不成比例）。⑥**v4 不再随包**（两份都带白扛约 10 MB），但**留在仓库**作账本裁决对象与升级测试输入；隐私审计加 `retiredSeedFiles` 断言退役文件不得回到 pubspec。⑦**审核边界（README 写死，不得扩大解释）**：必审名称/品牌拆分与命名/明显非食物/重复；**不审**营养学绝对正确与过敏原标签；改营养必须填 source 或标「人工估值」（本轮改营养 0 条）。
+- Decision: ①**账本为唯一权威**：49,464 条逐条有人工裁决（逐条核验 18,920 + 族批确认 30,544，存疑 0），每条可点名到时间/前后值/来源；**报告不得把族批确认写成逐条核验**（`reports/review_report.md` 分列，不混称）。②**v5 定稿**：`assets/seed/foods.v5.json` = 49,444 条（审核删除 20 条），`version: 5`；生成器 `tool/food_seed/apply_review.py` 幂等（连跑两次逐字节相同），门控 `--require-coverage 100` **且 `pending == 0`**——判据用待审条数本身，**不用四舍五入后的百分比**（实测摘掉 1 条仍显示 100.0%，属真缺陷）。③**D13：两张词表分开存放**。自动表 `lib/utils/food_brands.g.dart`（2,650 token，**仍从 v5 按规则重算**，性质未变）与人工表 `lib/utils/food_brands_reviewed.g.dart`（3,897 token，含 `明治`/`桃李` 等**纯汉字**品牌）**不得合并成一个文件**——合并会毁掉「自动表可从种子重算」这条可核验性质。显示层取并集 `kFoodBrandTokensAll`。④**App 原地升级而非换 asset**：`seedSource='seed-v5'`、`legacySources=[seed-v1,seed-v2,seed-v3]`（清理）、`upgradeSource='seed-v4'`（**原地 UPDATE**）。`source='user'` 或 `isUserCreated` 的行**永不触碰**；v5 删掉的 id 若被 `meal_items.food_id` 或 `menu_item_food_matches.food_id` 引用则**保留旧行**（宁可留一条旧名字，不可让餐次指向空）。返回 `SeedImportResult{upgraded, inserted, deleted, keptWhileReferenced}`。⑤**条数不硬编码**：`apply_review.py` 曾生成 `lib/features/nutrition/domain/food_seed_count.g.dart`（`kFoodSeedV5RowCount` / `kFoodSeedV5RowCountGrouped`），由 `data_attribution.dart` 与设置页断言引用它——**2026-11-09 全量审查退役**：`data_attribution.dart` 已随 P8b 清理删除、设置页改为从数据库实算（`settings_page.dart` 的「食材数据库」行），该常量全仓零引用，生成路径与文件一并删除；**不引入 manifest 文件**（多一个需校验一致性的文件，收益不成比例）。⑥**v4 不再随包**（两份都带白扛约 10 MB），但**留在仓库**作账本裁决对象与升级测试输入；隐私审计加 `retiredSeedFiles` 断言退役文件不得回到 pubspec。⑦**审核边界（README 写死，不得扩大解释）**：必审名称/品牌拆分与命名/明显非食物/重复；**不审**营养学绝对正确与过敏原标签；改营养必须填 source 或标「人工估值」（本轮改营养 0 条）。
 - Alternatives: ①**只换 asset 路径不做升级**——**不可行**（docs/29 点名的「最容易做错的地方」）：既有 gate 是「库里已有当前 source 的行就 return」⇒ 换 asset 根本不触发导入；且 `_insertMissing` 永不覆盖既有行 ⇒ 老库原地不动，用户看到的还是 v4 的 49,464 条。②**把 v4 行直接删光再灌 v5**——被否：用户编辑过的行会丢，且被餐次引用的行会让 `meal_items.food_id` 指向空（历史餐食显示依赖 `food_name_snapshot` 才没炸，但食物库详情会断）。③**把两张词表合并成一个 `food_brands.g.dart`**——被否（D13）：自动表的价值恰恰在于「可从种子重算」，人一改就再也无法用它验种子是否被悄悄动过。④**人工表只收自动规则排除的部分（纯汉字）**——被否：人工裁决也可能**推翻自动表的误判**（`FINE` 是停用词形但确属品牌，账本有据），表里以账本为准而非以规则为准。⑤**用 manifest 文件派生条数**——被否（见上 ⑤）。⑥**把删除的 20 条直接物理删除不留痕**——被否：被引用者必须保留，且删除清单要进 `review_report.md` 留档。
 - Consequences: 正面：App 装完即得**人工审核过**的 49,444 条中文食物；纯汉字品牌（`明治` 等）首次能被正确剥头上屏；品牌词表的「机器部分可重算 + 人工部分有账本证据」两层结构可长期核验。代价与已知边界：①**人工审核的权威性只来自账本本身**——上游没有品牌列，**不存在外部对照源**，无法用第二个数据集证明审核结论「正确」，只能证明每条结论**有出处、可追溯、可重放**；②**审核不是逐条键盘敲的**：族批确认占 30,544 条（62%），族批的成立条件是「≥2 条、同一首词、提交的 id 恰好等于该首词当前全部待审成员」，报告如实分列，不冒充逐条；③**审核范围有限**：营养值只在可疑时改（本轮 0 条），过敏原/膳食标签仍是名称启发式（ADR-025 的边界不变）；④**人工判断会出错且有更正通道**：本轮实测一处——批次4 早期把 `迷你`（尺寸描述词：`迷你 可爱多 甜筒` = 尺寸+品牌+品名）误并进词表，走账本追加 `revert` + 6 条 `approve` 更正并记入证据（`revert` 撤的是**账本最近一条生效裁决**而非指定行，期间误弹 `seed-fc-49520` 已补回——这是审核台的操作陷阱，证据文件已记）；⑤**设备走查有一项未闭环**：该 AVD 的 Gboard **无中文子类型**（144 个 locale 里 zh 系 0 个），`adb input text` 注入不了中文 ⇒ 「纯汉字人工 token 剥头」改为由等价的 ASCII 人工 token（`Nichirei日冷`，同样只存在于人工表、v5 行 `brand` 为 null）真机证据支撑，纯汉字路径由单测覆盖。**门禁 EXIT=0（1,952 passed / 11 skipped / 0 失败；`dart format lib test` 0 changed；`flutter analyze` No issues found）**，`apply_review.py --check` / `build_brand_gazetteer.py --check` / 三个 Python 测试套件全通过。收官时修掉第三处真缺陷：两张**生成表**的 `sha256` 常量声明与声明名同行、超过 `dart format` 的 80 列 ⇒ 生成物被格式器改写后就不再是生成器逐字节输出（`--check` 立刻 STALE）。**裁决口径**：这类冲突一律**改生成器让输出 format-clean**，不把生成物排除在门禁之外——否则生成物可以被任意手改而不被发现，`--check` 的可信度就没了。
 - **交付件（2026-10-07 同日追加）**：优化版 arm64 APK = `E:/AI/Zcode/localfit-ai-simple-arm64-release.apk`，
@@ -499,5 +499,32 @@
   分类入库有硬门禁。代价：随包资产 +1.4 MB（未压缩）；导入/导出/弹层三处测试迁移；
   归一化会改写 116 个名称（全部列出在 `docs/evidence/2026-10-21-food-library-audit/changes.csv`）。
 
+## ADR-040 · 统一每 100g 营养主库 + 食堂供应引用（schema 31，2026-11-09）
 
-
+- Status: Accepted（用户授权实施 docs/67 P0–P5）
+- Context: 食材/包装食品/成品菜散落在 `foods`（每 100g）与 `dish_library`（每份）两套
+  可写营养；食堂菜又通过"自动复制"写进 `dish_library`，于是同一条菜有三处"当前营养"。
+  同名靠名字认身份、"每份"缺份量时按 100g 兜底，AI 与手动各写一套。
+- Decision:
+  1. `foods` 是**唯一可写的当前营养主库**（每 100g）；`foods.current_revision_id` 指向
+     `food_nutrition_revisions` 的生效那条，主表四项是它的投影，同事务写。
+  2. `menu_items` 是独立供应记录，`food_id` 为权威主引用；当前营养从主食物派生，
+     本表不再存可编辑的每份热量/宏量副本。`serving_grams_status/source` 记录份量可信度。
+  3. 记餐快照新增 `supply_id` / `nutrition_revision_id` / `servings` / `serving_grams`；
+     历史餐永不因主库或份量变化而重算。
+  4. 食堂 → 菜品库的自动复制链**退役**（`AddCanteenDishesToLibrary` 删除）；旧
+     `dish_library` 行保留只读兼容，由 `LegacyNutritionConverter` 一次性归一进主库。
+  5. 归一规则纯函数化（`LegacyNutritionRules.version = legacy-nutrition-v1`），
+     数据库升级与 `.lfb` 恢复共用；每行旧实体写一条 `legacy_entity_mappings` 台账，
+     结果只有 converted / reused / needs_completion / conflict。
+  6. 份量未知不按 100g 换算；`dish_library` 里 `basisAssumed=true` 的行一律待补全。
+  7. AI：`canteen.dish.create` 新增可选 `foodId/servingGrams/servingGramsSource/contract`；
+     `dish.upsert` 降为旧信封兼容（必须有 `servingGrams` 才换算）；未知字段仍整条拒绝。
+  8. 推荐：本地每日推荐与 AI「换一套」共用 `supplyDishCandidates`（每份口径），
+     自动推荐只接受完整营养 + 可信份量的供应。
+- Alternatives: ①再建第四张"统一营养表"——被否（迁移成本 + 三套并存）；②直接删
+  `dish_library`——被否（旧引用与历史餐要能读）；③把缺份量的旧行按 100g 换算——被否
+  （单位偷换，A11）；④仅合并搜索列表——被否（身份与写入口不收敛，问题会复发）。
+- Consequences: 正面：一处当前营养、一处身份、一处换算；旧数据逐条有去向。
+  代价：schema 31 + 两张表的派生读取；旧 `dish_library` 在 UI 上仍是只读兼容视图，
+  彻底移除需要另一次带依赖检查的清理。

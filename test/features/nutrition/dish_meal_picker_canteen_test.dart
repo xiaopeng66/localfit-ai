@@ -11,8 +11,8 @@ import 'package:localfit_ai/features/nutrition/presentation/meal_entry_chooser_s
 /// 记录里搜到，我不是统一了菜品库和食堂目录了吗，他们应该是一个东西，
 /// 为什么那边有，这边没有」。
 ///
-/// **根因**：`AddCanteenDishesToLibrary.run` 对**没有营养**的食堂菜
-/// `continue`（`add_canteen_dishes_to_library.dart:88`）——它们不进菜品库；
+/// **根因**：旧同步（`AddCanteenDishesToLibrary`，docs/67 已退役）对**没有
+/// 营养**的食堂菜直接跳过——它们不进菜品库；
 /// 而「按菜品记录」只读菜品库 ⇒ 未分析的菜**永远搜不到**。
 ///
 /// **用户裁决**：**不进库（保持菜品库干净），但记录弹层里能搜到**。
@@ -35,7 +35,7 @@ void main() {
   );
 
   /// 未分析的食堂菜：`evidence == null` ⇒ `hasNutrition == false`
-  /// （即 `AddCanteenDishesToLibrary` 会跳过、不进菜品库的那一类）。
+  /// （即没有完整每 100g 营养、不进可记候选的那一类）。
   CanteenDish canteenDish(String name, {String id = 'c-1'}) => CanteenDish(
     id: id,
     windowId: 'w-1',
