@@ -173,6 +173,62 @@ H5 的掺色比例经过像素采样校准：10%（#152821）与底色的绿通�
 深色场景（启动页、关于页暗色卡）直接用 icon 版。K7 的动画同样只在浏览器/内嵌 HTML 生效，
 Flutter 侧要用这条动线需转 Lottie 或自绘。
 
+## 特色轮（K8 之后全新一轮，2026-10-28）
+
+K8 定稿后用户反馈「太丑」，本轮彻底跳出已试过的 territory：环 / 脉搏 / 霓虹 / 餐盘 / 经典哑铃 /
+盾叶 / 定位钉 / 碗 / 字标 / 缝线 / 光圈 / 扇形 / 徽章 / 线稿 / 软糖全部不再出现，
+全部走浅底（对应「薄荷奶油」UI，与 K8 的暗底路线反着来）。
+见 [`explorations-c.png`](explorations-c.png) / [`explorations-c.html`](explorations-c.html)，
+SVG 在 [`svg/`](svg/) 下，slug 以 `c` 开头，由 [`explorations-c.mjs`](explorations-c.mjs) 生成。
+
+| # | 名称 | 一句话故事 | 为什么有特色 |
+|---|---|---|---|
+| c1 | `c1-forkbell` 叉铃 | 一根杠铃，两端各拧一把朝外的叉子——先读作铃，细看是叉 | 「吃的工具就是练的器械」最直白的双关；铃杆正中一颗蜜黄星芒呼应 App 内 AI 母题 |
+| c2 | `c2-nutri-atom` 营养原子 | 三条宏量色轨道绕薄荷 AI 核心 | 「营养是可计算的本地科学」；AI 与营养两个语义装进同一个形 |
+| c3 | `c3-plate-sprout` 铁上芽 | 黑色杠铃片中心孔里长出双叶新芽 | 「健康是从铁里长出来的」；全组最有生命力的构图 |
+| c4 | `c4-local-print` 本地指纹 | 三圈宏量色的指纹纹路，每餐都「按」在本机 | 唯一把「数据不出设备」这条最硬差异化画进主形的方案 |
+| c5 | `c5-buddy` 饭团同学 | 有脸的饭团，海苔正中藏白色 AI 星芒 | 全组唯一吉祥物，亲和力最强；校园食堂的拟人化 |
+| c6 | `c6-banana-bell` 香蕉杠铃 | 天然弯成铃杆弧度的香蕉，两端挂薄荷铃片 | 水果与铁的幽默；铃片间的深色蕉蒂恰好成了两只眼睛，白捡一个表情 |
+
+**推荐**：稳妥首选 **c2 营养原子**（语义最贴产品、128→24px 全程分层清晰、三色轨道恰好复用宏量编码）；
+想要最强个性选 **c5 饭团同学**（吉祥物路线，需要接受 App 内出现配套 IP 形象）；
+想讲隐私故事选 **c4 本地指纹**；想让人一眼记住选 **c6 香蕉杠铃**。
+
+与 explorations 轮同规则：只出 icon 变体（底色是方案的一部分），选定方向后再补 mark / ios
+两件套并跑 `verify-safe-zone.mjs` 校验。c1/c2 的宏量色属装饰性复用（未参与营养编码语义）。
+
+## 饭团/粽子同学 · 吉祥物优化轮（2026-10-28）
+
+特色轮里用户选中了 c5 三角饭团（口头叫它「粽子」），要求多给优化稿、不拘泥粽子。
+8 个变体见 [`buddy-refine.png`](buddy-refine.png) / [`buddy-refine.html`](buddy-refine.html)，
+SVG slug 以 `b` 开头，由 [`buddy-refine.mjs`](buddy-refine.mjs) 生成。三条线并行：
+
+| 线 | # | 名称 | 变化 |
+|---|---|---|---|
+| 粽子 | b1 | `b1-leafband` 叶带粽 | 海苔换竹叶围兜 + 叶脉 + 蜜黄粽绳与蝴蝶结 |
+| 粽子 | b2 | `b2-bigleaf` 大叶粽 | 围兜放大成外翻双叶、叶尖翘出轮廓、斜挎一根绳 |
+| 粽子 | b6 | `b6-opentop` 开顶粽 | 整颗包叶、顶部剥开露白米与脸、腰间粽绳 |
+| 运动 | b3 | `b3-headband` 头带版 | 纯白饭团 + 薄荷运动头带 + 两条飘带 |
+| 运动 | b8 | `b8-dumbbell` 哑铃版 | 两只圆手举迷你杠铃 |
+| 比例 | b5 | `b5-chubby` 胖粽版 | 压矮加宽、脸与腮红放大、左侧蝴蝶结 |
+| 表情 | b7 | `b7-happy` 笑眯眯版 | 闭眼笑弧 + 张嘴 + 小舌头 |
+| 打磨 | b4 | `b4-classic` 海苔经典 | c5 精修：收腰海苔、眼睛高光、更软的嘴角 |
+
+**推荐 b3 头带版**（健身语义最强、24px 最干净）与 **b1 叶带粽**（最贴「粽子」的叫法、细节全在安全区内）。
+
+### 定稿三件套（两套，均已过安全区校验）
+
+`finalize-buddy.mjs` 产出 icon / ios / mark 各一套，见 [`finalize-buddy.png`](finalize-buddy.png)：
+
+| 方向 | 文件 | 说明 |
+|---|---|---|
+| 头带版 | `svg/b3-headband-{icon,ios,mark}.svg` | 推荐主线 |
+| 叶带粽 | `svg/b1-leafband-{icon,ios,mark}.svg` | 粽子线 |
+
+吉祥物是多色的，不能走 `kit.renderSvg` 的「白色挖空」模板，因此 `finalize-buddy.mjs` 自带渲染器：
+mark 把身体描边从 mint200 提到 mint700（浅底可见），底色去掉；ios 为满幅直角方底。
+`verify-safe-zone.mjs` 已确认两者主体均在 174..850 内。
+
 ## 已落到 App 打包资源（apply-icons.mjs）
 
 `apply-icons.mjs` 把定稿栅格化并写入打包资源（2026-09-19 执行，`flutter build apk --debug` 通过，31.4s）：
@@ -229,6 +285,9 @@ node design/logo/pulse-variants.mjs    # 生成脉搏环 6 个细化方案（6 �
 node design/logo/neon-refine.mjs       # 生成深色霓虹 5 个线条方案（5 个 icon SVG）+ neon-refine.html
 node design/logo/hollow-refine.mjs     # 生成空心管 5 个管径方案（5 个 icon SVG）+ hollow-refine.html
 node design/logo/tube-polish.mjs       # 生成空心管材质打磨 7 个方案（含 1 个动画版）+ tube-polish.html
+node design/logo/explorations-c.mjs    # 生成特色轮 6 个全新方向（6 个 icon SVG）+ explorations-c.html
+node design/logo/buddy-refine.mjs      # 生成吉祥物优化轮 8 个变体（8 个 icon SVG）+ buddy-refine.html
+node design/logo/finalize-buddy.mjs    # 生成头带版 / 叶带粽三件套（各 icon/ios/mark）+ finalize-buddy.html
 node design/logo/finalize.mjs          # 定稿 K8 的 ios / mark 两件套 + finalize.html
 node design/logo/detail.mjs            # 生成 detail.html
 node design/logo/verify-safe-zone.mjs  # 校验主体是否越出自适应图标安全区（覆盖 svg/ 下全部 mark）

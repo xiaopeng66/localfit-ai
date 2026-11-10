@@ -37,10 +37,13 @@ if (!EDGE) throw new Error('找不到 msedge.exe');
 const PY = 'C:/ProgramData/miniconda3/python.exe';
 
 const MASTERS = [
-  ['icon', 'k8-final-icon.svg'],
-  ['ios', 'k8-final-ios.svg'],
-  ['fg', 'k8-final-foreground.svg'],
+  ['icon', 'b3-headband-icon.svg'],
+  ['ios', 'b3-headband-ios.svg'],
+  ['fg', 'b3-headband-foreground.svg'],
 ];
+
+// 自适应图标背景色（与选定 logo 的底色一致；头带版 = 浅薄荷 #E3F6EE）。
+const ADAPTIVE_BG = '#E3F6EE';
 
 // 1) 2x 母版（透明背景，图标自身的圆角/满幅由 SVG 决定）
 for (const [name, svg] of MASTERS) {
@@ -127,16 +130,25 @@ writeFileSync(
 const valuesDir = join(RES, 'values');
 mkdirSync(valuesDir, { recursive: true });
 const colorsPath = join(valuesDir, 'colors.xml');
+// 【2026-10-31 换头带版】背景色随选定 logo 走（k8 深底 #0F1412 → 头带版
+// 浅薄荷 #E3F6EE）：已存在的 colors.xml 就地替换该色值，不整文件重写。
 const colors = existsSync(colorsPath) ? readFileSync(colorsPath, 'utf8') : null;
 if (!colors || !colors.includes('ic_launcher_background')) {
-  if (colors) throw new Error('values/colors.xml 已存在但缺少 ic_launcher_background，请手工合并');
   writeFileSync(
     colorsPath,
     `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0F1412</color>
+    <color name="ic_launcher_background">${ADAPTIVE_BG}</color>
 </resources>
 `,
+  );
+} else {
+  writeFileSync(
+    colorsPath,
+    colors.replace(
+      /(<color name="ic_launcher_background">)[^<]+(<\/color>)/,
+      `$1${ADAPTIVE_BG}$2`,
+    ),
   );
 }
 
