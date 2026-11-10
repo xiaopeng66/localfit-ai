@@ -520,14 +520,19 @@ GoRouter createAppRouter({
                 final displayNames = [for (final dish in dishes) dish.name];
                 // 热 AI 页会同步消费通知：先发布照片，让文字等待同一张图解码。
                 aiStarterImage.value = _firstDishPhotoPath(dishes);
+                // 2026-11-11（用户：「分析完每日推荐里没有这道菜」）：光有每
+                // 100g 不够——推荐候选要求至少有一个每份克数。让分析顺带按
+                // 常见食堂份量估一份约多少克（落库标估计值，目录显示「约」）。
                 aiStarterRequest.value = (
                   display:
-                      '估算这 ${dishes.length} 道菜每 100g 的营养：'
+                      '估算这 ${dishes.length} 道菜每 100g 的营养和一份的份量：'
                       '${displayNames.join('、')}',
                   send:
-                      '估算下面这几道菜每 100g 的营养，并**用可应用的修改**逐条收录'
+                      '估算下面这几道菜每 100g 的营养，并按**常见食堂一份**的'
+                      '份量估算一份约多少克，然后**用可应用的修改**逐条收录'
                       '（每道菜一条 canteen.dish.nutrition，grade 按你的依据选 '
-                      'A/B/C/D）：'
+                      'A/B/C/D，servingGrams 填你估算的一份克数，reply 里写明'
+                      '「一份约Xg」）：'
                       '\n'
                       '\n'
                       '$sendLines',

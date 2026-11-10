@@ -196,6 +196,8 @@ class OpenAiCompatibleConversationService
       ..writeln('   不要改数、不要估算没写过的值（这条覆盖协议规则 0 的「可估算」）。')
       ..writeln('   **克数/毫升/公斤必须原样照抄回复里的写法**（回复写「约 150g」就写 150），')
       ..writeln('   不要四舍五入、不要换算单位、不要补成整数（写错一个数整张卡都会被拒）。')
+      ..writeln('   唯一例外：`canteen.dish.nutrition` 的 `servingGrams`——目标回复里')
+      ..writeln('   写了「一份约Xg」就照抄那个数；没写就别填，不许自己编。')
       ..writeln('3. **按点击意图提取，不要判断「是不是提议」**：照片识别清单、回复里')
       ..writeln('   列出的食物与份量、用户请求里说的记录内容——都是要转成命令的素材，')
       ..writeln('   逐样转成对应命令（记餐通常一条 meal.create 带全部食物；餐次按')

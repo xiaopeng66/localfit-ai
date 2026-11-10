@@ -8,6 +8,7 @@ import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/campus_menus/data/canteen_repository.dart';
 import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
 import 'package:localfit_ai/features/nutrition/application/master_nutrition_sink_adapter.dart';
+import 'package:localfit_ai/features/nutrition/application/supply_dish_candidates.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/supply_catalog_repository.dart';
 
@@ -298,5 +299,55 @@ void main() {
     expect(item.servingGrams, 100);
     expect(item.state, SupplyNutritionState.servingUnknown);
     expect(item.canRecordByServing, isFalse);
+  });
+
+  // 2026-11-11（用户：「新建食堂目录，AI 分析完不能预估一份多少克，每日推荐
+  // 无法使用」）：分析顺带落的估计份量（estimated/ai_estimate）要能进宽松
+  // 推荐池（本地每日推荐，用户手动确认），但不进 AI 自动换一套的严格池。
+  test('分析落估计份量：进宽松池不进严格池，重估覆盖旧估', () async {
+    final dishId = await canteen.createDish(windowId: windowId, name: '麻婆豆腐');
+    await canteen.recordNutrition(
+      dishId: dishId,
+      kcalPer100g: 150,
+      proteinPer100g: 10,
+      carbsPer100g: 6,
+      fatPer100g: 9,
+      grade: 'C',
+      confidence: 0.5,
+      servingGramsEstimate: 220,
+    );
+    var item = (await supplies.getById(dishId))!;
+    expect(item.servingGrams, closeTo(220, 1e-9));
+    expect(item.state, SupplyNutritionState.servingEstimated);
+
+    // 再次分析给了新估算：同为估计来源，允许覆盖成更新的估计。
+    await canteen.recordNutrition(
+      dishId: dishId,
+      kcalPer100g: 152,
+      proteinPer100g: 10.2,
+      carbsPer100g: 6.1,
+      fatPer100g: 9.1,
+      grade: 'C',
+      confidence: 0.6,
+      servingGramsEstimate: 260,
+    );
+    item = (await supplies.getById(dishId))!;
+    expect(item.servingGrams, closeTo(260, 1e-9));
+
+    final relaxed = supplyDishCandidates(
+      await supplies.listAll(),
+      now: now,
+      strict: false,
+    );
+    final strict = supplyDishCandidates(
+      await supplies.listAll(),
+      now: now,
+      strict: true,
+    );
+    expect(relaxed.map((dish) => dish.id), contains(dishId));
+    expect(strict.map((dish) => dish.id), isNot(contains(dishId)));
+    final dish = relaxed.singleWhere((dish) => dish.id == dishId);
+    expect(dish.servingGrams, closeTo(260, 1e-9));
+    expect(dish.kcal, closeTo(152 * 260 / 100, 1e-9), reason: '按估计克数换算');
   });
 }

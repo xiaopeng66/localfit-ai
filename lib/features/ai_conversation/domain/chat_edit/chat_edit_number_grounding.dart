@@ -13,7 +13,7 @@
 ///   proteinPer100g / carbsPer100g / fatPer100g）不要求出现在原文——应用前
 ///   的编辑卡会完整显示数值与单位；`servingGrams` 仍须接地。
 /// * `canteen.dish.nutrition` 的默认元数据 `confidence=0.5` 与省略等价；
-///   非默认 confidence、营养数值和克数仍须接地。
+///   非默认 confidence、营养数值和每份克数估算（servingGrams）仍须接地。
 /// * 任一数值缺接地 ⇒ 整张卡拒绝（不静默丢某一行）。
 ///
 /// 本模块是**纯函数**：不碰状态、不碰库，控制器在挂卡前调用。
@@ -69,6 +69,10 @@ const _policies = <String, Set<String>>{
     'carbsPer100g',
     'fatPer100g',
     'confidence',
+    // 2026-11-11：分析命令新增的每份克数估算同样是数值写入——必须能在
+    // 「用户请求 + 目标回复」里找到（识别回复按要求写「一份约Xg」），编造
+    // 依然整卡拒绝。
+    'servingGrams',
   },
   'food.create': {'servingGrams'},
   'food.update': {

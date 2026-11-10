@@ -296,7 +296,7 @@ void main() {
       expect(find.byKey(const Key('ai-chat-image-0')), findsOneWidget);
       expect(find.byKey(const Key('image-preview-bar')), findsNothing);
       expect(find.byKey(const Key('btn-remove-image')), findsNothing);
-      expect(find.text('估算这 1 道菜每 100g 的营养：番茄炒蛋'), findsOneWidget);
+      expect(find.text('估算这 1 道菜每 100g 的营养和一份的份量：番茄炒蛋'), findsOneWidget);
       expect(find.textContaining('canteen-dish:'), findsNothing);
       final page = tester.widget<AiConversationPage>(
         find.byType(AiConversationPage),
@@ -338,7 +338,7 @@ void main() {
       expect(turn.textForRequest, contains('[canteen-dish:$dishId]'));
       expect(find.byKey(const Key('ai-chat-image-0')), findsOneWidget);
       expect(find.byKey(const Key('image-preview-bar')), findsNothing);
-      expect(find.text('估算这 1 道菜每 100g 的营养：番茄炒蛋'), findsOneWidget);
+      expect(find.text('估算这 1 道菜每 100g 的营养和一份的份量：番茄炒蛋'), findsOneWidget);
       expect(find.textContaining('canteen-dish:'), findsNothing);
       final page = tester.widget<AiConversationPage>(
         find.byType(AiConversationPage),
@@ -363,7 +363,7 @@ void main() {
         expect(turn.textForRequest, isNot(contains('附了一张图片')));
         expect(find.byKey(const Key('ai-chat-image-0')), findsNothing);
         expect(find.byKey(const Key('image-preview-bar')), findsNothing);
-        expect(find.text('估算这 1 道菜每 100g 的营养：番茄炒蛋'), findsOneWidget);
+        expect(find.text('估算这 1 道菜每 100g 的营养和一份的份量：番茄炒蛋'), findsOneWidget);
         expect(find.textContaining('canteen-dish:'), findsNothing);
       });
     }

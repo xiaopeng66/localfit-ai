@@ -737,6 +737,7 @@ class CanteenRepository {
     double? kcalMax,
     String? sourceText,
     String origin = 'ai_estimate',
+    double? servingGramsEstimate,
   }) async {
     if (!const {'A', 'B', 'C', 'D'}.contains(grade)) {
       throw const CanteenWriteException('证据等级只能是 A/B/C/D。');
@@ -759,6 +760,16 @@ class CanteenRepository {
     );
     if (!confidence.isFinite || confidence < 0 || confidence > 1) {
       throw const CanteenWriteException('置信度必须在 0–1 之间。');
+    }
+    // 2026-11-11（用户：「分析完推荐里没有这道菜」）：分析顺带把 AI 估的
+    // 每份克数落成 estimated/ai_estimate，让供应有机会进宽松推荐池（显示
+    // 「约」）。边界：已有可信份量（称重/用户填写/标签且 known）**不覆盖**
+    // ——估算不能把可信事实改小。
+    if (servingGramsEstimate != null &&
+        (!servingGramsEstimate.isFinite ||
+            servingGramsEstimate < 0.1 ||
+            servingGramsEstimate > 2000)) {
+      throw const CanteenWriteException('每份克数估算必须在 0.1–2000g 之间。');
     }
     if (kcalMin != null &&
         (!kcalMin.isFinite || kcalMin < 0 || kcalMin > 900)) {
@@ -865,6 +876,31 @@ class CanteenRepository {
             origin: origin,
             isEstimated: origin == 'ai_estimate',
             rawValuesJson: sourceText,
+          );
+        }
+      }
+      // 份量估算与营养写入同一事务：失败一起回滚，不留「有营养没份量」的
+      // 半截状态。已有可信份量（known + 称重/用户填写/标签）不覆盖。
+      if (servingGramsEstimate != null) {
+        final trustedKnown =
+            ServingGramsStatus.fromStored(item.servingGramsStatus) ==
+                ServingGramsStatus.known &&
+            ServingGramsSource.fromStored(item.servingGramsSource)
+                .isTrustedBasis;
+        if (!trustedKnown) {
+          await (database.update(
+            database.menuItems,
+          )..where((row) => row.id.equals(dishId))).write(
+            MenuItemsCompanion(
+              servingGrams: Value(servingGramsEstimate),
+              servingGramsStatus: Value(
+                ServingGramsStatus.estimated.storedValue,
+              ),
+              servingGramsSource: Value(
+                ServingGramsSource.aiEstimate.storedValue,
+              ),
+              updatedAt: Value(stamped),
+            ),
           );
         }
       }

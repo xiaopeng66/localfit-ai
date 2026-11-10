@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
+import 'package:localfit_ai/core/nutrition/nutrition_units.dart';
 import 'package:localfit_ai/core/time/app_clock.dart';
 import 'package:localfit_ai/data/database/app_database.dart';
 import 'package:localfit_ai/features/ai_conversation/application/chat_edit_executor.dart';
@@ -1813,6 +1814,160 @@ void main() {
     expect(evidence, hasLength(1), reason: '证据表里真的有那一行');
     expect(evidence.single.menuItemId, dishId);
     expect(evidence.single.grade, 'C');
+  });
+
+  // 2026-11-11（用户：「新建食堂目录，AI 分析完不能预估一份多少克，每日推荐
+  // 无法使用」）：分析链路此前只写每 100g，serving_grams 永远 unknown，连
+  // 宽松推荐池都进不了。分析命令现在可带 servingGrams，落库 estimated /
+  // ai_estimate（宽松池收、严格池不收的池边界在
+  // canteen_supply_master_reference_test 里钉）。
+  test('canteen.dish.nutrition 带 servingGrams：份量落成估计值并在回执写明', () async {
+    final canteen = CanteenRepository(
+      database: database,
+      idGenerator: IdsForTest(),
+      clock: FixedAppClock(now),
+    );
+    final venueId = await canteen.createVenue(name: '第二食堂', campusName: '校本部');
+    final windowId = await canteen.createWindow(
+      venueId: venueId,
+      name: '二号窗口',
+      openTime: '10:00',
+      closeTime: '13:00',
+    );
+    final dishId = await canteen.createDish(windowId: windowId, name: '青椒肉丝');
+
+    final result = await executor.apply(
+      cmd('canteen.dish.nutrition', {
+        'dishId': dishId,
+        'kcalPer100g': 120.0,
+        'proteinPer100g': 8.0,
+        'carbsPer100g': 9.0,
+        'fatPer100g': 5.0,
+        'grade': 'C',
+        'confidence': 0.5,
+        'servingGrams': 250.0,
+      }),
+    );
+    expect(result.ok, isTrue, reason: result.message);
+    expect(result.message, contains('一份约 250g'), reason: result.message);
+    expect(result.message, contains('估计值'), reason: result.message);
+
+    final row = await (database.select(
+      database.menuItems,
+    )..where((item) => item.id.equals(dishId))).getSingle();
+    expect(row.servingGrams, closeTo(250, 1e-9));
+    expect(row.servingGramsStatus, ServingGramsStatus.estimated.storedValue);
+    expect(row.servingGramsSource, ServingGramsSource.aiEstimate.storedValue);
+  });
+
+  test('canteen.dish.nutrition 不带 servingGrams：份量保持未知（旧行为不变）', () async {
+    final canteen = CanteenRepository(
+      database: database,
+      idGenerator: IdsForTest(),
+      clock: FixedAppClock(now),
+    );
+    final venueId = await canteen.createVenue(name: '第三食堂', campusName: '校本部');
+    final windowId = await canteen.createWindow(
+      venueId: venueId,
+      name: '三号窗口',
+      openTime: '10:00',
+      closeTime: '13:00',
+    );
+    final dishId = await canteen.createDish(windowId: windowId, name: '凉拌黄瓜');
+    final result = await executor.apply(
+      cmd('canteen.dish.nutrition', {
+        'dishId': dishId,
+        'kcalPer100g': 15.0,
+        'proteinPer100g': 0.8,
+        'carbsPer100g': 2.2,
+        'fatPer100g': 0.2,
+      }),
+    );
+    expect(result.ok, isTrue, reason: result.message);
+    expect(result.message, isNot(contains('一份约')), reason: '没带份量就别提份量');
+    final row = await (database.select(
+      database.menuItems,
+    )..where((item) => item.id.equals(dishId))).getSingle();
+    expect(row.servingGrams, isNull);
+    expect(row.servingGramsStatus, ServingGramsStatus.unknown.storedValue);
+  });
+
+  test('canteen.dish.nutrition：已有可信份量时不覆盖 AI 估算', () async {
+    final canteen = CanteenRepository(
+      database: database,
+      idGenerator: IdsForTest(),
+      clock: FixedAppClock(now),
+    );
+    final venueId = await canteen.createVenue(name: '第四食堂', campusName: '校本部');
+    final windowId = await canteen.createWindow(
+      venueId: venueId,
+      name: '四号窗口',
+      openTime: '10:00',
+      closeTime: '13:00',
+    );
+    // 用户建菜时明确填过一份 150g（user_input/known = 可信）。
+    final dishId = await canteen.createDish(
+      windowId: windowId,
+      name: '红烧排骨',
+      servingGrams: 150.0,
+    );
+    final result = await executor.apply(
+      cmd('canteen.dish.nutrition', {
+        'dishId': dishId,
+        'kcalPer100g': 280.0,
+        'proteinPer100g': 18.0,
+        'carbsPer100g': 8.0,
+        'fatPer100g': 20.0,
+        'servingGrams': 999.0,
+      }),
+    );
+    expect(result.ok, isTrue, reason: result.message);
+    expect(result.message, contains('已有可信份量 150g'), reason: result.message);
+    final row = await (database.select(
+      database.menuItems,
+    )..where((item) => item.id.equals(dishId))).getSingle();
+    expect(row.servingGrams, closeTo(150, 1e-9));
+    expect(row.servingGramsStatus, ServingGramsStatus.known.storedValue);
+    expect(row.servingGramsSource, ServingGramsSource.userInput.storedValue);
+  });
+
+  test('canteen.dish.nutrition：servingGrams 越界在解码层整条拒绝', () async {
+    final canteen = CanteenRepository(
+      database: database,
+      idGenerator: IdsForTest(),
+      clock: FixedAppClock(now),
+    );
+    final venueId = await canteen.createVenue(name: '第五食堂', campusName: '校本部');
+    final windowId = await canteen.createWindow(
+      venueId: venueId,
+      name: '五号窗口',
+      openTime: '10:00',
+      closeTime: '13:00',
+    );
+    final dishId = await canteen.createDish(windowId: windowId, name: '蛋炒饭');
+    final spec = registry.specOf('canteen.dish.nutrition')!;
+    expect(
+      () => validateChatEditArgs(spec, {
+        'dishId': dishId,
+        'kcalPer100g': 180.0,
+        'proteinPer100g': 6.0,
+        'carbsPer100g': 25.0,
+        'fatPer100g': 6.0,
+        'servingGrams': 3000.0,
+      }),
+      throwsA(
+        isA<ChatEditArgsException>().having(
+          (error) => error.message,
+          'message',
+          contains('2000'),
+        ),
+      ),
+      reason: '越界估算在解码层就拒，命令根本到不了执行器',
+    );
+    final row = await (database.select(
+      database.menuItems,
+    )..where((item) => item.id.equals(dishId))).getSingle();
+    expect(row.servingGrams, isNull, reason: '拒绝时份量不写半截');
   });
 
   // 2026-10-16：修复建议扩到缺动作/缺地点/缺窗口（用户要求「1、2 都要」）。

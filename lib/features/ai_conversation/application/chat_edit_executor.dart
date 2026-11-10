@@ -1068,6 +1068,13 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       _fail('证据等级「$rawGrade」不认识，只能是 A/B/C/D。');
     }
     final confidence = command.args['confidence'] as double? ?? 0.5;
+    // 2026-11-11：分析命令可带每份克数估算（登记表 0.1–2000，越界在解码层
+    // 已拒；这里再兜一道）。是否真的落库（不覆盖可信份量）由仓储裁决。
+    final servingGrams = command.args['servingGrams'] as double?;
+    if (servingGrams != null &&
+        (!servingGrams.isFinite || servingGrams < 0.1 || servingGrams > 2000)) {
+      _fail('每份克数「$servingGrams」超出可接受范围（0.1–2000g）。');
+    }
     await services.canteenRepository.recordNutrition(
       dishId: dishId,
       kcalPer100g: command.args['kcalPer100g'] as double,
@@ -1076,12 +1083,44 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       fatPer100g: command.args['fatPer100g'] as double,
       grade: grade,
       confidence: confidence,
+      servingGramsEstimate: servingGrams,
     );
+    final servingNote = await _servingNoteAfterNutrition(dishId, servingGrams);
     return ChatEditApplyResult.ok(
       '已记录「${row.displayName}」的营养：'
       '${_trimNumber(command.args['kcalPer100g'] as double)} kcal/100g'
-      '（等级 $grade）。',
+      '（等级 $grade）'
+      '${servingNote == null ? '' : '，$servingNote'}。',
     );
+  }
+
+  /// 营养写入后回读供应的份量状态，给用户一句诚实的份量说明。
+  ///
+  /// 写入成功（estimated/ai_estimate）→「一份约 Xg」；已被可信份量挡下 →
+  /// 「保留原份量」；命令没带份量 → null（回执不提份量）。
+  Future<String?> _servingNoteAfterNutrition(
+    String dishId,
+    double? requested,
+  ) async {
+    if (requested == null) return null;
+    final row =
+        await (services.database.select(services.database.menuItems)
+              ..where((item) => item.id.equals(dishId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null) return null;
+    final status = ServingGramsStatus.fromStored(row.servingGramsStatus);
+    final source = ServingGramsSource.fromStored(row.servingGramsSource);
+    if (status == ServingGramsStatus.estimated &&
+        source == ServingGramsSource.aiEstimate) {
+      return '一份约 ${_trimNumber(requested)}g（估计值，'
+          '可在菜品编辑里改成实际克数）';
+    }
+    if (status == ServingGramsStatus.known && source.isTrustedBasis) {
+      return '已有可信份量 ${_trimNumber(row.servingGrams!)}g，'
+          '未覆盖 AI 估算';
+    }
+    return null;
   }
 
   Future<ChatEditApplyResult> _canteenDishUpdate(

@@ -289,7 +289,8 @@ final class ChatEditCommandRegistry {
       '`plan.entry.remove`；忘掉/忘记→`memory.forget`。'
       '体重目标→`profile.goal.update`；步数/饮水目标→`targets.update`；'
       '录菜单→`menu.snapshot.publish`。`servingGrams` 仅用户明说'
-      '「一份X克」才填。',
+      '「一份X克」才填；唯一例外是 `canteen.dish.nutrition`（营养估算命令'
+      '本身），可按常见食堂份量给估计克数，并在 reply 里写明「一份约Xg」。',
     );
     return buffer.toString();
   }
@@ -1006,6 +1007,18 @@ List<ChatEditCommandSpec> _buildSpecs() {
           type: ChatEditArgType.string,
           required: false,
           hint: 'ai（缺省）|food|none',
+        ),
+        // 2026-11-11（用户：「分析完推荐里没有这道菜」）：分析链路此前只写
+        // 每 100g，menu_items.serving_grams 永远 unknown ⇒ 连宽松推荐池都进
+        // 不了。估算命令本身允许按常见食堂份量给估计克数，落库标
+        // estimated/ai_estimate（显示「约」；自动换一套的严格池仍不收）。
+        const ChatEditArgSpec(
+          name: 'servingGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0.1,
+          max: 2000,
+          hint: '一份约多少克（按常见食堂份量估算；没把握别写）',
         ),
       ],
       // 【2026-10-25 缺陷修复】原来把 `dishId` 直接拼进文案，于是编辑卡上
