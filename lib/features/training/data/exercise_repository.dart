@@ -105,10 +105,19 @@ final class ExerciseRepository {
 
   Future<ExerciseRecord> create(NewExercise exercise) async {
     _validate(exercise);
+    // 2026-11-11 复核：`exercises` 表没有唯一约束，但按名引用动作的每条路径
+    // （set.log / 计划编排 / 快照）都靠 `findByExactName`——同名两行会让
+    // 解析恒走「有多条同名记录，请先改名」分支，之后所有按名命令全失效。
+    // 所以在唯一的写入口拒绝重名（UI 弹层与 AI 命令共用这条）。
+    final name = exercise.name.trim();
+    final existing = await findByExactName(name);
+    if (existing.isNotEmpty) {
+      throw FormatException('动作库里已有同名动作「$name」，直接用它或改名后再建。');
+    }
     final now = clock.nowUtc();
     final row = Exercise(
       id: idGenerator.next(),
-      name: exercise.name.trim(),
+      name: name,
       muscleGroup: exercise.muscleGroup.name,
       equipment: exercise.equipment.name,
       source: 'user',

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:localfit_ai/core/ids/id_generator.dart';
@@ -320,6 +321,130 @@ void main() {
     expect(out.ok, isFalse);
     expect(out.message, contains('下限不能大于上限'));
     expect(await meals.readManualTargetForDate('2026-11-11'), isNull);
+  });
+
+  // ---- 2026-11-11 复核：同名供应带来的三条静默写错风险 ----
+
+  test('同窗口重名菜：建菜拒绝（否则按名定位会选中任意一条）', () async {
+    await canteen.createDish(windowId: windowId, name: '番茄炒蛋');
+    final out = await executor.apply(
+      cmd('canteen.dish.create', {'window': windowId, 'name': '番茄炒蛋'}),
+    );
+    // AI 路径先按名去重，会「直接引用」——不允许再建第二行。
+    expect(out.ok, isTrue, reason: out.message);
+    expect(out.message, contains('已直接引用'));
+    expect(await db.select(db.menuItems).get(), hasLength(1));
+  });
+
+  test('改名撞上同窗口已有名字：拒绝并说明（不造出两行同名）', () async {
+    final first = await canteen.createDish(windowId: windowId, name: '土豆丝');
+    await canteen.createDish(windowId: windowId, name: '醋溜土豆丝');
+    final out = await executor.apply(
+      cmd('canteen.dish.update', {'dishId': first, 'name': '醋溜土豆丝'}),
+    );
+    expect(out.ok, isFalse, reason: out.message);
+    expect(out.message, contains('已有同名菜品'));
+    final row = await (db.select(
+      db.menuItems,
+    )..where((item) => item.id.equals(first))).getSingle();
+    expect(row.displayName, '土豆丝', reason: '拒绝时原名不变');
+  });
+
+  test('历史重名数据：按窗口+菜名写营养时拒绝，不静默选一条', () async {
+    final a = await canteen.createDish(windowId: windowId, name: '红烧肉');
+    // 直接插一行同名（模拟历史数据 / 旧版本留下的重复）。
+    await db
+        .into(db.menuItems)
+        .insert(
+          MenuItemsCompanion.insert(
+            id: 'legacy-dup',
+            serviceId: windowId,
+            displayName: '红烧肉',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    final out = await executor.apply(
+      cmd('canteen.dish.nutrition', {
+        'window': windowId,
+        'name': '红烧肉',
+        'kcalPer100g': 300.0,
+        'proteinPer100g': 15.0,
+        'carbsPer100g': 5.0,
+        'fatPer100g': 25.0,
+      }),
+    );
+    expect(out.ok, isFalse, reason: out.message);
+    expect(out.message, contains('同名菜品'));
+    final untouched = await (db.select(
+      db.menuItems,
+    )..where((item) => item.id.equals(a))).getSingle();
+    // 建菜时 evidenceGrade 本来就记 'C'（用户输入的事实），所以判据是
+    // 「证据表没有任何一行、份量也没被写」。
+    expect(untouched.servingGrams, isNull);
+    expect(
+      await db.select(db.menuItemNutritionEvidence).get(),
+      isEmpty,
+      reason: '拒绝时两条同名菜都不写',
+    );
+  });
+
+  // ---- 2026-11-11 复核：两个底层逻辑缺陷的探针（先红后绿）----
+
+  test('exercise.create：同名动作不能重复建（否则按名解析永久歧义）', () async {
+    final first = await executor.apply(
+      cmd('exercise.create', {
+        'name': '卧推',
+        'muscleGroup': '胸',
+        'equipment': '杠铃',
+      }),
+    );
+    expect(first.ok, isTrue, reason: first.message);
+    final second = await executor.apply(
+      cmd('exercise.create', {
+        'name': '卧推',
+        'muscleGroup': '胸',
+        'equipment': '杠铃',
+      }),
+    );
+    // 同名多行会让 _resolveExerciseByName 走「有多条同名记录，请先改名」
+    // 分支——之后 set.log / 计划里的「卧推」全部失效。必须拒绝建重名。
+    expect(second.ok, isFalse, reason: second.message);
+    expect(second.message, contains('已有同名动作'));
+    final rows = await (db.select(
+      db.exercises,
+    )..where((row) => row.name.equals('卧推'))).get();
+    expect(rows, hasLength(1));
+  });
+
+  test('营养回执：份量状态 known 但克数缺失时不崩（脏数据防御）', () async {
+    final dishId = await canteen.createDish(
+      windowId: windowId,
+      name: '脏数据菜',
+      servingGrams: 200,
+    );
+    // 构造历史/异常数据：状态说 known，数值却是 null。
+    await (db.update(db.menuItems)..where((row) => row.id.equals(dishId)))
+        .write(const MenuItemsCompanion(servingGrams: Value(null)));
+    final out = await executor.apply(
+      cmd('canteen.dish.nutrition', {
+        'dishId': dishId,
+        'kcalPer100g': 100.0,
+        'proteinPer100g': 5.0,
+        'carbsPer100g': 10.0,
+        'fatPer100g': 3.0,
+        'servingGrams': 250.0,
+      }),
+    );
+    expect(out.ok, isTrue, reason: out.message);
+    final row = await (db.select(
+      db.menuItems,
+    )..where((item) => item.id.equals(dishId))).getSingle();
+    expect(
+      row.servingGrams,
+      closeTo(250, 1e-9),
+      reason: '无数值的 known 不算可信，应写入估算',
+    );
   });
 
   test('nutrition.target.reset：清手动值', () async {

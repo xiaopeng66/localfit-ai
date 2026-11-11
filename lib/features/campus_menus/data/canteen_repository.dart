@@ -488,6 +488,20 @@ class CanteenRepository {
     if (window == null) {
       throw const CanteenWriteException('窗口不存在，可能已被删除。');
     }
+    // 2026-11-11 复核：同窗口同名两行会让按名定位（AI 的 window+name、
+    // 「直接引用已有供应」）静默选中其中一行——可能写错菜。建菜就拒绝重名。
+    final duplicate =
+        await (database.select(database.menuItems)
+              ..where(
+                (row) =>
+                    row.serviceId.equals(windowId) &
+                    row.displayName.equals(dishName),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    if (duplicate != null) {
+      throw CanteenWriteException('这个窗口里已有同名菜品「$dishName」；要补份量/营养请直接改那一条。');
+    }
     final now = clock.nowUtc();
     final id = idGenerator.next();
     await database
@@ -532,6 +546,31 @@ class CanteenRepository {
       throw const CanteenWriteException('菜品名称不能为空。');
     }
     validatedEntityName(dishName, label: '菜品名称');
+    // 2026-11-11 复核：改名撞上同窗口已有名字会造出两行同名，之后按名定位
+    // （AI 的 window+name、建菜去重）只能拿到其中一行——静默写错对象。
+    final current =
+        await (database.select(database.menuItems)
+              ..where((row) => row.id.equals(dishId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (current == null) {
+      throw const CanteenWriteException('菜品不存在，可能已被删除。');
+    }
+    if (dishName != current.displayName) {
+      final duplicate =
+          await (database.select(database.menuItems)
+                ..where(
+                  (row) =>
+                      row.serviceId.equals(current.serviceId) &
+                      row.displayName.equals(dishName) &
+                      row.id.equals(dishId).not(),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+      if (duplicate != null) {
+        throw CanteenWriteException('这个窗口里已有同名菜品「$dishName」；换个名字或直接改那一条。');
+      }
+    }
     if (setImagePath) {
       final old = await (database.select(
         database.menuItems,
@@ -882,7 +921,11 @@ class CanteenRepository {
       // 份量估算与营养写入同一事务：失败一起回滚，不留「有营养没份量」的
       // 半截状态。已有可信份量（known + 称重/用户填写/标签）不覆盖。
       if (servingGramsEstimate != null) {
+        // 2026-11-11 复核：状态说 known 但数值缺失（历史/脏数据）不算可信——
+        // 否则估算永远写不进去，读侧还会对 null 做 `!`（实测 NPE）。
         final trustedKnown =
+            item.servingGrams != null &&
+            item.servingGrams! > 0 &&
             ServingGramsStatus.fromStored(item.servingGramsStatus) ==
                 ServingGramsStatus.known &&
             ServingGramsSource.fromStored(item.servingGramsSource)

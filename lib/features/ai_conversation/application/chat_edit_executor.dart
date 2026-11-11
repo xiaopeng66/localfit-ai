@@ -885,18 +885,23 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       id = existing.id;
       createdNote = '该窗口已有同名菜品「${existing.name}」，已直接引用（未新建）';
     } else {
-      id = await services.canteenRepository.createDish(
-        windowId: window.id,
-        name: name,
-        foodId: foodId,
-        servingGrams: servingGrams,
-        servingGramsStatus: foodId == null
-            ? ServingGramsStatus.unknown
-            : (servingGrams == null
-                  ? ServingGramsStatus.unknown
-                  : ServingGramsStatus.known),
-        servingGramsSource: servingSource,
-      );
+      try {
+        id = await services.canteenRepository.createDish(
+          windowId: window.id,
+          name: name,
+          foodId: foodId,
+          servingGrams: servingGrams,
+          servingGramsStatus: foodId == null
+              ? ServingGramsStatus.unknown
+              : (servingGrams == null
+                    ? ServingGramsStatus.unknown
+                    : ServingGramsStatus.known),
+          servingGramsSource: servingSource,
+        );
+      } on CanteenWriteException catch (error) {
+        // 并发窗口里别处刚建了同名菜：如实说，不崩整张卡。
+        return ChatEditApplyResult.failure(error.userMessage);
+      }
       // 回执是**给用户看的**：新 id 对用户没有意义，卡片里也不需要它
       // （模型下次从快照拿）。
       createdNote = '已新增菜品';
@@ -1067,17 +1072,27 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         _fail('要写营养的菜品没说清：给 dishId，或 window+name 各一个。');
       }
       final window = await _resolveWindowRef(windowRef);
-      final existing = await services.canteenRepository.findDishInWindow(
-        windowId: window.id,
-        name: dishName,
-      );
-      if (existing == null) {
+      // 2026-11-11 复核：历史数据里可能已有同窗口同名两行，按名取第一条会
+      // 静默写错对象——多于一条就拒绝，让用户先改名区分。
+      final sameName = [
+        for (final dish in await services.canteenRepository.listDishes(
+          window.id,
+        ))
+          if (dish.name.trim() == dishName) dish,
+      ];
+      if (sameName.length > 1) {
+        _fail(
+          '窗口「${window.name}」里有 ${sameName.length} 条同名菜品「$dishName」，'
+          '不确定该写哪一条；请先在食堂目录里改名区分，或直接给菜品 id。',
+        );
+      }
+      if (sameName.isEmpty) {
         _fail(
           '窗口「${window.name}」里还没有「$dishName」这条供应：'
           '同一张卡先 `canteen.dish.create` 再写营养，或对已有供应补营养。',
         );
       }
-      dishId = existing.id;
+      dishId = sameName.single.id;
     } else {
       dishId = normalizeTargetId(rawDishId);
     }
@@ -1164,7 +1179,10 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       return '一份约 ${_trimNumber(requested)}g（估计值，'
           '可在菜品编辑里改成实际克数）';
     }
-    if (status == ServingGramsStatus.known && source.isTrustedBasis) {
+    if (status == ServingGramsStatus.known &&
+        source.isTrustedBasis &&
+        row.servingGrams != null &&
+        row.servingGrams! > 0) {
       return '已有可信份量 ${_trimNumber(row.servingGrams!)}g，'
           '未覆盖 AI 估算';
     }
