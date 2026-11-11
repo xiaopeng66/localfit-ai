@@ -26,6 +26,7 @@ import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_write_failure.dart';
 import 'package:localfit_ai/features/nutrition/domain/dish_record.dart';
+import 'package:localfit_ai/features/nutrition/domain/nutrition_target_override.dart';
 import 'package:localfit_ai/features/nutrition/domain/food_record.dart'
     show NewFood;
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
@@ -351,12 +352,16 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         return _sessionStart(command);
       case 'set.log':
         return _setLog(command);
+      case 'exercise.create':
+        return _exerciseCreate(command);
       case 'session.finish':
         return _sessionFinish(command);
       case 'plan.entry.add':
         return _planEntryAdd(command);
       case 'plan.entry.remove':
         return _planEntryRemove(command);
+      case 'plan.entry.update':
+        return _planEntryUpdate(command);
       case 'plan.rename':
         return _planRename(command);
 
@@ -369,6 +374,10 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         return _profileBodyUpdate(command);
       case 'targets.update':
         return _targetsUpdate(command);
+      case 'nutrition.target.set':
+        return _nutritionTargetSet(command);
+      case 'nutrition.target.reset':
+        return _nutritionTargetReset(command);
 
       // ── 批次 B（2026-10-15）：菜单快照发布 ──────────────────────────
       case 'menu.snapshot.publish':
@@ -1172,11 +1181,28 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       services.database.menuItems,
     )..where((row) => row.id.equals(dishId))).getSingleOrNull();
     if (current == null) return _missing('菜品', dishId);
+    final newName = command.args['name'] as String?;
+    final servingGrams = command.args['servingGrams'] as double?;
+    if (newName == null && servingGrams == null) {
+      return const ChatEditApplyResult.failure('没说要改什么：给新菜名、新份量，或两个都给。');
+    }
     await services.canteenRepository.updateDish(
       dishId: dishId,
-      name: (command.args['name'] as String?) ?? current.displayName,
+      name: newName ?? current.displayName,
     );
-    return ChatEditApplyResult.ok('菜品已更新。');
+    // 用户明说的克数是可信份量（known/user_input，规则 16 的口径）；
+    // updateDishServingGrams 传 null = 回到按 100g 估算（UI 同语义）。
+    var servingNote = '';
+    if (command.args.containsKey('servingGrams')) {
+      await services.canteenRepository.updateDishServingGrams(
+        dishId,
+        servingGrams,
+      );
+      servingNote = servingGrams == null
+          ? '，份量已清空（回到每 100g 估算）'
+          : '，一份 ${_trimNumber(servingGrams)}g';
+    }
+    return ChatEditApplyResult.ok('菜品已更新$servingNote。');
   }
 
   Future<ChatEditApplyResult> _canteenDishDelete(
@@ -1308,6 +1334,82 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     return ChatEditApplyResult.ok('已从计划里移除这个动作。');
   }
 
+  /// `plan.entry.update`（2026-11-11 可编辑面盘点）：改已入库条目的
+  /// 组次/次数/重量。快照「训练计划」段印有 [pentry:id]。值全是可选但
+  /// 至少一个；仓储校验组次正整数、重量非负。
+  Future<ChatEditApplyResult> _planEntryUpdate(ChatEditCommand command) async {
+    final entryId = _idArg(command, 'entryId');
+    final sets = command.args['sets'] as int?;
+    final reps = command.args['reps'] as int?;
+    final weightKg = command.args['weightKg'] as double?;
+    final bool updated;
+    try {
+      updated = await services.workoutPlanRepository.updateEntry(
+        entryId: entryId,
+        sets: sets,
+        reps: reps,
+        weightKg: weightKg,
+      );
+    } on FormatException catch (error) {
+      return ChatEditApplyResult.failure(error.message);
+    }
+    if (!updated) {
+      return ChatEditApplyResult.failure('动作条目「$entryId」不存在（可能已被移除），请刷新后重试。');
+    }
+    final parts = <String>[
+      if (sets != null) '$sets 组',
+      if (reps != null) '每组 $reps 次',
+      if (weightKg != null) '${_trimNumber(weightKg)}kg',
+    ];
+    return ChatEditApplyResult.ok('已改成${parts.join('、')}。');
+  }
+
+  /// `exercise.create`（2026-11-11 可编辑面盘点）：动作库「新建自定义动作」
+  /// 的 AI 通道。肌群/器械接受中文标签（胸/背/腿/肩/手臂/核心/全身、
+  /// 自重/杠铃/哑铃/器械/绳索/其他）或英文名，归一失败如实拒绝。
+  Future<ChatEditApplyResult> _exerciseCreate(ChatEditCommand command) async {
+    final name = (command.args['name'] as String).trim();
+    final group = _enumByLabelOrName(
+      command.args['muscleGroup'] as String,
+      MuscleGroup.values,
+      (item) => item.label,
+      '肌群',
+    );
+    final equipment = _enumByLabelOrName(
+      command.args['equipment'] as String,
+      Equipment.values,
+      (item) => item.label,
+      '器械类型',
+    );
+    final ExerciseRecord created;
+    try {
+      created = await services.exerciseRepository.create(
+        NewExercise(name: name, muscleGroup: group, equipment: equipment),
+      );
+    } on FormatException catch (error) {
+      return ChatEditApplyResult.failure(error.message);
+    } on Object {
+      return ChatEditApplyResult.failure('动作创建失败，请稍后重试。');
+    }
+    return ChatEditApplyResult.ok(
+      '已新建动作「${created.name}」（${group.label} · ${equipment.label}）。',
+    );
+  }
+
+  /// 标签优先、英文名兜底的枚举归一；都不认识就报可选项。
+  T _enumByLabelOrName<T extends Enum>(
+    String raw,
+    List<T> values,
+    String Function(T) label,
+    String fieldLabel,
+  ) {
+    final value = raw.trim();
+    for (final item in values) {
+      if (item.name == value || label(item) == value) return item;
+    }
+    _fail('$fieldLabel「$raw」不认识，可选：${values.map(label).join('/')}。');
+  }
+
   Future<ChatEditApplyResult> _planRename(ChatEditCommand command) async {
     final planId = _idArg(command, 'planId');
     final name = command.args['name'] as String;
@@ -1425,6 +1527,84 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
       parts.add('每日步数目标 $steps 步');
     }
     return ChatEditApplyResult.ok('已更新：${parts.join('、')}。');
+  }
+
+  /// `nutrition.target.set`（2026-11-11 可编辑面盘点）：手动指定每日营养
+  /// 目标（热量区间 + 三宏量区间，从今天起生效）。数值全部可选——给的并进
+  /// 现有手动值；没有手动值就用当前生效目标兜底；两者都没有时要求一次给全
+  /// （fail-closed，不编数字）。区间校验复用 [NutritionTargetOverride.validate]。
+  Future<ChatEditApplyResult> _nutritionTargetSet(
+    ChatEditCommand command,
+  ) async {
+    const numberKeys = [
+      'calorieMinKcal',
+      'calorieMaxKcal',
+      'proteinMinGrams',
+      'proteinMaxGrams',
+      'carbsMinGrams',
+      'carbsMaxGrams',
+      'fatMinGrams',
+      'fatMaxGrams',
+    ];
+    final given = <String, double>{
+      for (final key in numberKeys)
+        if (command.args[key] is num)
+          key: (command.args[key] as num).toDouble(),
+    };
+    if (given.isEmpty) {
+      return const ChatEditApplyResult.failure(
+        '没说要改哪一项：热量上下限、蛋白/碳水/脂肪区间至少给一个。',
+      );
+    }
+    final today = formatLocalDate(services.clock.nowUtc());
+    final manual = await services.mealRepository.readManualTargetForDate(today);
+    final effective =
+        (await services.mealRepository.watchNutritionForDate(today).first)
+            .target;
+    final base = manual?.toTarget() ?? effective;
+    if (base == null && given.length != numberKeys.length) {
+      return const ChatEditApplyResult.failure(
+        '现在还没有任何营养目标：第一次设置请把热量上下限和三大宏量的'
+        '上下限一次给全（8 个数）。',
+      );
+    }
+    double value(String key, double? fallback) =>
+        given.containsKey(key) ? given[key]! : fallback!;
+    final override = NutritionTargetOverride(
+      effectiveDate: today,
+      calorieMinKcal: value('calorieMinKcal', base?.calorieMinKcal),
+      calorieMaxKcal: value('calorieMaxKcal', base?.calorieMaxKcal),
+      proteinMinGrams: value('proteinMinGrams', base?.proteinMinGrams),
+      proteinMaxGrams: value('proteinMaxGrams', base?.proteinMaxGrams),
+      carbsMinGrams: value('carbsMinGrams', base?.carbsMinGrams),
+      carbsMaxGrams: value('carbsMaxGrams', base?.carbsMaxGrams),
+      fatMinGrams: value('fatMinGrams', base?.fatMinGrams),
+      fatMaxGrams: value('fatMaxGrams', base?.fatMaxGrams),
+    );
+    final problem = override.validate();
+    if (problem != null) {
+      return ChatEditApplyResult.failure('$problem（未给出的项沿用现有目标；下限不能大于上限。）');
+    }
+    await services.mealRepository.saveManualTarget(override);
+    final parts = <String>[
+      '热量 ${_trimNumber(override.calorieMinKcal)}–'
+          '${_trimNumber(override.calorieMaxKcal)} kcal',
+      '蛋白 ${_trimNumber(override.proteinMinGrams)}–'
+          '${_trimNumber(override.proteinMaxGrams)}g',
+      '碳水 ${_trimNumber(override.carbsMinGrams)}–'
+          '${_trimNumber(override.carbsMaxGrams)}g',
+      '脂肪 ${_trimNumber(override.fatMinGrams)}–'
+          '${_trimNumber(override.fatMaxGrams)}g',
+    ];
+    return ChatEditApplyResult.ok('营养目标已从今天起生效：${parts.join('，')}。');
+  }
+
+  /// `nutrition.target.reset`：清手动值，回到按身体数据计算的公式目标。
+  Future<ChatEditApplyResult> _nutritionTargetReset(
+    ChatEditCommand command,
+  ) async {
+    await services.mealRepository.clearManualTarget();
+    return const ChatEditApplyResult.ok('已恢复按身体数据计算营养目标。');
   }
 
   // ── 批次 B：菜单快照发布（2026-10-15，docs/34 §7）────────────────────

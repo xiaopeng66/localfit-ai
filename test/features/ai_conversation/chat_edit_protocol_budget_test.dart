@@ -71,10 +71,10 @@ void main() {
       );
     });
 
-    test('协议总长 ≤ 7900 字（防止继续膨胀）', () {
+    test('协议总长 ≤ 8500 字（防止继续膨胀）', () {
       expect(
         proto.length,
-        lessThanOrEqualTo(7900),
+        lessThanOrEqualTo(8500),
         reason:
             '协议 ${proto.length} 字已偏长；再加规则请先合并旧规则。'
             '（基线实测 6596 字；2026-11-07 docs/66 为 `targets.update` 增加'
@@ -82,7 +82,10 @@ void main() {
             '2026-11-11 为「分析落估计份量」给 `canteen.dish.nutrition` 加 '
             '`servingGrams` 参数并在规则 16 写明唯一例外，放宽到 7700；'
             '同日为「让 AI 加入食堂目录」加规则 17（收录 ≠ 记餐）与 '
-            'nutrition 的 window+name 定位参数，放宽到 7900；编译'
+            'nutrition 的 window+name 定位参数，放宽到 7900；'
+            '再同日可编辑面盘点新增 plan.entry.update / exercise.create / '
+            'nutrition.target.set / nutrition.target.reset 四条命令'
+            '（后者的 8 个区间参数全量列出），放宽到 8500；编译'
             '模式变体是独立分支，不计入本预算）',
       );
     });

@@ -188,7 +188,7 @@ void main() {
   });
 
   test('注册表命令数 37（T6b 24 → T8 23 → docs/34 补 11 → S11 补 2）', () {
-    expect(registry.specs, hasLength(37));
+    expect(registry.specs, hasLength(41));
     final actions = registry.specs.map((s) => s.action).toList();
     expect(actions.toSet(), hasLength(actions.length), reason: 'action 唯一');
     expect(actions, contains('workout.plan.create'));

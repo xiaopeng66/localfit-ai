@@ -132,6 +132,19 @@ void main() {
       'profile_edit_page.dart:updateWaterTargetMl',
       'profile_edit_page.dart:updateDailyGoal',
     ]),
+    // 2026-11-11 可编辑面盘点补齐的四条（UI 均有对应编辑入口）。
+    'plan.entry.update': Capability.ui([
+      'training_page.dart:showPlannedEntrySheet',
+    ]),
+    'exercise.create': Capability.ui([
+      'exercise_library_page.dart:showCreateExerciseSheet',
+    ]),
+    'nutrition.target.set': Capability.ui([
+      'nutrition_actions.dart:saveManualTarget',
+    ]),
+    'nutrition.target.reset': Capability.ui([
+      'nutrition_actions.dart:clearManualTarget',
+    ]),
     'profile.body.update': Capability.ui([
       'profile_edit_page.dart:updateBodyProfile',
     ]),

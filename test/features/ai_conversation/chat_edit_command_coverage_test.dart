@@ -54,12 +54,19 @@ void main() {
   });
 
   test('每条命令都有测试覆盖（executor 测试里出现过 action 字面量）', () {
-    final source = File(
+    // 2026-11-11 起按域拆出多个执行器测试文件（canteen_catalog_phrases /
+    // editable_surfaces / nutrition_source_routing），扫描范围跟着扩——
+    // 任何一份里出现过该 action 的字面量即算覆盖。
+    final sources = [
       'test/features/ai_conversation/application/chat_edit_executor_test.dart',
-    ).readAsStringSync();
+      'test/features/ai_conversation/application/canteen_catalog_phrases_test.dart',
+      'test/features/ai_conversation/application/editable_surfaces_test.dart',
+      'test/features/ai_conversation/nutrition_source_routing_test.dart',
+    ].map((path) => File(path).readAsStringSync()).join('\n');
+
     final missing = [
       for (final action in actions)
-        if (!source.contains("'$action'")) action,
+        if (!sources.contains("'$action'")) action,
     ];
     expect(
       missing,

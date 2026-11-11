@@ -111,16 +111,18 @@ void main() {
   };
 
   group('S7 AI 接管多条件实测（docs/31 需求 58 / 裁决 D8）', () {
-    test('骨架自检：37 命令注册表 × 用例矩阵覆盖 × 快照 id × 三态分类'
+    test('骨架自检：41 命令注册表 × 用例矩阵覆盖 × 快照 id × 三态分类'
         '（零外呼，常规门禁常跑）', () async {
       final registry = ChatEditCommandRegistry();
       final actions = registry.specs.map((spec) => spec.action).toList();
       expect(
         actions,
-        hasLength(37),
+        hasLength(41),
         reason:
             '2026-10-17 docs/38 S11 补长期记忆 2 条（35 → 37）；'
-            '命令数变了，_caseSpecs 必须跟着补用例',
+            '2026-11-11 可编辑面盘点补 4 条（37 → 41：plan.entry.update、'
+            'exercise.create、nutrition.target.set、nutrition.target.reset；'
+            '确定性覆盖在 editable_surfaces_test）。命令数变了，覆盖表必须跟上',
       );
       final protocol = registry.renderProtocol();
       for (final action in actions) {
@@ -136,10 +138,19 @@ void main() {
       // docs/34 补的 10 条在那里逐条真跑：开始/记组/结束、计划编排、自建
       // 食物改删、资料与目标）。归属显式列在这里，不做"看起来覆盖了"。
       final matrixActions = _caseSpecs.expand((spec) => spec.expected).toSet();
+      // 2026-11-11：plan.entry.update / exercise.create / nutrition.target.* 的
+      // 执行级确定性覆盖在 `editable_surfaces_test.dart`（零外呼、常规门禁
+      // 常跑）；真模型控制矩阵的下一条回归再补各自的 live 用例。
+      const deterministicCoverage = {
+        'plan.entry.update',
+        'exercise.create',
+        'nutrition.target.set',
+        'nutrition.target.reset',
+      };
       expect(
-        matrixActions.union(controlMatrixCoverage),
+        matrixActions.union(controlMatrixCoverage).union(deterministicCoverage),
         equals(actions.toSet()),
-        reason: '两个矩阵并起来必须覆盖全部命令；缺口 = 覆盖表的洞',
+        reason: '三个覆盖面并起来必须覆盖全部命令；缺口 = 覆盖表的洞',
       );
       expect(
         _caseSpecs.map((spec) => spec.id).toSet(),

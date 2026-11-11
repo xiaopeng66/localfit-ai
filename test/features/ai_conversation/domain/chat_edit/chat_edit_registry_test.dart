@@ -28,7 +28,9 @@ void main() {
       // 数字当了基数，以代码事实为准，见证据文件）。
       // 2026-10-17（docs/38 S11）：35 → 37，新增 `memory.remember` /
       // `memory.forget`（长期记忆：显式记住、如实忘掉）。
-      expect(registry.specs, hasLength(37));
+      // 2026-11-11 可编辑面盘点：37 → 41，新增 plan.entry.update /
+      // exercise.create / nutrition.target.set / nutrition.target.reset。
+      expect(registry.specs, hasLength(41));
       final actions = registry.specs.map((spec) => spec.action).toList();
       expect(actions.toSet(), hasLength(actions.length));
     });

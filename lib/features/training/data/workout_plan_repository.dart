@@ -252,6 +252,61 @@ final class WorkoutPlanRepository {
     });
   }
 
+  /// 改一条编排的组数/次数/目标重量（2026-11-11：AI 控制面补全；UI 的
+  /// 条目弹层只覆盖「新增」，已入库条目此前只能删了重加）。
+  ///
+  /// 三个值都可选，但**至少给一个**（调用方裁决）；校验与
+  /// [_validateEntry] 同口径：组次正整数、重量非负。返回 false = 条目
+  /// 不存在（调用方翻人话）。
+  Future<bool> updateEntry({
+    required String entryId,
+    int? sets,
+    int? reps,
+    double? weightKg,
+  }) async {
+    if (sets == null && reps == null && weightKg == null) {
+      throw const FormatException('组数/次数/重量至少要给一个要改的值。');
+    }
+    if (sets != null && sets < 1) {
+      throw const FormatException('组数必须是正整数。');
+    }
+    if (reps != null && reps < 1) {
+      throw const FormatException('次数必须是正整数。');
+    }
+    if (weightKg != null && (!weightKg.isFinite || weightKg < 0)) {
+      throw const FormatException('目标重量必须是非负数。');
+    }
+    final now = clock.nowUtc();
+    return database.transaction(() async {
+      final entry = await (database.select(
+        database.plannedExercises,
+      )..where((row) => row.id.equals(entryId))).getSingleOrNull();
+      if (entry == null) return false;
+      await (database.update(
+        database.plannedExercises,
+      )..where((row) => row.id.equals(entryId))).write(
+        PlannedExercisesCompanion(
+          targetSets: sets == null ? const Value.absent() : Value(sets),
+          targetReps: reps == null ? const Value.absent() : Value(reps),
+          targetWeightKg: weightKg == null
+              ? const Value.absent()
+              : Value(weightKg),
+          updatedAt: Value(now),
+        ),
+      );
+      final day = await (database.select(
+        database.workoutDays,
+      )..where((row) => row.id.equals(entry.dayId))).getSingle();
+      final plan = await (database.select(
+        database.workoutPlans,
+      )..where((row) => row.id.equals(day.planId))).getSingleOrNull();
+      if (plan != null) {
+        await _bumpRevision(plan.id, plan.revision, now);
+      }
+      return true;
+    });
+  }
+
   /// 改计划名（2026-10-15 批次 A：AI 控制面补全）。
   ///
   /// 只改名字：**不动训练日与动作编排**（那两件事分别走

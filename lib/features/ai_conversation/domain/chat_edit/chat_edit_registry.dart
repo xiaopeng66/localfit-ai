@@ -816,10 +816,21 @@ List<ChatEditCommandSpec> _buildSpecs() {
           type: ChatEditArgType.string,
           required: false,
         ),
+        // 2026-11-11（可编辑面盘点）：UI 的「编辑菜品」能改每份克数，
+        // AI 此前只能改名——补齐。用户明说的克数 = 可信份量（known）。
+        const ChatEditArgSpec(
+          name: 'servingGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0.1,
+          max: 2000,
+          hint: '一份多少克（用户明说的实际值，不是估算）',
+        ),
       ],
       summarize: (args) =>
           '修改菜品 ${args['dishId']}'
-          '${args.containsKey('name') ? '，改名「${args['name']}」' : ''}',
+          '${args.containsKey('name') ? '，改名「${args['name']}」' : ''}'
+          '${args['servingGrams'] == null ? '' : '，一份 ${args['servingGrams']}g'}',
     ),
     ChatEditCommandSpec(
       action: 'canteen.dish.delete',
@@ -1101,6 +1112,37 @@ List<ChatEditCommandSpec> _buildSpecs() {
           : '开始一次自由训练',
     ),
     ChatEditCommandSpec(
+      // 2026-11-11（可编辑面盘点）：动作库的「新建自定义动作」弹层此前
+      // 没有对应命令——模型遇到库里没有的动作只能给修复按钮。肌群/器械
+      // 接受中文标签或英文名（执行器归一）。
+      action: 'exercise.create',
+      title: '新建自定义动作',
+      danger: ChatEditDanger.create,
+      args: [
+        const ChatEditArgSpec(
+          name: 'name',
+          type: ChatEditArgType.string,
+          required: true,
+          hint: '动作名（≤60 字）',
+        ),
+        const ChatEditArgSpec(
+          name: 'muscleGroup',
+          type: ChatEditArgType.string,
+          required: true,
+          hint: '胸|背|腿|肩|手臂|核心|全身',
+        ),
+        const ChatEditArgSpec(
+          name: 'equipment',
+          type: ChatEditArgType.string,
+          required: true,
+          hint: '自重|杠铃|哑铃|器械|绳索|其他',
+        ),
+      ],
+      summarize: (args) =>
+          '新建动作「${args['name']}」（${args['muscleGroup']} · '
+          '${args['equipment']}）',
+    ),
+    ChatEditCommandSpec(
       action: 'set.log',
       title: '记一组训练',
       danger: ChatEditDanger.create,
@@ -1228,6 +1270,53 @@ List<ChatEditCommandSpec> _buildSpecs() {
         ),
       ],
       summarize: (args) => '移除动作条目 ${args['entryId']}',
+    ),
+    ChatEditCommandSpec(
+      // 2026-11-11（可编辑面盘点）：UI 的条目弹层只覆盖「新增」；已入库
+      // 条目改组次/次数/重量此前只能删了重加。快照已印 [pentry:id]。
+      action: 'plan.entry.update',
+      title: '改训练条目的组次/重量',
+      danger: ChatEditDanger.update,
+      args: [
+        const ChatEditArgSpec(
+          name: 'entryId',
+          type: ChatEditArgType.string,
+          required: true,
+          hint: '快照「训练计划」段里的 [pentry:…] 条目 id',
+        ),
+        const ChatEditArgSpec(
+          name: 'sets',
+          type: ChatEditArgType.integer,
+          required: false,
+          min: 1,
+          max: 50,
+          hint: '组数（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'reps',
+          type: ChatEditArgType.integer,
+          required: false,
+          min: 1,
+          max: 500,
+          hint: '每组次数（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'weightKg',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '目标重量 kg（可选）',
+        ),
+      ],
+      summarize: (args) {
+        final parts = <String>[
+          if (args.containsKey('sets')) '${args['sets']} 组',
+          if (args.containsKey('reps')) '每组 ${args['reps']} 次',
+          if (args.containsKey('weightKg')) '${args['weightKg']}kg',
+        ];
+        return '改条目 ${args['entryId']}：${parts.join('、')}';
+      },
     ),
     ChatEditCommandSpec(
       action: 'plan.rename',
@@ -1407,6 +1496,100 @@ List<ChatEditCommandSpec> _buildSpecs() {
         ];
         return '改每日目标：${parts.join('、')}';
       },
+    ),
+    ChatEditCommandSpec(
+      // 2026-11-11（可编辑面盘点）：UI 的「手动指定每日营养目标」弹层
+      // （热量区间 + 三大宏量区间，从今天起生效）此前没有 AI 命令。
+      // 数值全部可选、可与现有手动值合并；第一次设置没给全会被拒（fail-closed）。
+      action: 'nutrition.target.set',
+      title: '手动指定每日营养目标',
+      danger: ChatEditDanger.update,
+      args: [
+        const ChatEditArgSpec(
+          name: 'calorieMinKcal',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 500,
+          max: 10000,
+          hint: '每日热量下限 kcal（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'calorieMaxKcal',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 500,
+          max: 10000,
+          hint: '每日热量上限 kcal（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'proteinMinGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '蛋白质下限 g（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'proteinMaxGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '蛋白质上限 g（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'carbsMinGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '碳水下限 g（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'carbsMaxGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '碳水上限 g（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'fatMinGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '脂肪下限 g（可选）',
+        ),
+        const ChatEditArgSpec(
+          name: 'fatMaxGrams',
+          type: ChatEditArgType.number,
+          required: false,
+          min: 0,
+          max: 1000,
+          hint: '脂肪上限 g（可选）',
+        ),
+      ],
+      summarize: (args) {
+        final parts = <String>[
+          if (args.containsKey('calorieMinKcal'))
+            '热量 ${args['calorieMinKcal']}–${args['calorieMaxKcal'] ?? '（不变）'} kcal',
+          if (args.containsKey('proteinMinGrams'))
+            '蛋白 ${args['proteinMinGrams']}–${args['proteinMaxGrams'] ?? '（不变）'}g',
+          if (args.containsKey('carbsMinGrams'))
+            '碳水 ${args['carbsMinGrams']}–${args['carbsMaxGrams'] ?? '（不变）'}g',
+          if (args.containsKey('fatMinGrams'))
+            '脂肪 ${args['fatMinGrams']}–${args['fatMaxGrams'] ?? '（不变）'}g',
+        ];
+        return '改营养目标：${parts.join('、')}';
+      },
+    ),
+    ChatEditCommandSpec(
+      action: 'nutrition.target.reset',
+      title: '恢复按身体数据计算营养目标',
+      danger: ChatEditDanger.update,
+      args: const [],
+      summarize: (args) => '营养目标恢复按身体数据计算',
     ),
     // ── S11（2026-10-17，docs/38）：长期记忆 ──────────────────────────
     ChatEditCommandSpec(

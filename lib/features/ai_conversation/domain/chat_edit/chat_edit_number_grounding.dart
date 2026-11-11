@@ -63,6 +63,7 @@ const _policies = <String, Set<String>>{
   // docs/67 §6.2：新信封可以把"这个窗口一份多少克"写进卡片；它同样是数值
   // 写入，必须有接地策略（未配置就整卡拒绝，fail-closed）。
   'canteen.dish.create': {'servingGrams'},
+  'canteen.dish.update': {'servingGrams'},
   'canteen.dish.nutrition': {
     'kcalPer100g',
     'proteinPer100g',
@@ -73,6 +74,19 @@ const _policies = <String, Set<String>>{
     // 「用户请求 + 目标回复」里找到（识别回复按要求写「一份约Xg」），编造
     // 依然整卡拒绝。
     'servingGrams',
+  },
+  // 2026-11-11（可编辑面盘点）：改训练条目与手动营养目标的数值同样要
+  // 在对话里有依据；weightKg=0（清重量）也要求原文出现 0，不放宽。
+  'plan.entry.update': {'sets', 'reps', 'weightKg'},
+  'nutrition.target.set': {
+    'calorieMinKcal',
+    'calorieMaxKcal',
+    'proteinMinGrams',
+    'proteinMaxGrams',
+    'carbsMinGrams',
+    'carbsMaxGrams',
+    'fatMinGrams',
+    'fatMaxGrams',
   },
   'food.create': {'servingGrams'},
   'food.update': {
