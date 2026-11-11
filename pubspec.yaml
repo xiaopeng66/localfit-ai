@@ -1,7 +1,7 @@
 name: localfit_ai
 description: "Local-first AI nutrition and fitness companion."
 publish_to: 'none'
-version: 0.1.0+2146
+version: 0.1.0+2147
 
 environment:
   sdk: ^3.13.2

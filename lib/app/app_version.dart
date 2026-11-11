@@ -13,7 +13,7 @@
 ///
 /// 【为什么是 versionCode 而不是 `0.1.0`】在线更新比对的是 versionCode
 /// （每个 ABI 一个号，见 docs/09 §D.1）；语义版本在同一代内不变，比不出新旧。
-const String kAppVersionFallback = '2146';
+const String kAppVersionFallback = '2147';
 
 /// 解析要展示的版本号：**define 注入优先，缺失/空白回落到随包兜底值**。
 ///
