@@ -1351,16 +1351,19 @@ List<ChatEditCommandSpec> _buildSpecs() {
           required: true,
           hint: '自建食物 id（内置不可改）',
         ),
+        // 2026-11-11 复核：全部改可选。用户只说「把热量改成 25」时，模型
+        // 无法为三宏量提供有依据的数（接地会拒），只能不出信封——真实模型
+        // 实测就是空信封。执行器改为「给什么改什么，其余沿用当前值」。
         const ChatEditArgSpec(
           name: 'name',
           type: ChatEditArgType.string,
-          required: true,
-          hint: '名称',
+          required: false,
+          hint: '新名称',
         ),
         const ChatEditArgSpec(
           name: 'kcalPer100g',
           type: ChatEditArgType.number,
-          required: true,
+          required: false,
           min: 0,
           max: 1000,
           hint: '每 100g 热量 kcal',
@@ -1368,7 +1371,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
         const ChatEditArgSpec(
           name: 'proteinPer100g',
           type: ChatEditArgType.number,
-          required: true,
+          required: false,
           min: 0,
           max: 100,
           hint: '每 100g 蛋白质 g',
@@ -1376,7 +1379,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
         const ChatEditArgSpec(
           name: 'carbsPer100g',
           type: ChatEditArgType.number,
-          required: true,
+          required: false,
           min: 0,
           max: 100,
           hint: '每 100g 碳水 g',
@@ -1384,7 +1387,7 @@ List<ChatEditCommandSpec> _buildSpecs() {
         const ChatEditArgSpec(
           name: 'fatPer100g',
           type: ChatEditArgType.number,
-          required: true,
+          required: false,
           min: 0,
           max: 100,
           hint: '每 100g 脂肪 g',
@@ -1404,9 +1407,17 @@ List<ChatEditCommandSpec> _buildSpecs() {
           hint: '品牌',
         ),
       ],
-      summarize: (args) =>
-          '改自建食物 ${args['foodId']}：'
-          '${args['name']} ${args['kcalPer100g']}kcal/100g',
+      summarize: (args) {
+        final parts = <String>[
+          if (args['name'] != null) '名称「${args['name']}」',
+          if (args['kcalPer100g'] != null) '${args['kcalPer100g']} kcal/100g',
+          if (args['proteinPer100g'] != null) '蛋白 ${args['proteinPer100g']}g',
+          if (args['carbsPer100g'] != null) '碳水 ${args['carbsPer100g']}g',
+          if (args['fatPer100g'] != null) '脂肪 ${args['fatPer100g']}g',
+          if (args['servingGrams'] != null) '一份 ${args['servingGrams']}g',
+        ];
+        return '改自建食物：${parts.isEmpty ? '（无变化）' : parts.join('、')}';
+      },
     ),
     ChatEditCommandSpec(
       action: 'food.delete',

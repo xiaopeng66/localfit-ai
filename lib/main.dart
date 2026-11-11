@@ -566,25 +566,27 @@ Future<void> main() async {
 
   // AI 对话通用编辑（docs/23）：快照 + 协议 + 执行器都只聚合既有仓储，
   // 不新建任何写路径；用户点「应用」前不落任何库。
+  final chatEditContextLoader = DriftChatEditContextLoader(
+    database: database,
+    clock: const SystemAppClock(),
+    mealRepository: mealRepository,
+    dishLibraryRepository: dishLibraryRepository,
+    semantic: semanticRuntime,
+    waterRepository: waterRepository,
+    canteenRepository: canteenRepository,
+    supplyCatalog: supplyCatalogRepository,
+    workoutPlanRepository: workoutPlanRepository,
+    workoutSessionRepository: workoutSessionRepository,
+    // 发送前食物库预检索（docs/40 §2.4）：top3 注入「食物库参考」段。
+    foodPreviewSearch: FoodPreviewSearch(database: database),
+    // 段级失效映射（docs/39 §5.2）：写一餐只重算餐记录段。
+    indexCoordinator: indexCoordinator,
+  );
+
   final chatEditCoordinator = ChatEditCoordinator(
     // 解析 `items[].food` 的展示名（卡片标题不能显示 [food:uuid]）。
     database: database,
-    contextBuilder: DriftChatEditContextLoader(
-      database: database,
-      clock: const SystemAppClock(),
-      mealRepository: mealRepository,
-      dishLibraryRepository: dishLibraryRepository,
-      semantic: semanticRuntime,
-      waterRepository: waterRepository,
-      canteenRepository: canteenRepository,
-      supplyCatalog: supplyCatalogRepository,
-      workoutPlanRepository: workoutPlanRepository,
-      workoutSessionRepository: workoutSessionRepository,
-      // 发送前食物库预检索（docs/40 §2.4）：top3 注入「食物库参考」段。
-      foodPreviewSearch: FoodPreviewSearch(database: database),
-      // 段级失效映射（docs/39 §5.2）：写一餐只重算餐记录段。
-      indexCoordinator: indexCoordinator,
-    ),
+    contextBuilder: chatEditContextLoader,
     executor: RepositoryChatEditExecutor(
       ChatEditServices(
         database: database,
@@ -610,6 +612,9 @@ Future<void> main() async {
         foodCatalog: foodCatalogService,
         // `[canteen-dish:id]` 解析（docs/67 §6.4）：AI 记餐也要认供应。
         supplyCatalog: supplyCatalogRepository,
+        // 2026-11-11 复核：成功写入后同步失效快照段（drift 的 tableUpdates
+        // 是异步的，写完立刻构建下一轮会读到旧缓存）。
+        onMutated: chatEditContextLoader.invalidateAll,
       ),
     ),
     // 需求 6d：应用记餐前查一次「这个食材在库里吗」——

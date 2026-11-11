@@ -104,6 +104,15 @@ final class DriftChatEditContextLoader implements ChatEditContextBuilder {
   final Map<String, String> _sectionCache = {};
   final Set<String> _dirtySections = {};
 
+  /// 同步清空所有段缓存（AI 写入成功后由执行器回调）。
+  ///
+  /// 与 drift 的异步 tableUpdates 互补：事件未送达前也能保证下一轮快照
+  /// 读到新值（2026-11-11 实测：改名后模型仍说「找不到新名字」）。
+  void invalidateAll() {
+    _sectionCache.clear();
+    _dirtySections.clear();
+  }
+
   /// 订阅目录/记忆/约束等快照依赖表的变更流，把对应段标脏。
   /// **惰性**：首次 [build] 时才订阅；数据库是测试内存库也没问题。
   StreamSubscription<void>? _changeSubscription;

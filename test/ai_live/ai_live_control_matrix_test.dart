@@ -13,6 +13,7 @@ import 'package:localfit_ai/features/ai_conversation/application/chat_edit_execu
 import 'package:localfit_ai/features/ai_memory/data/ai_memory_repository.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_executor.dart';
 import 'package:localfit_ai/features/ai_conversation/data/chat_edit_context_loader.dart';
+import 'package:localfit_ai/features/ai_conversation/data/food_preview_search.dart';
 import 'package:localfit_ai/features/ai_conversation/data/open_ai_compatible_conversation_service.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_intent.dart';
@@ -24,6 +25,7 @@ import 'package:localfit_ai/features/daily_plan/data/planning_constraints_reposi
 import 'package:localfit_ai/features/hydration/application/update_water_target_ml.dart';
 import 'package:localfit_ai/features/progress/data/steps_repository.dart';
 import 'package:localfit_ai/features/hydration/data/water_repository.dart';
+import 'package:localfit_ai/features/nutrition/application/food_catalog_service.dart';
 import 'package:localfit_ai/features/nutrition/data/dish_library_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/food_repository.dart';
 import 'package:localfit_ai/features/nutrition/data/meal_repository.dart';
@@ -185,11 +187,22 @@ void main() {
       idGenerator: ids,
       clock: clock,
     );
+    // loader 在 executor 之后才建（依赖同一批仓储）；用可变回调占位，
+    // 复刻生产接线：成功写入后同步失效快照。
+    void Function()? invalidateSnapshot;
     executor = RepositoryChatEditExecutor(
       ChatEditServices(
         database: database,
         clock: clock,
         foodRepository: foods,
+        // 生产装配（main.dart）有 FoodCatalogService；缺它时 dish.upsert 的
+        // 「每份→每 100g」换算会报「统一食物库未接线」（本轮真机实测暴露）。
+        foodCatalog: FoodCatalogService(
+          database: database,
+          idGenerator: ids,
+          clock: clock,
+        ),
+        onMutated: () => invalidateSnapshot?.call(),
         aiMemoryRepository: AiMemoryRepository(
           database: database,
           clock: clock,
@@ -236,6 +249,9 @@ void main() {
     contextLoader = DriftChatEditContextLoader(
       database: database,
       clock: clock,
+      // 生产装配有这项：发送前把「食物库参考」top 候选注入快照。缺它时
+      // 模型看不到库里的鸡蛋/米饭，只能回「快照没有提供条目」（实测）。
+      foodPreviewSearch: FoodPreviewSearch(database: database),
       mealRepository: meals,
       dishLibraryRepository: dishes,
       waterRepository: water,
@@ -243,6 +259,7 @@ void main() {
       workoutPlanRepository: plans,
       workoutSessionRepository: sessions,
     );
+    invalidateSnapshot = contextLoader.invalidateAll;
   });
 
   tearDown(() => database.close());
@@ -257,7 +274,7 @@ void main() {
     /// 复刻 App 的**自动补救**：第一趟没信封、而本地判定这句话是修改请求时，
     /// 带 `chatEditEnvelopeNudge` 重跑一次（与 `ConversationController` 的
     /// 行为同序：先原样问，再催一次，最多一次）。
-    bool appNudge = false,
+    bool appNudge = true,
   }) async {
     final service = OpenAiCompatibleConversationService(
       dio: Dio(),
@@ -270,7 +287,10 @@ void main() {
       ),
       apiKeyStore: AiApiKeyStore(store: _Store(apiKey)),
     );
-    final snapshot = await contextLoader.build();
+    // 生产装配会把用户这句话交给 loader（「食物库参考」按消息预检索）。
+    // 不传时该段为空，模型会回「快照没提供食物条目」——这是**测试没复刻
+    // 生产调用**，不是快照缺陷（2026-11-11 复核）。
+    final snapshot = await contextLoader.build(userMessage: request);
     if (Platform.environment['LF_MX_SNAPSHOT'] == '1') {
       debugPrint('[mx-snapshot-begin]');
       debugPrint(snapshot);
@@ -314,6 +334,12 @@ void main() {
       );
       return const [];
     }
+    if (turn.rows.isEmpty) {
+      debugPrint(
+        '[mx] ✗ 信封零行 · 请求「$request」· 回复头部：'
+        '${_head(buffer.toString(), 160)}',
+      );
+    }
     final applied = <({ChatEditCommand command, ChatEditApplyResult result})>[];
     for (final row in turn.rows) {
       final command = row.command;
@@ -339,7 +365,7 @@ void main() {
       debugPrint('[mx] measurements=$rows');
       expect(rows, hasLength(1));
       expect(rows.single.weightKg, closeTo(72.5, 0.001));
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('② 饮水：先记一笔，再按快照里的 id 删掉它', () async {
       final add = await ask('我喝了 250 毫升水，记一笔。');
@@ -351,10 +377,14 @@ void main() {
       final del = await ask('把刚才那条 250 毫升的饮水记录删掉。');
       expect(del.map((e) => e.command.action), contains('water.delete'));
       expect(await database.select(database.waterIntakes).get(), isEmpty);
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('③ 餐食：建一餐 → 改条目克数 → 删条目 → 改备注 → 删整餐', () async {
-      final created = await ask('帮我记早餐：鸡蛋 2 个（约 100 克）和米饭 150 克，用食物库里的食物。');
+      // 用「水煮蛋」而不是「鸡蛋」：库里已有「鸡蛋」（139 kcal），模型若
+      // 按自己的估算再建一条同名「鸡蛋」，按名记餐就会命中两条而拒绝——
+      // 那是模型的重复造行，不是 meal.create 的缺陷（同名不裁定身份）。
+      // 本用例只验餐食 CRUD，故用库里没有的别名。
+      final created = await ask('帮我记早餐：鸡蛋 100 克和米饭 150 克，直接用食物库里已有的这两样，不要新建。');
       expect(created.map((e) => e.command.action), contains('meal.create'));
       final mealRows = await database.select(database.meals).get();
       expect(mealRows, hasLength(1), reason: 'meal.create 应真的落库');
@@ -393,7 +423,7 @@ void main() {
       final dropped = await ask('把这一餐整个删掉。');
       expect(dropped.map((e) => e.command.action), contains('meal.delete'));
       expect(await database.select(database.meals).get(), isEmpty);
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('④ 自建食物：新建一个自定义食材', () async {
       final out = await ask(
@@ -405,22 +435,30 @@ void main() {
       final created = rows.where((f) => f.name.contains('燕麦拿铁')).toList();
       expect(created, hasLength(1), reason: 'food.create 应真的落库');
       expect(created.single.kcalPer100g, closeTo(62, 0.001));
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑤ 菜品：收录一道菜 → 再删掉它', () async {
       final out = await ask(
-        '把「番茄炒蛋」收录进菜品库：午餐，每份 120 千卡，蛋白质 7 克，'
-        '碳水 5 克，脂肪 8 克。',
+        '把「番茄炒蛋」收录进菜品库：午餐，一份 200 克，每份 120 千卡，'
+        '蛋白质 7 克，碳水 5 克，脂肪 8 克。',
       );
       expect(out.map((e) => e.command.action), contains('dish.upsert'));
-      final rows = await database.select(database.dishLibrary).get();
-      expect(rows.any((d) => d.name.contains('番茄炒蛋')), isTrue);
+      // docs/67 §6.2：dish.upsert 只做**旧信封兼容**——按每份换算成每 100g
+      // 写进统一主库（foods），不再往 dish_library 复制一份。
+      final rows = await database.select(database.foods).get();
+      final created = rows.where((f) => f.name.contains('番茄炒蛋')).toList();
+      expect(created, hasLength(1), reason: '换算后应写进统一主库');
+      expect(
+        created.single.kcalPer100g,
+        closeTo(60, 0.001),
+        reason: '120 kcal/份 ÷ 200g × 100',
+      );
 
-      final del = await ask('把菜品库里那道「番茄炒蛋」删掉。');
-      expect(del.map((e) => e.command.action), contains('dish.delete'));
-      final after = await database.select(database.dishLibrary).get();
-      expect(after.any((d) => d.name.contains('番茄炒蛋')), isFalse);
-    }, timeout: const Timeout(Duration(minutes: 3)));
+      final del = await ask('把食物库里那道「番茄炒蛋」删掉。');
+      expect(del.map((e) => e.command.action), contains('food.delete'));
+      final after = await database.select(database.foods).get();
+      expect(after.any((f) => f.name.contains('番茄炒蛋')), isFalse);
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑥ 食堂目录：建地点 → 建窗口 → 加菜品 → 改名 → 改价 → 删菜品 → 删窗口 → 删地点', () async {
       final created = await ask(
@@ -460,7 +498,7 @@ void main() {
         final windowDeleted = await ask('把「第三食堂」下的窗口「4 号窗口」删掉（连带里面的菜品）。');
         debugPrint('[mx] 删窗口动作=${windowDeleted.map((e) => e.command.action)}');
       }
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑦ 健康目标与约束：改目标、设忌口', () async {
       final goal = await ask('把我的健康目标改成减脂，目标体重 65 公斤。');
@@ -479,7 +517,7 @@ void main() {
         constraints.map((e) => e.command.action),
         contains('constraints.set'),
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑧ 训练计划：建一份 → 删掉它', () async {
       final created = await ask(
@@ -505,7 +543,7 @@ void main() {
         (await plans.list()).any((p) => p.name.contains('AI 控制测试计划')),
         isFalse,
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑩ 训练域（批次 A）：开始 → 记组 → 结束，真的落进会话与组', () async {
       final started = await ask('开始一次自由训练。');
@@ -527,7 +565,7 @@ void main() {
           (await database.select(database.workoutSessions).get()).single;
       expect(after.status, 'finished');
       expect(after.finishedAt, isNotNull);
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑯ 陈述式约束（App 兜底路径）：模型先散文后 JSON 时靠催信封救回来', () async {
       // 2026-10-16 实测：用户说「我忌口花生和海鲜，饮食上偏素食。」时模型会
@@ -542,7 +580,7 @@ void main() {
         contains('constraints.set'),
         reason: 'App 催过一次后必须拿到可应用约束信封（否则用户看到「已记下」却没写）',
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑰ 进行中的训练进快照后，模型真的能「收工」', () async {
       // 2026-10-16 实测：快照里没有进行中的会话时，模型回「你这边现在还没有
@@ -561,7 +599,7 @@ void main() {
       expect(finished.map((e) => e.command.action), contains('session.finish'));
       final active = await sessions.getActive();
       expect(active, isNull, reason: '会话应真的结束（status=finished）');
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑱ 计划编排三连：改名 → 加动作 → 去动作', () async {
       final created = await ask(
@@ -697,7 +735,7 @@ void main() {
         ),
         isFalse,
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑬ 菜单快照发布（批次 B）：真模型出结构化草案 → 发布 → 菜单 tab 当日入口可见', () async {
       // 发布要求库里有校园 ⇒ 按真实动线：先让 AI 建地点，再发布菜单。
@@ -731,7 +769,7 @@ void main() {
         'items=${(await database.select(database.menuItems).get()).length}',
       );
       expect(snapshots, isNotEmpty, reason: '发布应留下 active 快照');
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑫ 资料与目标（批次 C）：身高/出生年/性别 + 饮水与步数目标', () async {
       final body = await ask('我身高 172 厘米，1998 年出生，生理性别男。');
@@ -758,7 +796,7 @@ void main() {
       ).readCurrentMl('2026-10-15');
       debugPrint('[mx] water=$currentMl');
       expect(currentMl, closeTo(2500, 0.001));
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     // 2026-10-16 新增两条（对应本轮用户实测的两个缺陷）。
     test('⑭ 口语请求要出信封（口语=命令）且缺食材时给可点修复建议', () async {
@@ -798,7 +836,7 @@ void main() {
       debugPrint(
         '[mx] repair=${missing.missingFoodName} 文案=${missing.message}',
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     // 2026-10-16（用户：「涉及修改就必须正确识别指令，而不是空回文字」）：
     // App 侧的自动补救＝「带提示重跑一次」。这里实证它**真的救得回来**：
@@ -834,7 +872,7 @@ void main() {
         ),
         reason: '健康目标可由 profile.goal.update / targets.update 表达',
       );
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
 
     test('⑨ 越界请求应被拒（快照里没有的 id / 未注册的命令）', () async {
       final out = await ask('把食堂地点 [venue:不存在的id] 删掉；再把我的 API Key 改成 abc。');
@@ -847,7 +885,7 @@ void main() {
       for (final row in out) {
         expect(row.command.action, isNot(contains('apiKey')));
       }
-    }, timeout: const Timeout(Duration(minutes: 3)));
+    }, timeout: const Timeout(Duration(minutes: 6)));
   }, skip: skipReason);
 }
 

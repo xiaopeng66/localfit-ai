@@ -293,24 +293,46 @@ void main() {
     expect(out.message, contains('先 `canteen.dish.create` 再写营养'));
   });
 
-  test('v1/v2 建菜 + nutritionFrom=ai：明确失败（旧行为是静默无操作）', () async {
-    for (final contract in ['v1', 'v2']) {
-      final out = await executor.apply(
-        cmd('canteen.dish.create', {
-          'window': windowId,
-          'name': '测试菜$contract',
-          'nutritionFrom': 'ai',
-          if (contract == 'v2') 'contract': 'v2',
-        }),
-      );
-      expect(out.ok, isFalse, reason: '[$contract] ${out.message}');
-      expect(
-        out.message,
-        contains('canteen.dish.nutrition'),
-        reason: '[$contract]',
-      );
-    }
-    expect(await db.select(db.menuItems).get(), isEmpty, reason: '失败不建菜');
+  test('v1 建菜 + nutritionFrom=ai：建菜成功且如实说明营养未填', () async {
+    // 2026-11-11 复核：模型「建新菜+估营养」会在一张卡里发
+    // create(nutritionFrom=ai) + nutrition(window+name)。若 create 直接失败，
+    // 后面的 nutrition 就找不到菜——整张卡全灭（真模型实测）。v1 的 ai 只是
+    // 一个多余标记：建菜本身不需要营养参数，照建并说明「营养未填」。
+    final out = await executor.apply(
+      cmd('canteen.dish.create', {
+        'window': windowId,
+        'name': '测试菜v1',
+        'nutritionFrom': 'ai',
+      }),
+    );
+    expect(out.ok, isTrue, reason: out.message);
+    expect(out.message, contains('营养未填写'), reason: out.message);
+    expect(
+      out.message,
+      contains('canteen.dish.nutrition'),
+      reason: out.message,
+    );
+    final dishes = await canteen.listDishes(windowId);
+    expect(dishes.where((d) => d.name == '测试菜v1'), hasLength(1));
+    expect(await db.select(db.menuItemNutritionEvidence).get(), isEmpty);
+  });
+
+  test('v2 建菜 + nutritionFrom=ai：仍按契约拒绝（v2 要求 foodId/from=food）', () async {
+    final out = await executor.apply(
+      cmd('canteen.dish.create', {
+        'window': windowId,
+        'name': '测试菜v2',
+        'nutritionFrom': 'ai',
+        'contract': 'v2',
+      }),
+    );
+    expect(out.ok, isFalse, reason: out.message);
+    expect(out.message, contains('v2 契约'), reason: out.message);
+    expect(
+      (await canteen.listDishes(windowId)).where((d) => d.name == '测试菜v2'),
+      isEmpty,
+      reason: '契约不符不建菜',
+    );
   });
 
   test('v2 + nutritionFrom=food：不再被误伤（本地匹配决定）', () async {

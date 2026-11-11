@@ -51,6 +51,63 @@ void main() {
     expect(hits.first.kcalPer100g, 100);
   });
 
+  test('食物库预检索：长口语句子也要按词命中（不整句 LIKE）', () async {
+    // 2026-11-11 复核：真实模型对「帮我记早餐：米饭 100 克和紫米饭 150 克，
+    // 直接用食物库里已有的这两样，不要新建。」回「快照未提供食物库条目」。
+    // 根因是预检索把**整句**拿去 LIKE，长句必然零命中 ⇒ 模型看不到库里的食物。
+    final now2 = DateTime.utc(2026, 11, 11);
+    for (final name in ['米饭', '紫米饭']) {
+      await db
+          .into(db.foods)
+          .insert(
+            FoodsCompanion.insert(
+              id: 'long-$name',
+              name: name,
+              kcalPer100g: 116,
+              proteinPer100g: 2.6,
+              carbsPer100g: 25.9,
+              fatPer100g: 0.3,
+              source: 'catalog',
+              createdAt: now2,
+              updatedAt: now2,
+            ),
+          );
+    }
+    final hits = await deps.preview.search(
+      '帮我记早餐：米饭 100 克和紫米饭 150 克，直接用食物库里已有的这两样，不要新建。',
+    );
+    final names = hits.map((food) => food.name).toList();
+    expect(names, contains('米饭'));
+    expect(names, contains('紫米饭'));
+  });
+
+  test('食物库预检索：纯中文数量/餐次也要剥出食物名', () async {
+    // 真实模型实测（C03）：「午饭吃了一碗米饭和两个鸡蛋」时预检索为空，
+    // 模型于是自己 food.create 了同名食物，下一步按名记餐命中两条而拒绝。
+    final now3 = DateTime.utc(2026, 11, 11);
+    for (final name in ['米饭', '鸡蛋']) {
+      await db
+          .into(db.foods)
+          .insert(
+            FoodsCompanion.insert(
+              id: 'cq-$name',
+              name: name,
+              kcalPer100g: 116,
+              proteinPer100g: 2.6,
+              carbsPer100g: 25.9,
+              fatPer100g: 0.3,
+              source: 'catalog',
+              createdAt: now3,
+              updatedAt: now3,
+            ),
+          );
+    }
+    final hits = await deps.preview.search('午饭吃了一碗米饭和两个鸡蛋');
+    final names = hits.map((food) => food.name).toList();
+    expect(names, contains('米饭'));
+    expect(names, contains('鸡蛋'));
+  });
+
   test('食物库预检索：没有命中返回空（不编造）', () async {
     expect(await deps.preview.search('随便说点什么'), isEmpty);
     expect(await deps.preview.search(''), isEmpty);

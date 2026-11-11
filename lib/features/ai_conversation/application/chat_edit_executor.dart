@@ -67,6 +67,7 @@ final class ChatEditServices {
     this.foodReferenceService,
     this.foodCatalog,
     this.supplyCatalog,
+    this.onMutated,
   });
 
   final AppDatabase database;
@@ -109,6 +110,13 @@ final class ChatEditServices {
   /// 供应读取口：`meal.create` 的 `[canteen-dish:id]` 靠它解析。
   /// null = 未接线，退回旧菜品库映射（只读兼容）。
   final SupplyCatalogRepository? supplyCatalog;
+
+  /// 成功写入后的同步失效回调（2026-11-11 复核）。
+  ///
+  /// 快照 loader 靠 drift 的 tableUpdates **异步**标脏；写完立刻构建下一轮
+  /// 快照时事件还没送达，会读到旧缓存——实测「改名后模型仍说找不到新名字」
+  /// （于是给了空信封）。生产装配把它接到 loader 的同步失效上。
+  final void Function()? onMutated;
 }
 
 /// 把注册表里的 23 条命令落到真实仓储（docs/23 §2/§4）。
@@ -186,6 +194,11 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     }
     try {
       final result = await _applyOnce(command);
+      if (result.ok) {
+        // 2026-11-11 复核：快照段的 drift 失效是异步的，写完立刻构建下一轮
+        // 会读到旧缓存（实测「改名后模型仍说找不到新名字」）。成功即同步失效。
+        services.onMutated?.call();
+      }
       if (fingerprint != null && result.ok) {
         _recentApplies[fingerprint] = services.clock.nowUtc();
       }
@@ -865,13 +878,12 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         'nutritionFrom=food 由本地匹配决定。',
       );
     }
-    if (from == 'ai') {
-      // 旧实现这里静默无操作（模型以为写了营养，其实什么都没发生）。
-      return const ChatEditApplyResult.failure(
-        '建菜命令不带营养数值：营养估算请用 `canteen.dish.nutrition`'
-        '（可同卡先建菜，nutrition 用 window+name 定位新菜）。',
-      );
-    }
+    // v1 的 nutritionFrom=ai 只是一个多余标记：建菜命令本身没有营养参数。
+    // 2026-11-11 复核：真模型「建新菜+估营养」会发
+    // create(nutritionFrom=ai) + nutrition(window+name)；若这里直接拒绝，
+    // 后面的 nutrition 就找不到菜，整张卡全灭。改为照建 + 回执说明营养未填
+    // （仍有明确提示，不是旧版的静默无操作）；v2 的契约拒绝保留在上面。
+    final nutritionDeferred = from == 'ai';
 
     // 2026-11-04 Phase 3：建菜前先查「窗口 + 精确菜名」——同窗口同名就是
     // 同一道菜，直接引用，不再堆出第二张同名卡（createDish 本身无去重）。
@@ -949,7 +961,13 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
         ? '；份量未知（记餐时按克填）'
         : '，一份 ${_trimNumber(servingGrams)}g';
     final nutritionNote =
-        applied?.message ?? (linkedFoodId == null ? '' : '，营养取自主食物（每 100g）');
+        applied?.message ??
+        (linkedFoodId == null
+            ? (nutritionDeferred
+                  ? '；营养未填写（可用 `canteen.dish.nutrition` 补，'
+                        '或直接对菜品做 AI 分析）'
+                  : '')
+            : '，营养取自主食物（每 100g）');
     return ChatEditApplyResult.ok(
       '$createdNote$servingNote$nutritionNote。未记餐。',
     );
@@ -1452,16 +1470,40 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
     if (!current.isUserCreated) {
       return ChatEditApplyResult.failure('「${current.name}」是内置食物，不能修改。');
     }
+    // 2026-11-11 复核：部分更新。用户只说「热量改成 25」时三宏量没有依据，
+    // 旧实现要求全给 ⇒ 模型只能不出信封（真实模型实测空信封）。给什么改
+    // 什么，其余沿用当前值；一个字段都不给则明确拒绝。
+    const fields = [
+      'name',
+      'kcalPer100g',
+      'proteinPer100g',
+      'carbsPer100g',
+      'fatPer100g',
+      'servingGrams',
+      'brand',
+    ];
+    if (!fields.any(command.args.containsKey)) {
+      return const ChatEditApplyResult.failure(
+        '没说要改哪一项：名称、热量、蛋白、碳水、脂肪、一份克数或品牌至少给一个。',
+      );
+    }
     final updated = await services.foodRepository.update(
       id,
       NewFood(
-        name: command.args['name'] as String,
-        kcalPer100g: command.args['kcalPer100g'] as double,
-        proteinPer100g: command.args['proteinPer100g'] as double,
-        carbsPer100g: command.args['carbsPer100g'] as double,
-        fatPer100g: command.args['fatPer100g'] as double,
-        defaultServingGrams: command.args['servingGrams'] as double?,
-        brand: command.args['brand'] as String?,
+        name: (command.args['name'] as String?) ?? current.name,
+        kcalPer100g:
+            (command.args['kcalPer100g'] as double?) ?? current.kcalPer100g,
+        proteinPer100g:
+            (command.args['proteinPer100g'] as double?) ??
+            current.proteinPer100g,
+        carbsPer100g:
+            (command.args['carbsPer100g'] as double?) ?? current.carbsPer100g,
+        fatPer100g:
+            (command.args['fatPer100g'] as double?) ?? current.fatPer100g,
+        defaultServingGrams:
+            (command.args['servingGrams'] as double?) ??
+            current.defaultServingGrams,
+        brand: (command.args['brand'] as String?) ?? current.brand,
         // **保留原分类**：`update` 的语义是「把表单拥有的列写成表单里的
         // 样子」，而 AI 命令没有「种类」这个参数——传 null 会静默清掉
         // 用户自己选的分类。
@@ -1806,6 +1848,9 @@ final class RepositoryChatEditExecutor implements ChatEditExecutor {
   static const _snapshotIdAliases = {
     'water',
     'meal',
+    // 2026-11-11 复核：快照「进行中的训练」印的是 [session:<id>]，漏了这条
+    // ⇒ 模型照抄 sessionId 时不被剥前缀，set.log 报「会话不存在」。
+    'session',
     'item',
     'dish',
     'food',

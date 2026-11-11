@@ -13,6 +13,7 @@ import 'package:localfit_ai/features/ai_conversation/application/chat_edit_execu
 import 'package:localfit_ai/features/ai_memory/data/ai_memory_repository.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_executor.dart';
 import 'package:localfit_ai/features/ai_conversation/data/chat_edit_context_loader.dart';
+import 'package:localfit_ai/features/ai_conversation/data/food_preview_search.dart';
 import 'package:localfit_ai/features/ai_conversation/data/open_ai_compatible_conversation_service.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_command.dart';
 import 'package:localfit_ai/features/ai_conversation/domain/chat_edit/chat_edit_intent.dart';
@@ -221,6 +222,9 @@ void main() {
     contextLoader = DriftChatEditContextLoader(
       database: database,
       clock: clock,
+      // 生产装配有这项（食物库参考）；缺它时模型看不到库里的食物，
+      // 会自己 food.create 同名条目，下一步按名记餐命中两条被拒。
+      foodPreviewSearch: FoodPreviewSearch(database: database),
       mealRepository: meals,
       dishLibraryRepository: dishes,
       waterRepository: water,
@@ -247,7 +251,7 @@ void main() {
       ),
       apiKeyStore: AiApiKeyStore(store: _Store(apiKey)),
     );
-    final snapshot = await contextLoader.build();
+    final snapshot = await contextLoader.build(userMessage: request);
     final chunks = <String>[];
     final buffer = StringBuffer();
     await service
@@ -756,14 +760,21 @@ void main() {
     );
 
     test(
-      'C18 收录口语：「把番茄炒蛋收录到菜品库（晚餐）」→ dish.upsert',
+      'C18 收录口语：只给每 100g 不给份量 → dish.upsert 如实拒绝换算',
       () async {
+        // docs/67 §6.2：dish.upsert 是**旧「每份」信封**的兼容入口，必须有
+        // 一份多少克才能换算成每 100g。用户只说「每 100 克 120 千卡」时，
+        // 正确行为是给出可行动失败（补克数 / 按每 100g 新建），**不是**把
+        // 每 100g 当成每份写库。成功路径由控制矩阵 ⑤（带 200g）覆盖。
         final out = await ask('把番茄炒蛋收录到菜品库，归到晚餐，每 100 克大概 120 千卡。');
         expect(actionsOf(out), contains('dish.upsert'));
+        final failed = out.firstWhere((e) => e.command.action == 'dish.upsert');
+        expect(failed.result.ok, isFalse, reason: failed.result.message);
+        expect(failed.result.message, contains('克'));
         final rows = await database.select(database.dishLibrary).get();
-        expect(rows.map((row) => row.name), contains('番茄炒蛋'));
+        expect(rows.map((row) => row.name), isNot(contains('番茄炒蛋')));
       },
-      timeout: const Timeout(Duration(minutes: 3)),
+      timeout: const Timeout(Duration(minutes: 6)),
       skip: skipReason,
     );
 

@@ -28,8 +28,15 @@ final class FoodPreviewSearch {
   }) async {
     final query = message.trim();
     if (query.isEmpty || limit <= 0) return const [];
-    final normalized = _stripCommonPhrases(query);
-    final candidates = <String>{?normalized, query};
+    // 2026-11-11 复核：候选词不能只有「整句」或「动词后一个词」。用户的长句
+    // （「帮我记早餐：米饭 100 克和紫米饭 150 克，…」）整句 LIKE 必然零命中，
+    // 模型就看不到库里的食物（实测回「快照未提供条目」）。这里按标点/连词
+    // 切词、剥掉数量与单位，再逐个查；整句仍保留作兜底。
+    final candidates = <String>{
+      ?_stripCommonPhrases(query),
+      query,
+      ..._keywordTerms(query),
+    }.take(_maxPreviewTerms);
     final result = <String, FoodRecord>{};
     for (final term in candidates) {
       if (term.trim().isEmpty) continue;
@@ -105,6 +112,48 @@ final class FoodPreviewSearch {
             .get();
     return rows.map(_map).toList(growable: false);
   }
+
+  /// 长句 → 可能的食物词（尽力而为，不做 NLP）。
+  ///
+  /// 按标点/连词切分，去掉开头的人称与动词、结尾的「数字 + 单位 + 余下说明」，
+  /// 只保留 2–12 字的候选。命中与否仍由 SQL 决定，这里只负责别把整句塞给 LIKE。
+  static Iterable<String> _keywordTerms(String message) sync* {
+    final parts = message.split(RegExp(r'[，。；：、,.;:!?！？\s]|和|与|跟|还有|以及'));
+    for (final raw in parts) {
+      var token = raw.trim();
+      if (token.isEmpty) continue;
+      token = token.replaceFirst(
+        RegExp(r'^(帮我|请|给我|我要|我想|然后|再|把|将|记一下|记录|添加|加进)+'),
+        '',
+      );
+      // 餐次 + 吃了/喝了 + 中文数量 + 单位（「午饭吃了一碗米饭」→「米饭」）。
+      // 单位必须命中白名单，避免误伤「三文鱼」「半熟芝士」这类名字。
+      token = token.replaceFirst(
+        RegExp(
+          r'^(?:早饭|早餐|午饭|午餐|晚饭|晚餐|夜宵|加餐|今天|刚才|我)?'
+          r'(?:吃了|喝了|吃|喝|了)*'
+          r'(?:(?:[0-9０-９一二两三四五六七八九十半]+)'
+          r'(?:碗|个|杯|份|根|块|片|勺|盒|袋|瓶|只|颗|串|盘))+',
+        ),
+        '',
+      );
+      // 从第一个数量/单位处截断（「米饭 100 克」→「米饭」）。
+      token = token
+          .replaceFirst(
+            RegExp(
+              // 只在**出现数字**处截断：食物名本身可能含「三/半/两」
+              // （三文鱼、半熟芝士），不能用中文数字当分隔。
+              r'\s*[0-9０-９]+\s*'
+              r'(?:克|g|G|毫升|ml|ML|个|只|碗|杯|份|根|块|片|勺|盒|袋|瓶)?.*$',
+            ),
+            '',
+          )
+          .trim();
+      if (token.length >= 2 && token.length <= 12) yield token;
+    }
+  }
+
+  static const int _maxPreviewTerms = 6;
 
   /// 「我早上吃了 200 克米饭和两个鸡蛋」→「米饭」这类**尽力而为**的裁剪：
   /// 只剥常见动词短语，不做真正的 NLP；剥不出就原样查整句（LIKE 兜底）。

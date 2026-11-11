@@ -260,6 +260,21 @@ void main() {
       expect(builtinDelete.ok, isFalse);
       expect(builtinDelete.message, contains('内置'));
 
+      // 2026-11-11 复核：真模型说「只把热量改成 25」时，food.update 要求
+      // 名称+三宏量全给 ⇒ 模型要么编数（被接地拒绝）要么干脆不出信封
+      // （真实模型实测：空信封）。只给变化的字段，其余沿用当前值。
+      final partial = await executor.apply(
+        cmd('food.update', {'foodId': row.id, 'kcalPer100g': 75}),
+      );
+      expect(partial.ok, isTrue, reason: partial.message);
+      final partialRow = (await database.select(database.foods).get())
+          .firstWhere((f) => f.id == row.id);
+      expect(partialRow.kcalPer100g, 75);
+      expect(partialRow.name, '测试燕麦饮（改）', reason: '没给名称就不动名称');
+      expect(partialRow.proteinPer100g, 2.0, reason: '没给蛋白就沿用旧值');
+      expect(partialRow.carbsPer100g, 10);
+      expect(partialRow.fatPer100g, 2.5);
+
       final deleted = await executor.apply(
         cmd('food.delete', {'foodId': row.id}),
       );
@@ -1968,6 +1983,21 @@ void main() {
       database.menuItems,
     )..where((item) => item.id.equals(dishId))).getSingle();
     expect(row.servingGrams, isNull, reason: '拒绝时份量不写半截');
+  });
+
+  // 2026-11-11 复核：快照会印 `[session:<id>]`，但别名表漏了 `session`。
+  // 模型照抄成 sessionId 时不会被剥前缀 ⇒「训练会话不存在」（真实模型实测）。
+  test('快照别名 session: 会被剥成裸 id', () {
+    expect(
+      RepositoryChatEditExecutor.normalizeTargetId('session:mx-22'),
+      'mx-22',
+    );
+    expect(
+      RepositoryChatEditExecutor.normalizeTargetId('[session:mx-22]'),
+      'mx-22',
+    );
+    // 其它前缀照旧
+    expect(RepositoryChatEditExecutor.normalizeTargetId('wplan:mx-1'), 'mx-1');
   });
 
   // 2026-10-16：修复建议扩到缺动作/缺地点/缺窗口（用户要求「1、2 都要」）。
